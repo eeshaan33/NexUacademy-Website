@@ -19,6 +19,7 @@ async def create_bookmark(
     """
     Create a bookmark.
     """
+    db = get_database()
     user = await get_current_user(request)
     
     # Check if bookmark already exists
@@ -51,6 +52,7 @@ async def get_bookmarks(request: Request):
     """
     Get all bookmarks for current user.
     """
+    db = get_database()
     user = await get_current_user(request)
     
     bookmarks = await db.bookmarks.find(
@@ -77,6 +79,7 @@ async def delete_bookmark(bookmark_id: str, request: Request):
     """
     Delete a bookmark.
     """
+    db = get_database()
     user = await get_current_user(request)
     
     result = await db.bookmarks.delete_one({
@@ -101,6 +104,7 @@ async def update_bookmark(
     """
     Update bookmark notes.
     """
+    db = get_database()
     user = await get_current_user(request)
     
     result = await db.bookmarks.update_one(

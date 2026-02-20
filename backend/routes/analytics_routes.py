@@ -15,6 +15,7 @@ async def get_dashboard_analytics(request: Request):
     """
     Get overall performance dashboard data.
     """
+    db = get_database()
     user = await get_current_user(request)
     
     # Get all test attempts
@@ -62,6 +63,7 @@ async def get_subject_wise_performance(request: Request):
     """
     Get subject-wise performance.
     """
+    db = get_database()
     user = await get_current_user(request)
     
     # Get all test attempts with answers
@@ -104,6 +106,7 @@ async def get_chapter_wise_performance(request: Request):
     """
     Get chapter-wise performance with heatmap data.
     """
+    db = get_database()
     user = await get_current_user(request)
     
     # Get all test attempts
@@ -146,6 +149,7 @@ async def get_weak_topics(request: Request):
     """
     Get weak topics (accuracy < 50%).
     """
+    db = get_database()
     user = await get_current_user(request)
     
     # Get all test attempts
@@ -194,6 +198,7 @@ async def get_progress_over_time(request: Request):
     """
     Get progress over last 30 days.
     """
+    db = get_database()
     user = await get_current_user(request)
     
     # Get attempts from last 30 days

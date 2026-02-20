@@ -20,6 +20,7 @@ async def create_test(
     """
     Create a new test (teacher or student for custom tests).
     """
+    db = get_database()
     user = await get_current_user(request)
     
     # Teachers can create assigned tests, students can only create custom tests
@@ -51,6 +52,7 @@ async def get_assigned_tests(request: Request):
     """
     Get tests assigned to current user.
     """
+    db = get_database()
     user = await get_current_user(request)
     
     # Find tests assigned to this user or their batch
@@ -75,6 +77,7 @@ async def get_custom_tests(request: Request):
     """
     Get custom tests created by current user.
     """
+    db = get_database()
     user = await get_current_user(request)
     
     tests = await db.tests.find(
@@ -89,6 +92,7 @@ async def get_test(test_id: str, request: Request):
     """
     Get test details.
     """
+    db = get_database()
     user = await get_current_user(request)
     
     test = await db.tests.find_one(
@@ -117,6 +121,7 @@ async def start_test(test_id: str, request: Request):
     """
     Start a test attempt.
     """
+    db = get_database()
     user = await get_current_user(request)
     
     # Check if test exists
@@ -153,6 +158,7 @@ async def save_answer(attempt_id: str, answer: AnswerSubmission, request: Reques
     """
     Save/update answer during test.
     """
+    db = get_database()
     user = await get_current_user(request)
     
     # Get attempt
@@ -204,6 +210,7 @@ async def submit_test(attempt_id: str, request: Request):
     """
     Submit test and calculate score.
     """
+    db = get_database()
     user = await get_current_user(request)
     
     # Get attempt
@@ -269,6 +276,7 @@ async def get_test_results(attempt_id: str, request: Request):
     """
     Get detailed test results.
     """
+    db = get_database()
     user = await get_current_user(request)
     
     attempt = await db.test_attempts.find_one(

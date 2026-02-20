@@ -17,6 +17,7 @@ async def create_question(
     """
     Create a new question (teacher only).
     """
+    db = get_database()
     user = await get_current_teacher(request)
     db = get_database()
     
@@ -85,6 +86,7 @@ async def get_syllabus():
     """
     Get complete JEE syllabus.
     """
+    db = get_database()
     return JEE_SYLLABUS
 
 @router.get("/syllabus/{subject}")
@@ -92,6 +94,7 @@ async def get_subject_syllabus(subject: str):
     """
     Get syllabus for a specific subject.
     """
+    db = get_database()
     if subject not in JEE_SYLLABUS:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -125,6 +128,7 @@ async def get_question(question_id: str):
     """
     Get a single question by ID.
     """
+    db = get_database()
     question = await db.questions.find_one(
         {"question_id": question_id},
         {"_id": 0}
@@ -143,6 +147,7 @@ async def delete_question(question_id: str, request: Request):
     """
     Delete a question (teacher only).
     """
+    db = get_database()
     user = await get_current_teacher(request)
     
     result = await db.questions.delete_one({"question_id": question_id})

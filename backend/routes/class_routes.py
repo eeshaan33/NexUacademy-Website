@@ -20,6 +20,7 @@ async def create_class(
     """
     Create a new class (teacher only).
     """
+    db = get_database()
     user = await get_current_teacher(request)
     
     class_id = f"class_{uuid.uuid4().hex[:12]}"
@@ -41,6 +42,7 @@ async def get_classes(request: Request):
     """
     Get classes for current user's batch.
     """
+    db = get_database()
     user = await get_current_user(request)
     
     filter_query = {}
@@ -64,6 +66,7 @@ async def get_upcoming_classes(request: Request):
     """
     Get upcoming classes.
     """
+    db = get_database()
     user = await get_current_user(request)
     
     filter_query = {
@@ -88,6 +91,7 @@ async def get_class(class_id: str, request: Request):
     """
     Get class details.
     """
+    db = get_database()
     user = await get_current_user(request)
     
     class_doc = await db.classes.find_one(
@@ -112,6 +116,7 @@ async def update_class(
     """
     Update class details (teacher only).
     """
+    db = get_database()
     user = await get_current_teacher(request)
     
     result = await db.classes.update_one(
@@ -132,6 +137,7 @@ async def mark_attendance(class_id: str, request: Request):
     """
     Mark attendance for a class.
     """
+    db = get_database()
     user = await get_current_user(request)
     
     # Add user to attendance list if not already present
