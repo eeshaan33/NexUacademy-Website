@@ -1,10 +1,380 @@
-# Complete JEE Syllabus Data
+# Complete JEE Syllabus Data (NCERT/JEE Official Chapter Names)
 
 JEE_SYLLABUS = {
     "Physics": {
         "Class11": [
             {
-                "chapter": "Physical World and Measurement",
+                "chapter": "Units and Measurements",
+                "topics": ["Units", "Dimensions", "Dimensional Analysis", "Significant Figures", "Errors in Measurement"]
+            },
+            {
+                "chapter": "Motion in a Straight Line",
+                "topics": ["Position and Displacement", "Velocity", "Acceleration", "Equations of Motion", "Relative Velocity"]
+            },
+            {
+                "chapter": "Motion in a Plane",
+                "topics": ["Vectors", "Projectile Motion", "Uniform Circular Motion", "Relative Velocity in 2D"]
+            },
+            {
+                "chapter": "Laws of Motion",
+                "topics": ["Newton's Laws", "Friction", "Circular Motion", "Inertial Frames", "Pseudo Forces"]
+            },
+            {
+                "chapter": "Work, Energy and Power",
+                "topics": ["Work", "Kinetic Energy", "Potential Energy", "Conservation of Energy", "Power", "Collisions"]
+            },
+            {
+                "chapter": "System of Particles and Rotational Motion",
+                "topics": ["Centre of Mass", "Torque", "Angular Momentum", "Moment of Inertia", "Rolling Motion"]
+            },
+            {
+                "chapter": "Gravitation",
+                "topics": ["Universal Law of Gravitation", "Gravitational Potential", "Escape Velocity", "Satellites", "Kepler's Laws"]
+            },
+            {
+                "chapter": "Mechanical Properties of Solids",
+                "topics": ["Elasticity", "Stress and Strain", "Hooke's Law", "Young's Modulus", "Bulk Modulus"]
+            },
+            {
+                "chapter": "Mechanical Properties of Fluids",
+                "topics": ["Pressure", "Viscosity", "Surface Tension", "Bernoulli's Theorem", "Fluid Flow"]
+            },
+            {
+                "chapter": "Thermal Properties of Matter",
+                "topics": ["Heat", "Temperature", "Specific Heat", "Calorimetry", "Change of State", "Heat Transfer"]
+            },
+            {
+                "chapter": "Thermodynamics",
+                "topics": ["Thermal Equilibrium", "First Law", "Heat Engines", "Carnot Engine", "Second Law"]
+            },
+            {
+                "chapter": "Kinetic Theory",
+                "topics": ["Molecular Nature of Matter", "Gas Laws", "Kinetic Theory", "Mean Free Path"]
+            },
+            {
+                "chapter": "Oscillations",
+                "topics": ["Simple Harmonic Motion", "Spring-Mass System", "Simple Pendulum", "Energy in SHM"]
+            },
+            {
+                "chapter": "Waves",
+                "topics": ["Wave Motion", "Sound Waves", "Doppler Effect", "Beats", "Standing Waves"]
+            }
+        ],
+        "Class12": [
+            {
+                "chapter": "Electric Charges and Fields",
+                "topics": ["Electric Charge", "Coulomb's Law", "Electric Field", "Electric Dipole", "Gauss's Law"]
+            },
+            {
+                "chapter": "Electrostatic Potential and Capacitance",
+                "topics": ["Electric Potential", "Potential Energy", "Capacitors", "Dielectrics", "Energy Stored"]
+            },
+            {
+                "chapter": "Current Electricity",
+                "topics": ["Electric Current", "Ohm's Law", "Resistance", "Kirchhoff's Laws", "Wheatstone Bridge"]
+            },
+            {
+                "chapter": "Moving Charges and Magnetism",
+                "topics": ["Magnetic Force", "Biot-Savart Law", "Ampere's Law", "Lorentz Force", "Cyclotron"]
+            },
+            {
+                "chapter": "Magnetism and Matter",
+                "topics": ["Bar Magnet", "Magnetic Field Lines", "Earth's Magnetism", "Magnetic Materials"]
+            },
+            {
+                "chapter": "Electromagnetic Induction",
+                "topics": ["Faraday's Law", "Lenz's Law", "Motional EMF", "Inductance", "AC Generator"]
+            },
+            {
+                "chapter": "Alternating Current",
+                "topics": ["AC Voltage", "Phasors", "LCR Circuits", "Resonance", "Power in AC", "Transformer"]
+            },
+            {
+                "chapter": "Electromagnetic Waves",
+                "topics": ["Displacement Current", "Maxwell's Equations", "EM Spectrum", "Properties of EM Waves"]
+            },
+            {
+                "chapter": "Ray Optics and Optical Instruments",
+                "topics": ["Reflection", "Refraction", "Total Internal Reflection", "Lenses", "Mirrors", "Optical Instruments"]
+            },
+            {
+                "chapter": "Wave Optics",
+                "topics": ["Huygens Principle", "Interference", "Young's Double Slit", "Diffraction", "Polarization"]
+            },
+            {
+                "chapter": "Dual Nature of Radiation and Matter",
+                "topics": ["Photoelectric Effect", "Einstein's Equation", "de Broglie Wavelength", "Davisson-Germer"]
+            },
+            {
+                "chapter": "Atoms",
+                "topics": ["Thomson Model", "Rutherford Model", "Bohr Model", "Hydrogen Spectrum", "Energy Levels"]
+            },
+            {
+                "chapter": "Nuclei",
+                "topics": ["Nuclear Structure", "Radioactivity", "Nuclear Reactions", "Mass-Energy Relation", "Binding Energy"]
+            },
+            {
+                "chapter": "Semiconductor Electronics",
+                "topics": ["Semiconductors", "p-n Junction", "Diode Applications", "Transistors", "Logic Gates"]
+            },
+            {
+                "chapter": "Communication Systems",
+                "topics": ["Elements of Communication", "Bandwidth", "Modulation", "Amplitude Modulation"]
+            }
+        ]
+    },
+    
+    "Chemistry": {
+        "Class11": [
+            {
+                "chapter": "Some Basic Concepts of Chemistry",
+                "topics": ["Matter", "Atomic Mass", "Molecular Mass", "Mole Concept", "Stoichiometry", "Limiting Reagent"]
+            },
+            {
+                "chapter": "Structure of Atom",
+                "topics": ["Sub-atomic Particles", "Atomic Models", "Bohr Model", "Quantum Numbers", "Electronic Configuration"]
+            },
+            {
+                "chapter": "Classification of Elements and Periodicity",
+                "topics": ["Modern Periodic Table", "Periodic Trends", "Ionization Energy", "Electron Affinity", "Electronegativity"]
+            },
+            {
+                "chapter": "Chemical Bonding and Molecular Structure",
+                "topics": ["Ionic Bonding", "Covalent Bonding", "Lewis Structures", "VSEPR Theory", "Hybridization", "Molecular Orbital Theory"]
+            },
+            {
+                "chapter": "States of Matter",
+                "topics": ["Gaseous State", "Liquid State", "Solid State", "Intermolecular Forces"]
+            },
+            {
+                "chapter": "Thermodynamics",
+                "topics": ["System and Surroundings", "First Law", "Enthalpy", "Hess's Law", "Entropy", "Gibbs Free Energy"]
+            },
+            {
+                "chapter": "Equilibrium",
+                "topics": ["Chemical Equilibrium", "Law of Mass Action", "Le Chatelier's Principle", "Ionic Equilibrium", "pH", "Buffer Solutions", "Solubility Product"]
+            },
+            {
+                "chapter": "Redox Reactions",
+                "topics": ["Oxidation and Reduction", "Oxidation Number", "Balancing Redox Reactions", "Redox Reactions in Solutions"]
+            },
+            {
+                "chapter": "Hydrogen",
+                "topics": ["Position in Periodic Table", "Isotopes", "Hydrides", "Water", "Hydrogen Peroxide"]
+            },
+            {
+                "chapter": "The s-Block Elements",
+                "topics": ["Alkali Metals", "Alkaline Earth Metals", "Trends in Properties", "Important Compounds"]
+            },
+            {
+                "chapter": "The p-Block Elements",
+                "topics": ["Group 13 Elements", "Group 14 Elements", "Allotropes of Carbon"]
+            },
+            {
+                "chapter": "Organic Chemistry - Some Basic Principles",
+                "topics": ["IUPAC Nomenclature", "Isomerism", "Functional Groups", "Inductive Effect", "Resonance", "Hyperconjugation"]
+            },
+            {
+                "chapter": "Hydrocarbons",
+                "topics": ["Alkanes", "Alkenes", "Alkynes", "Aromatic Hydrocarbons", "Reactions and Mechanisms"]
+            },
+            {
+                "chapter": "Environmental Chemistry",
+                "topics": ["Air Pollution", "Water Pollution", "Soil Pollution", "Green Chemistry"]
+            }
+        ],
+        "Class12": [
+            {
+                "chapter": "The Solid State",
+                "topics": ["Crystal Lattice", "Unit Cell", "Packing Efficiency", "Imperfections", "Electrical Properties"]
+            },
+            {
+                "chapter": "Solutions",
+                "topics": ["Types of Solutions", "Concentration", "Raoult's Law", "Colligative Properties", "Osmosis"]
+            },
+            {
+                "chapter": "Electrochemistry",
+                "topics": ["Electrochemical Cells", "Nernst Equation", "Conductance", "Electrolysis", "Batteries", "Corrosion"]
+            },
+            {
+                "chapter": "Chemical Kinetics",
+                "topics": ["Rate of Reaction", "Order and Molecularity", "Rate Laws", "Half-Life", "Collision Theory", "Arrhenius Equation"]
+            },
+            {
+                "chapter": "Surface Chemistry",
+                "topics": ["Adsorption", "Catalysis", "Colloids", "Emulsions"]
+            },
+            {
+                "chapter": "General Principles of Isolation of Elements",
+                "topics": ["Occurrence of Metals", "Concentration", "Extraction", "Refining", "Metallurgical Processes"]
+            },
+            {
+                "chapter": "The p-Block Elements",
+                "topics": ["Group 15 Elements", "Group 16 Elements", "Group 17 Elements", "Group 18 Elements"]
+            },
+            {
+                "chapter": "The d- and f-Block Elements",
+                "topics": ["Transition Elements", "Properties", "Oxidation States", "Lanthanoids", "Actinoids"]
+            },
+            {
+                "chapter": "Coordination Compounds",
+                "topics": ["Werner's Theory", "Nomenclature", "Isomerism", "Bonding", "Crystal Field Theory"]
+            },
+            {
+                "chapter": "Haloalkanes and Haloarenes",
+                "topics": ["Nomenclature", "Preparation", "Properties", "Reactions", "Substitution", "Elimination"]
+            },
+            {
+                "chapter": "Alcohols, Phenols and Ethers",
+                "topics": ["Nomenclature", "Preparation", "Properties", "Reactions", "Distinction"]
+            },
+            {
+                "chapter": "Aldehydes, Ketones and Carboxylic Acids",
+                "topics": ["Nomenclature", "Preparation", "Properties", "Nucleophilic Addition", "Oxidation"]
+            },
+            {
+                "chapter": "Amines",
+                "topics": ["Classification", "Nomenclature", "Preparation", "Properties", "Diazonium Salts"]
+            },
+            {
+                "chapter": "Biomolecules",
+                "topics": ["Carbohydrates", "Proteins", "Amino Acids", "Enzymes", "Vitamins", "Nucleic Acids"]
+            },
+            {
+                "chapter": "Polymers",
+                "topics": ["Classification", "Types of Polymerization", "Important Polymers", "Biodegradable Polymers"]
+            },
+            {
+                "chapter": "Chemistry in Everyday Life",
+                "topics": ["Drugs and Medicines", "Antibiotics", "Analgesics", "Tranquilizers", "Food Preservatives"]
+            }
+        ]
+    },
+    
+    "Mathematics": {
+        "Class11": [
+            {
+                "chapter": "Sets",
+                "topics": ["Set Operations", "Venn Diagrams", "Union", "Intersection", "Complement"]
+            },
+            {
+                "chapter": "Relations and Functions",
+                "topics": ["Cartesian Product", "Relations", "Types of Relations", "Functions", "Types of Functions"]
+            },
+            {
+                "chapter": "Trigonometric Functions",
+                "topics": ["Angles", "Trigonometric Ratios", "Trigonometric Identities", "Trigonometric Equations"]
+            },
+            {
+                "chapter": "Principle of Mathematical Induction",
+                "topics": ["Principle of Mathematical Induction", "Applications"]
+            },
+            {
+                "chapter": "Complex Numbers and Quadratic Equations",
+                "topics": ["Complex Numbers", "Algebraic Operations", "Argand Plane", "Modulus", "Quadratic Equations"]
+            },
+            {
+                "chapter": "Linear Inequalities",
+                "topics": ["Algebraic Solutions", "Graphical Solution", "System of Inequalities"]
+            },
+            {
+                "chapter": "Permutations and Combinations",
+                "topics": ["Fundamental Principle of Counting", "Permutations", "Combinations"]
+            },
+            {
+                "chapter": "Binomial Theorem",
+                "topics": ["Binomial Expansion", "General Term", "Middle Term", "Properties of Binomial Coefficients"]
+            },
+            {
+                "chapter": "Sequences and Series",
+                "topics": ["Arithmetic Progression", "Geometric Progression", "Special Series"]
+            },
+            {
+                "chapter": "Straight Lines",
+                "topics": ["Slope", "Various Forms", "Distance", "Angle Between Lines"]
+            },
+            {
+                "chapter": "Conic Sections",
+                "topics": ["Circle", "Parabola", "Ellipse", "Hyperbola"]
+            },
+            {
+                "chapter": "Introduction to Three Dimensional Geometry",
+                "topics": ["Coordinate System", "Distance Formula", "Section Formula", "Direction Cosines"]
+            },
+            {
+                "chapter": "Limits and Derivatives",
+                "topics": ["Limits", "Derivatives", "Differentiation from First Principles"]
+            },
+            {
+                "chapter": "Mathematical Reasoning",
+                "topics": ["Statements", "Logical Operations", "Implications", "Validating Statements"]
+            },
+            {
+                "chapter": "Statistics",
+                "topics": ["Measures of Dispersion", "Mean Deviation", "Variance", "Standard Deviation"]
+            },
+            {
+                "chapter": "Probability",
+                "topics": ["Random Experiments", "Sample Space", "Events", "Addition Theorem", "Conditional Probability"]
+            }
+        ],
+        "Class12": [
+            {
+                "chapter": "Relations and Functions",
+                "topics": ["Types of Relations", "Types of Functions", "Composition", "Invertible Functions", "Binary Operations"]
+            },
+            {
+                "chapter": "Inverse Trigonometric Functions",
+                "topics": ["Domain and Range", "Properties", "Graphs"]
+            },
+            {
+                "chapter": "Matrices",
+                "topics": ["Types of Matrices", "Operations", "Transpose", "Symmetric Matrices", "Elementary Operations"]
+            },
+            {
+                "chapter": "Determinants",
+                "topics": ["Properties", "Minors and Cofactors", "Adjoint", "Inverse", "Applications"]
+            },
+            {
+                "chapter": "Continuity and Differentiability",
+                "topics": ["Continuity", "Differentiability", "Chain Rule", "Derivatives of Inverse Functions", "Rolle's Theorem", "Mean Value Theorem"]
+            },
+            {
+                "chapter": "Application of Derivatives",
+                "topics": ["Rate of Change", "Tangents and Normals", "Increasing and Decreasing", "Maxima and Minima"]
+            },
+            {
+                "chapter": "Integrals",
+                "topics": ["Integration Methods", "Substitution", "By Parts", "Partial Fractions", "Definite Integrals"]
+            },
+            {
+                "chapter": "Application of Integrals",
+                "topics": ["Area Under Curves", "Area Between Curves"]
+            },
+            {
+                "chapter": "Differential Equations",
+                "topics": ["Order and Degree", "Formation", "Solutions", "Variables Separable", "Linear Differential Equations"]
+            },
+            {
+                "chapter": "Vector Algebra",
+                "topics": ["Vectors", "Addition", "Scalar Multiplication", "Dot Product", "Cross Product", "Scalar Triple Product"]
+            },
+            {
+                "chapter": "Three Dimensional Geometry",
+                "topics": ["Direction Cosines", "Equation of Line", "Equation of Plane", "Angle Between Lines", "Shortest Distance"]
+            },
+            {
+                "chapter": "Linear Programming",
+                "topics": ["Introduction", "Graphical Method", "Feasible Region", "Optimal Solution"]
+            },
+            {
+                "chapter": "Probability",
+                "topics": ["Conditional Probability", "Multiplication Theorem", "Independent Events", "Bayes' Theorem", "Random Variables", "Probability Distributions"]
+            }
+        ]
+    }
+}
+
                 "topics": ["Units and Dimensions", "Dimensional Analysis", "Significant Figures", "Errors in Measurement", "Measuring Instruments"]
             },
             {
