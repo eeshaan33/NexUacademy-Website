@@ -1,0 +1,213 @@
+{
+  "project_name": "JEE Master",
+  "version": "1.0.0",
+  "last_updated": "2026-05-20",
+  "design_philosophy": {
+    "core_identity": "The Organized Mind",
+    "emotional_goal": "Calm, Focused, Encouraging, Structured",
+    "visual_style": "Modern Minimalist Education",
+    "key_principles": [
+      "Clarity over Decoration: Content is dense (questions, formulas), so UI must be invisible.",
+      "Soft Guidance: Use pastel colors to categorize, not to shout.",
+      "Generous Whitespace: Reduce cognitive load for stressed students.",
+      "Rounded & Friendly: Avoid sharp corporate edges. Make it feel approachable."
+    ]
+  },
+  "typography": {
+    "font_family": {
+      "headings": "Plus Jakarta Sans, sans-serif",
+      "body": "Inter, sans-serif",
+      "code": "JetBrains Mono, monospace"
+    },
+    "scale": {
+      "h1": "text-4xl font-bold tracking-tight lg:text-5xl",
+      "h2": "text-3xl font-semibold tracking-tight",
+      "h3": "text-2xl font-semibold tracking-tight",
+      "h4": "text-xl font-medium tracking-tight",
+      "body_lg": "text-lg leading-relaxed",
+      "body": "text-base leading-relaxed",
+      "small": "text-sm font-medium leading-none",
+      "tiny": "text-xs font-medium uppercase tracking-wider text-muted-foreground"
+    },
+    "weights": {
+      "regular": 400,
+      "medium": 500,
+      "semibold": 600,
+      "bold": 700
+    },
+    "installation": "Import via Google Fonts in index.css: @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap');"
+  },
+  "colors": {
+    "theme": "light",
+    "palette": {
+      "background": {
+        "primary": "#F8F9FA",
+        "secondary": "#FFFFFF",
+        "sidebar": "#E9ECEF",
+        "surface": "#FFFFFF"
+      },
+      "foreground": {
+        "primary": "#1F2937",
+        "secondary": "#64748B",
+        "muted": "#94A3B8"
+      },
+      "brand": {
+        "primary": "#007BFF",
+        "primary_foreground": "#FFFFFF",
+        "secondary": "#F1F5F9",
+        "accent": "#0056b3"
+      },
+      "subjects": {
+        "physics": {
+          "base": "#E3F2FD",
+          "text": "#0288D1",
+          "border": "#B3E5FC"
+        },
+        "chemistry": {
+          "base": "#E8F5E9",
+          "text": "#388E3C",
+          "border": "#C8E6C9"
+        },
+        "math": {
+          "base": "#FFEBEE",
+          "text": "#D32F2F",
+          "border": "#FFCDD2"
+        }
+      },
+      "functional": {
+        "success": "#10B981",
+        "warning": "#F59E0B",
+        "error": "#EF4444",
+        "info": "#3B82F6"
+      },
+      "dashboard_cards": {
+        "pyq": "#E0DFFB",
+        "my_tests": "#E8F5E9",
+        "assigned_tests": "#FFF8DC",
+        "classes": "#FFE0E6",
+        "analytics": "#E3F2FD"
+      }
+    }
+  },
+  "ui_elements": {
+    "radius": {
+      "sm": "rounded-md",
+      "md": "rounded-lg",
+      "lg": "rounded-xl",
+      "xl": "rounded-2xl",
+      "full": "rounded-full"
+    },
+    "shadows": {
+      "sm": "shadow-sm",
+      "card": "shadow-[0_2px_12px_rgba(0,0,0,0.04)]",
+      "hover": "shadow-[0_4px_20px_rgba(0,0,0,0.08)]",
+      "floating": "shadow-[0_8px_30px_rgba(0,0,0,0.12)]"
+    },
+    "borders": {
+      "default": "border border-border/50",
+      "subtle": "border border-black/5"
+    }
+  },
+  "layout_strategy": {
+    "container": "container mx-auto px-4 md:px-6 lg:px-8 max-w-7xl",
+    "dashboard_grid": "grid grid-cols-1 md:grid-cols-12 gap-6",
+    "sidebar": "w-64 flex-shrink-0 hidden md:block border-r bg-[#E9ECEF]/50",
+    "spacing_scale": {
+      "section_gap": "gap-8 md:gap-12",
+      "card_padding": "p-6",
+      "internal_gap": "gap-4"
+    }
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-[#007BFF] hover:bg-[#0056b3] text-white shadow-sm rounded-lg px-6 py-2.5 font-medium transition-all duration-200 active:scale-95",
+      "secondary": "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 shadow-sm rounded-lg px-6 py-2.5 font-medium transition-all duration-200",
+      "ghost": "text-gray-600 hover:bg-gray-100 hover:text-gray-900 rounded-lg px-4 py-2 transition-colors",
+      "danger": "bg-red-50 text-red-600 hover:bg-red-100 border border-red-200"
+    },
+    "cards": {
+      "base": "bg-white rounded-xl border border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_20px_rgba(0,0,0,0.06)] transition-all duration-300",
+      "interactive": "cursor-pointer hover:-translate-y-1 hover:border-blue-100",
+      "metric": "flex flex-col p-6 bg-white rounded-xl border border-gray-100"
+    },
+    "inputs": {
+      "base": "flex h-10 w-full rounded-md border border-input bg-white px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007BFF] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+    }
+  },
+  "motion": {
+    "transition": "transition-all duration-300 ease-in-out",
+    "hover_lift": "hover:-translate-y-1",
+    "page_transition": {
+      "initial": { "opacity": 0, "y": 20 },
+      "animate": { "opacity": 1, "y": 0 },
+      "exit": { "opacity": 0, "y": -20 },
+      "transition": { "duration": 0.3 }
+    }
+  },
+  "assets": {
+    "icons": {
+      "library": "lucide-react",
+      "style": "stroke-width={1.5} className='w-5 h-5'"
+    },
+    "images": {
+      "dashboard_hero": {
+        "url": "https://images.unsplash.com/photo-1729932989841-7db1f653ce26?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzh8MHwxfHNlYXJjaHw0fHxzdHVkZW50JTIwc3R1ZHlpbmclMjBjYWxtJTIwbGlicmFyeXxlbnwwfHx8fDE3NzE1ODU5NjN8MA&ixlib=rb-4.1.0&q=85",
+        "alt": "Student studying in a calm library",
+        "usage": "Hero banner or welcome section"
+      },
+      "login_bg": {
+        "url": "https://images.pexels.com/photos/8199765/pexels-photo-8199765.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "alt": "Focused student selecting book",
+        "usage": "Split screen login page background"
+      },
+      "math_abstract": {
+        "url": "https://images.pexels.com/photos/5412101/pexels-photo-5412101.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "alt": "Math symbols abstract",
+        "usage": "Math subject card background or banner"
+      },
+      "science_abstract": {
+        "url": "https://images.unsplash.com/photo-1753785945295-c1715a2963f1?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MDV8MHwxfHNlYXJjaHwyfHxhYnN0cmFjdCUyMHNjaWVuY2UlMjBtYXRoJTIwZ2VvbWV0cmljJTIwc2hhcGVzJTIwcGFzdGVsfGVufDB8fHx8MTc3MTU4NTk2NHww&ixlib=rb-4.1.0&q=85",
+        "alt": "Geometric pastel pattern",
+        "usage": "Physics/Chemistry subject card background"
+      }
+    }
+  },
+  "charts": {
+    "library": "recharts",
+    "colors": ["#007BFF", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6"],
+    "style": {
+      "grid": "stroke-gray-100 stroke-dasharray='3 3'",
+      "tooltip": "bg-white border border-gray-100 shadow-lg rounded-lg p-3 text-sm"
+    }
+  },
+  "accessibility": {
+    "rules": [
+      "Ensure text contrast is at least 4.5:1 against pastel backgrounds.",
+      "Never rely on color alone for status (use icons + text).",
+      "Focus states must be visible (ring-2 ring-offset-2 ring-blue-500).",
+      "All interactive elements must have data-testid attributes."
+    ]
+  },
+  "universal_guidelines": {
+    "do_not": [
+      "Use generic gradients (especially purple/teal).",
+      "Center text in cards unless it's a specific callout.",
+      "Use heavy drop shadows (use soft, large blurs instead).",
+      "Clutter the interface with too many borders."
+    ],
+    "do": [
+      "Use 'sonner' for toast notifications.",
+      "Use 'lucide-react' for icons.",
+      "Keep the interface 'airy' with padding.",
+      "Use Skeleton loaders for all async data."
+    ]
+  },
+  "instructions_to_main_agent": [
+    "Install 'lucide-react', 'recharts', 'framer-motion', 'date-fns', 'clsx', 'tailwind-merge' if missing.",
+    "Configure 'tailwind.config.js' to include the custom pastel colors defined in 'colors.palette'.",
+    "Use 'Layout.jsx' or similar wrapper to enforce the sidebar structure.",
+    "Ensure 'Plus Jakarta Sans' is loaded and used for headings.",
+    "Mock all API calls if backend is not ready, but structure data realistically.",
+    "Implement 'data-testid' on ALL buttons, inputs, and links."
+  ]
+}
