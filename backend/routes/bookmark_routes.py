@@ -8,9 +8,7 @@ from middleware.auth import get_current_user
 
 router = APIRouter(prefix="/bookmarks", tags=["bookmarks"])
 
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+db = get_database()
 
 @router.post("/", response_model=Bookmark)
 async def create_bookmark(
