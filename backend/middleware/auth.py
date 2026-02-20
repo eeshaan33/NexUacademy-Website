@@ -64,7 +64,6 @@ async def get_current_user(request: Request):
             detail="User not found"
         )
     
-    client.close()
     return user_doc
 
 async def get_current_teacher(request: Request):
