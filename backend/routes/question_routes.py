@@ -49,6 +49,8 @@ async def get_questions(
     """
     Get questions with filters.
     """
+    db = get_database()
+    
     # Build filter query
     filter_query = {}
     if exam_type:
