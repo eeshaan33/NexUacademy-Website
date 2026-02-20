@@ -261,6 +261,7 @@ async def logout(request: Request, response: Response):
     """
     Logout user by deleting session.
     """
+    db = get_database()
     session_token = request.cookies.get("session_token")
     
     if session_token:
