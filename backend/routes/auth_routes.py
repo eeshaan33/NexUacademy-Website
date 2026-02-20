@@ -151,6 +151,7 @@ async def google_session(request: Request, response: Response, x_session_id: str
     Exchange Google OAuth session_id for user data and create session.
     REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
     """
+    db = get_database()
     if not x_session_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
