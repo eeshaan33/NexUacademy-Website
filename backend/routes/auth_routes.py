@@ -28,6 +28,7 @@ async def register(user_data: UserCreate, response: Response):
     """
     Register new user with email and password.
     """
+    db = get_database()
     # Check if user already exists
     existing_user = await db.users.find_one({"email": user_data.email})
     if existing_user:
