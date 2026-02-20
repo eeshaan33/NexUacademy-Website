@@ -1,18 +1,13 @@
 from fastapi import APIRouter, HTTPException, status, Query, Request, Depends
 from typing import List, Optional
 from datetime import datetime, timezone
-from motor.motor_asyncio import AsyncIOMotorClient
-import os
 import uuid
 from models.question import QuestionCreate, Question
 from middleware.auth import get_current_user, get_current_teacher
 from config.syllabus import JEE_SYLLABUS
+from config.database import get_database
 
 router = APIRouter(prefix="/questions", tags=["questions"])
-
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
 
 @router.post("/", response_model=Question)
 async def create_question(
