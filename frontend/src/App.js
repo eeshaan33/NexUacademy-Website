@@ -52,9 +52,7 @@ function AppRouter() {
         path="/pyq"
         element={
           <ProtectedRoute>
-            <Layout>
-              <PYQPage />
-            </Layout>
+            <PYQSection />
           </ProtectedRoute>
         }
       />
