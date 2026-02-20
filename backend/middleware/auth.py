@@ -1,7 +1,7 @@
 from fastapi import Request, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from datetime import datetime, timezone
-import os
+from config.database import get_database
 
 security = HTTPBearer(auto_error=False)
 
@@ -10,11 +10,7 @@ async def get_current_user(request: Request):
     Get current user from session_token cookie or Authorization header.
     CRITICAL: Check cookies first, then header as fallback.
     """
-    from motor.motor_asyncio import AsyncIOMotorClient
-    
-    mongo_url = os.environ['MONGO_URL']
-    client = AsyncIOMotorClient(mongo_url)
-    db = client[os.environ['DB_NAME']]
+    db = get_database()
     
     # Try to get token from cookie first
     session_token = request.cookies.get("session_token")
