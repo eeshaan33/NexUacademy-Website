@@ -93,6 +93,7 @@ async def login(login_data: LoginRequest, response: Response):
     """
     Login with email and password.
     """
+    db = get_database()
     # Find user
     user_doc = await db.users.find_one({"email": login_data.email})
     if not user_doc:
