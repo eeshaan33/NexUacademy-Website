@@ -13,8 +13,8 @@ import Layout from "./components/Layout";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
+import PYQSection from "./pages/PYQSection";
 import { 
-  PYQPage, 
   MyTestsPage, 
   AssignedTestsPage, 
   ClassesPage, 
