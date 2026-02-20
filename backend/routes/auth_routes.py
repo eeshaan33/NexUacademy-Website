@@ -2,19 +2,14 @@ from fastapi import APIRouter, HTTPException, status, Response, Depends, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, EmailStr
 from datetime import datetime, timezone, timedelta
-from motor.motor_asyncio import AsyncIOMotorClient
-import os
 import uuid
 import bcrypt
 import httpx
 from models.user import UserCreate, User
 from middleware.auth import get_current_user
+from config.database import get_database
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
-
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
 
 # Request/Response Models
 class LoginRequest(BaseModel):
