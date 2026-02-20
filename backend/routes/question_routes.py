@@ -18,6 +18,7 @@ async def create_question(
     Create a new question (teacher only).
     """
     user = await get_current_teacher(request)
+    db = get_database()
     
     question_id = f"q_{uuid.uuid4().hex[:12]}"
     question_doc = question_data.model_dump()
