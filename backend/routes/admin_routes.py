@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, status, Request, UploadFile, File
 from typing import List, Optional
 from datetime import datetime, timezone
 import uuid
+import os
 from models.question import QuestionCreate, Question
 from middleware.auth import get_current_user, get_current_teacher
 from config.database import get_database
