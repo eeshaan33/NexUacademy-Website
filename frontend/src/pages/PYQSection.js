@@ -170,7 +170,7 @@ const PYQSection = () => {
     setSelectedAnswer(option);
   };
 
-  const handleSubmitAnswer = () => {
+  const handleSubmitAnswer = async () => {
     if (!selectedAnswer) {
       toast.error('Please select an answer');
       return;
@@ -188,6 +188,18 @@ const PYQSection = () => {
     });
 
     setShowSolution(true);
+
+    // Record the attempt for analytics
+    try {
+      await api.post('/analytics/record-attempt', {
+        question_id: currentQ.question_id,
+        selected_answer: selectedAnswer,
+        is_correct: isCorrect,
+        time_taken: 0
+      });
+    } catch (error) {
+      console.error('Failed to record attempt:', error);
+    }
 
     if (isCorrect) {
       toast.success('Correct! Well done!');
