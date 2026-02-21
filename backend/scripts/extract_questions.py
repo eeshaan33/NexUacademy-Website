@@ -33,7 +33,12 @@ CHAPTER_MAPPING = {
     'Chemical-Kinetics': 'Chemical Kinetics',
     'Chemical-Thermodynamics': 'Thermodynamics',
     'Chemistry-in-Everyday-Life': 'Chemistry in Everyday Life',
-    'Classification-of-Elements': 'Classification of Elements and Periodicity'
+    'Classification-of-Elements': 'Classification of Elements and Periodicity',
+    'Coordination-Compounds': 'Coordination Compounds',
+    'D-and-F-Block-Elements': 'The d- and f-Block Elements',
+    'Electrochemistry': 'Electrochemistry',
+    'Environmental-Chemistry': 'Environmental Chemistry',
+    'Equilibrium-New': 'Equilibrium'
 }
 
 def extract_year_from_text(text):
