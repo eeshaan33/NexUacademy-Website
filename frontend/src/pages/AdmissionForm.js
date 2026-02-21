@@ -268,17 +268,31 @@ const AdmissionForm = ({ onComplete, onUserLogin }) => {
         id_proof_base64: idProof,
         signature_base64: signature
       };
+      // Remove confirm_password from payload
+      delete payload.confirm_password;
       
       const response = await api.post('/admissions/submit', payload);
       
       if (response.data.success) {
         setAdmissionId(response.data.admission_id);
         setIsSuccess(true);
-        toast.success('Admission form submitted successfully!');
+        
+        // Auto-login: Set user data and redirect to dashboard
+        if (response.data.user && onUserLogin) {
+          onUserLogin(response.data.user);
+        }
+        
+        toast.success('Welcome to JEE Master! Your account has been created.');
+        
+        // Redirect to dashboard after short delay
+        setTimeout(() => {
+          navigate('/dashboard');
+        }, 2000);
       }
     } catch (error) {
       console.error('Submission error:', error);
-      toast.error('Failed to submit form. Please try again.');
+      const errorMessage = error.response?.data?.detail || 'Failed to submit form. Please try again.';
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
