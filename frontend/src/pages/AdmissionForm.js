@@ -308,21 +308,26 @@ const AdmissionForm = ({ onComplete, onUserLogin }) => {
               <CheckCircle className="h-16 w-16 text-green-600" />
             </div>
             <div className="space-y-2">
-              <h2 className="text-2xl font-bold text-green-800">Application Submitted!</h2>
-              <p className="text-gray-600">Your admission form has been successfully submitted.</p>
+              <h2 className="text-2xl font-bold text-green-800">Welcome to JEE Master!</h2>
+              <p className="text-gray-600">Your account has been created and you're now logged in.</p>
             </div>
             <div className="bg-green-50 p-4 rounded-lg">
               <p className="text-sm text-gray-600">Your Admission ID</p>
               <p className="text-2xl font-mono font-bold text-green-700">{admissionId}</p>
             </div>
             <p className="text-sm text-gray-500">
-              Please save this ID for future reference. You will receive a confirmation email shortly.
+              A confirmation email has been sent to your email address.
             </p>
+            <div className="flex items-center justify-center gap-2 text-blue-600">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Redirecting to your dashboard...</span>
+            </div>
             <Button 
-              onClick={() => onComplete ? onComplete() : window.location.href = '/login'}
+              onClick={() => navigate('/dashboard')}
               className="w-full"
+              data-testid="go-to-dashboard-btn"
             >
-              Continue to Login
+              Go to Dashboard
             </Button>
           </CardContent>
         </Card>
