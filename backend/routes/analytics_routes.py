@@ -5,10 +5,66 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from collections import defaultdict
 import os
 from middleware.auth import get_current_user
+from pydantic import BaseModel
+from typing import Optional
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
-db = get_database()
+class QuestionAttempt(BaseModel):
+    question_id: str
+    selected_answer: str
+    is_correct: bool
+    time_taken: Optional[int] = 0
+
+@router.post("/record-attempt")
+async def record_question_attempt(attempt: QuestionAttempt, request: Request):
+    """
+    Record a single question attempt for progress tracking.
+    """
+    db = get_database()
+    user = await get_current_user(request)
+    
+    # Get question details
+    question = await db.questions.find_one(
+        {"question_id": attempt.question_id},
+        {"_id": 0, "subject": 1, "chapter": 1, "topic": 1}
+    )
+    
+    if not question:
+        return {"error": "Question not found"}
+    
+    # Create attempt record
+    attempt_doc = {
+        "user_id": user["user_id"],
+        "question_id": attempt.question_id,
+        "subject": question.get("subject"),
+        "chapter": question.get("chapter"),
+        "topic": question.get("topic"),
+        "selected_answer": attempt.selected_answer,
+        "is_correct": attempt.is_correct,
+        "time_taken": attempt.time_taken,
+        "attempted_at": datetime.now(timezone.utc)
+    }
+    
+    await db.question_attempts.insert_one(attempt_doc)
+    
+    # Update user stats
+    today = datetime.now(timezone.utc).date().isoformat()
+    
+    # Update or create daily activity record
+    await db.user_activity.update_one(
+        {"user_id": user["user_id"], "date": today},
+        {
+            "$inc": {
+                "questions_solved": 1,
+                "correct_answers": 1 if attempt.is_correct else 0
+            },
+            "$setOnInsert": {"user_id": user["user_id"], "date": today}
+        },
+        upsert=True
+    )
+    
+    return {"success": True, "message": "Attempt recorded"}
 
 @router.get("/dashboard")
 async def get_dashboard_analytics(request: Request):
@@ -16,47 +72,68 @@ async def get_dashboard_analytics(request: Request):
     Get overall performance dashboard data.
     """
     db = get_database()
-    user = await get_current_user(request)
     
-    # Get all test attempts
-    attempts = await db.test_attempts.find(
-        {"student_id": user["user_id"], "submitted_at": {"$ne": None}},
-        {"_id": 0}
-    ).to_list(length=None)
+    try:
+        user = await get_current_user(request)
+        user_id = user["user_id"]
+    except:
+        # Return empty stats for unauthenticated users
+        return {
+            "total_questions_solved": 0,
+            "tests_taken": 0,
+            "average_accuracy": 0,
+            "current_streak": 0
+        }
     
-    # Calculate stats
-    total_tests = len(attempts)
-    total_questions = sum(len(a.get("answers", [])) for a in attempts)
-    avg_score = sum(a.get("score", 0) for a in attempts) / total_tests if total_tests > 0 else 0
-    avg_accuracy = sum(a.get("accuracy", 0) for a in attempts) / total_tests if total_tests > 0 else 0
+    # Get total questions solved from question_attempts
+    total_attempts = await db.question_attempts.count_documents({"user_id": user_id})
+    correct_attempts = await db.question_attempts.count_documents({"user_id": user_id, "is_correct": True})
     
-    # Calculate streak (simplified)
-    streak = 0
-    if attempts:
-        last_date = None
-        for attempt in sorted(attempts, key=lambda x: x.get("submitted_at", datetime.min), reverse=True):
-            submitted = attempt.get("submitted_at")
-            if isinstance(submitted, str):
-                submitted = datetime.fromisoformat(submitted)
-            
-            if last_date is None:
-                streak = 1
-                last_date = submitted.date()
-            else:
-                diff = (last_date - submitted.date()).days
-                if diff == 1:
-                    streak += 1
-                    last_date = submitted.date()
-                else:
-                    break
+    # Calculate accuracy
+    accuracy = (correct_attempts / total_attempts * 100) if total_attempts > 0 else 0
+    
+    # Get tests taken
+    tests_taken = await db.test_attempts.count_documents({"student_id": user_id, "submitted_at": {"$ne": None}})
+    
+    # Calculate streak from user_activity
+    streak = await calculate_streak(db, user_id)
     
     return {
-        "total_questions_solved": total_questions,
-        "tests_taken": total_tests,
-        "average_score": round(avg_score, 2),
-        "average_accuracy": round(avg_accuracy, 2),
+        "total_questions_solved": total_attempts,
+        "tests_taken": tests_taken,
+        "average_accuracy": round(accuracy, 1),
         "current_streak": streak
     }
+
+async def calculate_streak(db, user_id):
+    """Calculate consecutive days streak."""
+    # Get all activity dates sorted descending
+    activities = await db.user_activity.find(
+        {"user_id": user_id},
+        {"_id": 0, "date": 1}
+    ).sort("date", -1).to_list(length=100)
+    
+    if not activities:
+        return 0
+    
+    streak = 0
+    today = datetime.now(timezone.utc).date()
+    expected_date = today
+    
+    for activity in activities:
+        activity_date = datetime.fromisoformat(activity["date"]).date() if isinstance(activity["date"], str) else activity["date"]
+        
+        if activity_date == expected_date:
+            streak += 1
+            expected_date = expected_date - timedelta(days=1)
+        elif activity_date == expected_date - timedelta(days=1):
+            # Allow for checking yesterday if today hasn't been recorded yet
+            streak += 1
+            expected_date = activity_date - timedelta(days=1)
+        else:
+            break
+    
+    return streak
 
 @router.get("/subject-wise")
 async def get_subject_wise_performance(request: Request):
