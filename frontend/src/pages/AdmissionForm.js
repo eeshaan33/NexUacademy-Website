@@ -196,7 +196,8 @@ const AdmissionForm = ({ onComplete, onUserLogin }) => {
   const validateStep = (stepNum) => {
     if (stepNum === 1) {
       if (!formData.student_name || !formData.father_name || !formData.date_of_birth || 
-          !formData.gender || !formData.contact_number || !formData.email) {
+          !formData.gender || !formData.contact_number || !formData.email ||
+          !formData.password || !formData.confirm_password) {
         toast.error('Please fill all required fields');
         return false;
       }
@@ -209,6 +210,15 @@ const AdmissionForm = ({ onComplete, onUserLogin }) => {
       // Phone validation
       if (formData.contact_number.length < 10) {
         toast.error('Please enter a valid contact number');
+        return false;
+      }
+      // Password validation
+      if (formData.password.length < 6) {
+        toast.error('Password must be at least 6 characters');
+        return false;
+      }
+      if (formData.password !== formData.confirm_password) {
+        toast.error('Passwords do not match');
         return false;
       }
     }
