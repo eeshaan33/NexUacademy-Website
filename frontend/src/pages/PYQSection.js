@@ -897,57 +897,96 @@ const PYQSection = () => {
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="space-y-3">
-                {['A', 'B', 'C', 'D'].map((option) => {
-                  const optionText = currentQ.options?.[option] || '';
-                  if (!optionText) return null;
+              {/* Check if this is a Numerical question or MCQ with empty options */}
+              {currentQ.questionType === 'Numerical' || !Object.values(currentQ.options || {}).some(v => v && v.trim()) ? (
+                // Numerical Question UI
+                <div className="space-y-4">
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Badge variant="outline" className="bg-amber-100">Numerical Type</Badge>
+                    </div>
+                    <p className="text-sm text-amber-800">
+                      This is a numerical answer type question. Enter your answer below.
+                    </p>
+                  </div>
                   
-                  const isSelected = selectedAnswer === option;
-                  const isCorrectAnswer = currentQ.correctAnswer === option;
-                  const showCorrect = showSolution && isCorrectAnswer;
-                  const showIncorrect = showSolution && isSelected && !isCorrectAnswer;
-
-                  return (
-                    <div
-                      key={option}
-                      onClick={() => handleAnswerSelect(option)}
-                      className={`
-                        p-4 rounded-lg border-2 cursor-pointer transition-all
-                        ${
-                          showCorrect
-                            ? 'bg-green-50 border-green-500'
-                            : showIncorrect
-                            ? 'bg-red-50 border-red-500'
-                            : isSelected
-                            ? 'bg-blue-50 border-blue-500'
-                            : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
-                        }
-                      `}
-                      data-testid={`option-${option}`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div
-                          className={`
-                            w-8 h-8 rounded-full border-2 flex items-center justify-center font-semibold flex-shrink-0
-                            ${
-                              showCorrect
-                                ? 'bg-green-500 text-white border-green-500'
-                                : showIncorrect
-                                ? 'bg-red-500 text-white border-red-500'
-                                : isSelected
-                                ? 'bg-blue-500 text-white border-blue-500'
-                                : 'border-gray-300'
-                            }
-                          `}
-                        >
-                          {option}
-                        </div>
-                        <div className="flex-1">{optionText}</div>
+                  <div className="flex gap-3">
+                    <Input
+                      type="text"
+                      placeholder="Enter your numerical answer"
+                      value={selectedAnswer || ''}
+                      onChange={(e) => setSelectedAnswer(e.target.value)}
+                      className="text-lg"
+                      disabled={showSolution}
+                      data-testid="numerical-input"
+                    />
+                  </div>
+                  
+                  {showSolution && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-5 w-5 text-green-600" />
+                        <span className="font-semibold text-green-800">
+                          Correct Answer: {currentQ.correctAnswer}
+                        </span>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
+                  )}
+                </div>
+              ) : (
+                // MCQ Options UI
+                <div className="space-y-3">
+                  {['A', 'B', 'C', 'D'].map((option) => {
+                    const optionText = currentQ.options?.[option] || '';
+                    if (!optionText) return null;
+                    
+                    const isSelected = selectedAnswer === option;
+                    const isCorrectAnswer = currentQ.correctAnswer === option;
+                    const showCorrect = showSolution && isCorrectAnswer;
+                    const showIncorrect = showSolution && isSelected && !isCorrectAnswer;
+
+                    return (
+                      <div
+                        key={option}
+                        onClick={() => handleAnswerSelect(option)}
+                        className={`
+                          p-4 rounded-lg border-2 cursor-pointer transition-all
+                          ${
+                            showCorrect
+                              ? 'bg-green-50 border-green-500'
+                              : showIncorrect
+                              ? 'bg-red-50 border-red-500'
+                              : isSelected
+                              ? 'bg-blue-50 border-blue-500'
+                              : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
+                          }
+                        `}
+                        data-testid={`option-${option}`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div
+                            className={`
+                              w-8 h-8 rounded-full border-2 flex items-center justify-center font-semibold flex-shrink-0
+                              ${
+                                showCorrect
+                                  ? 'bg-green-500 text-white border-green-500'
+                                  : showIncorrect
+                                  ? 'bg-red-500 text-white border-red-500'
+                                  : isSelected
+                                  ? 'bg-blue-500 text-white border-blue-500'
+                                  : 'border-gray-300'
+                              }
+                            `}
+                          >
+                            {option}
+                          </div>
+                          <div className="flex-1">{optionText}</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
               {showSolution && (
                 <div className="space-y-4 pt-4 border-t">
