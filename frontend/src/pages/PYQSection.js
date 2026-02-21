@@ -1,28 +1,89 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
+import { Input } from '../components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { BookOpen, ChevronRight, Award, Target, ArrowLeft } from 'lucide-react';
+import { ScrollArea } from '../components/ui/scroll-area';
+import { 
+  BookOpen, ChevronRight, Award, Target, ArrowLeft, Search, 
+  Calendar, CheckCircle, XCircle, List, Filter, X
+} from 'lucide-react';
 import api from '../utils/api';
 import { toast } from 'sonner';
 
 const PYQSection = () => {
-  const [step, setStep] = useState(1); // 1: Exam Type, 2: Subject, 3: Chapter, 4: Practice Type, 5: Questions
+  // Navigation state
+  const [step, setStep] = useState(1);
   const [examType, setExamType] = useState('');
   const [subject, setSubject] = useState('');
   const [selectedChapter, setSelectedChapter] = useState(null);
-  const [practiceType, setPracticeType] = useState(''); // 'pyq' or 'topic'
+  const [practiceType, setPracticeType] = useState('');
+  const [selectedTopic, setSelectedTopic] = useState(null);
+  
+  // Data state
   const [syllabus, setSyllabus] = useState(null);
   const [questions, setQuestions] = useState([]);
+  const [allQuestions, setAllQuestions] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  
+  // Question interaction state
   const [selectedAnswer, setSelectedAnswer] = useState(null);
   const [showSolution, setShowSolution] = useState(false);
   const [answeredQuestions, setAnsweredQuestions] = useState({});
+  
+  // Search and filter state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const [yearFilter, setYearFilter] = useState('');
+  const [showQuestionList, setShowQuestionList] = useState(false);
+  
+  // Available years for filter
+  const availableYears = useMemo(() => {
+    const years = [...new Set(questions.map(q => q.year))].sort((a, b) => b - a);
+    return years;
+  }, [questions]);
+
+  // Filtered questions based on year
+  const filteredQuestions = useMemo(() => {
+    if (!yearFilter) return questions;
+    return questions.filter(q => q.year === parseInt(yearFilter));
+  }, [questions, yearFilter]);
+
+  // Topics from current chapter
+  const chapterTopics = useMemo(() => {
+    if (!questions.length) return [];
+    const topics = [...new Set(questions.map(q => q.topic).filter(Boolean))];
+    return topics;
+  }, [questions]);
 
   useEffect(() => {
     fetchSyllabus();
   }, []);
+
+  // Search effect with debounce
+  useEffect(() => {
+    if (searchQuery.length < 2) {
+      setSearchResults([]);
+      setShowSearchDropdown(false);
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      const query = searchQuery.toLowerCase();
+      const results = questions.filter(q => 
+        q.questionText?.toLowerCase().includes(query) ||
+        q.year?.toString().includes(query) ||
+        q.topic?.toLowerCase().includes(query)
+      ).slice(0, 10);
+      
+      setSearchResults(results);
+      setShowSearchDropdown(results.length > 0);
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, questions]);
 
   const fetchSyllabus = async () => {
     try {
@@ -31,6 +92,26 @@ const PYQSection = () => {
     } catch (error) {
       console.error('Failed to fetch syllabus:', error);
       toast.error('Failed to load syllabus');
+    }
+  };
+
+  const fetchQuestions = async (chapterName) => {
+    try {
+      const params = {
+        subject,
+        chapter: chapterName,
+        limit: 500
+      };
+
+      const response = await api.get('/questions/', { params });
+      const sorted = response.data.questions.sort((a, b) => b.year - a.year);
+      setAllQuestions(sorted);
+      setQuestions(sorted);
+      return sorted;
+    } catch (error) {
+      console.error('Failed to fetch questions:', error);
+      toast.error('Failed to load questions');
+      return [];
     }
   };
 
@@ -44,36 +125,44 @@ const PYQSection = () => {
     setStep(3);
   };
 
-  const handleChapterSelect = (chapter) => {
+  const handleChapterSelect = async (chapter) => {
     setSelectedChapter(chapter);
+    await fetchQuestions(chapter.chapter);
     setStep(4);
   };
 
-  const handlePracticeTypeSelect = async (type) => {
+  const handlePracticeTypeSelect = (type) => {
     setPracticeType(type);
-    await fetchQuestions(type);
-    setStep(5);
+    if (type === 'pyq') {
+      // Show question list for PYQ mode
+      setStep(5);
+    } else {
+      // Show topic selection for topic-wise mode
+      setStep(5);
+    }
   };
 
-  const fetchQuestions = async (type) => {
-    try {
-      const params = {
-        examType,
-        subject,
-        chapter: selectedChapter.chapter,
-        limit: 100
-      };
+  const handleTopicSelect = (topic) => {
+    setSelectedTopic(topic);
+    const topicQuestions = allQuestions.filter(q => q.topic === topic);
+    setQuestions(topicQuestions);
+    setStep(6);
+  };
 
-      const response = await api.get('/questions/', { params });
-      
-      // Sort by year (latest to oldest)
-      const sorted = response.data.questions.sort((a, b) => b.year - a.year);
-      setQuestions(sorted);
-      setCurrentQuestionIndex(0);
-      setAnsweredQuestions({});
-    } catch (error) {
-      console.error('Failed to fetch questions:', error);
-      toast.error('Failed to load questions');
+  const handleQuestionSelect = (index) => {
+    setCurrentQuestionIndex(index);
+    setSelectedAnswer(null);
+    setShowSolution(false);
+    setShowQuestionList(false);
+    setSearchQuery('');
+    setShowSearchDropdown(false);
+    if (step === 5) setStep(6);
+  };
+
+  const handleSearchResultClick = (question) => {
+    const index = questions.findIndex(q => q.question_id === question.question_id);
+    if (index !== -1) {
+      handleQuestionSelect(index);
     }
   };
 
@@ -109,8 +198,9 @@ const PYQSection = () => {
   };
 
   const handleNext = () => {
-    if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
+    if (currentQuestionIndex < filteredQuestions.length - 1) {
+      const nextIndex = questions.indexOf(filteredQuestions[currentQuestionIndex + 1]);
+      setCurrentQuestionIndex(nextIndex);
       setSelectedAnswer(null);
       setShowSolution(false);
     }
@@ -127,7 +217,9 @@ const PYQSection = () => {
   const handleViewSolution = () => {
     const currentQ = questions[currentQuestionIndex];
     if (currentQ.solutionYoutubeUrl) {
-      const url = `${currentQ.solutionYoutubeUrl}&t=${currentQ.solutionTimestamp}s`;
+      const url = currentQ.solutionTimestamp 
+        ? `${currentQ.solutionYoutubeUrl}&t=${currentQ.solutionTimestamp}s`
+        : currentQ.solutionYoutubeUrl;
       window.open(url, '_blank');
     } else {
       toast.info('Video solution coming soon!');
@@ -140,27 +232,141 @@ const PYQSection = () => {
     setSubject('');
     setSelectedChapter(null);
     setPracticeType('');
+    setSelectedTopic(null);
     setQuestions([]);
+    setAllQuestions([]);
     setCurrentQuestionIndex(0);
     setSelectedAnswer(null);
     setShowSolution(false);
     setAnsweredQuestions({});
+    setSearchQuery('');
+    setYearFilter('');
+    setShowQuestionList(false);
   };
 
   const goBack = () => {
-    if (step > 1) {
-      setStep(step - 1);
-      if (step === 2) {
-        setExamType('');
-      } else if (step === 3) {
-        setSubject('');
-      } else if (step === 4) {
-        setSelectedChapter(null);
-      } else if (step === 5) {
-        setPracticeType('');
-      }
+    if (step === 6 && practiceType === 'topic') {
+      setStep(5);
+      setSelectedTopic(null);
+      setQuestions(allQuestions);
+    } else if (step === 6) {
+      setStep(5);
+    } else if (step === 5) {
+      setStep(4);
+      setPracticeType('');
+    } else if (step === 4) {
+      setStep(3);
+      setSelectedChapter(null);
+    } else if (step === 3) {
+      setStep(2);
+      setSubject('');
+    } else if (step === 2) {
+      setStep(1);
+      setExamType('');
     }
   };
+
+  // Question List Sidebar Component
+  const QuestionListSidebar = () => (
+    <div className={`fixed inset-y-0 right-0 w-96 bg-white shadow-2xl transform transition-transform duration-300 z-50 ${showQuestionList ? 'translate-x-0' : 'translate-x-full'}`}>
+      <div className="h-full flex flex-col">
+        <div className="p-4 border-b flex items-center justify-between bg-gray-50">
+          <h3 className="font-semibold text-lg">All Questions ({filteredQuestions.length})</h3>
+          <Button variant="ghost" size="sm" onClick={() => setShowQuestionList(false)}>
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
+        
+        {/* Search in sidebar */}
+        <div className="p-4 border-b">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search questions..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+              data-testid="sidebar-search-input"
+            />
+          </div>
+          
+          {/* Year Filter */}
+          <div className="mt-3 flex gap-2 flex-wrap">
+            <Badge
+              variant={yearFilter === '' ? 'default' : 'outline'}
+              className="cursor-pointer"
+              onClick={() => setYearFilter('')}
+            >
+              All Years
+            </Badge>
+            {availableYears.slice(0, 5).map(year => (
+              <Badge
+                key={year}
+                variant={yearFilter === year.toString() ? 'default' : 'outline'}
+                className="cursor-pointer"
+                onClick={() => setYearFilter(yearFilter === year.toString() ? '' : year.toString())}
+              >
+                {year}
+              </Badge>
+            ))}
+          </div>
+        </div>
+        
+        {/* Questions List */}
+        <ScrollArea className="flex-1">
+          <div className="p-2">
+            {filteredQuestions.map((q, idx) => {
+              const originalIndex = questions.indexOf(q);
+              const isAnswered = answeredQuestions[originalIndex];
+              const isCurrent = originalIndex === currentQuestionIndex;
+              
+              return (
+                <div
+                  key={q.question_id || idx}
+                  onClick={() => handleQuestionSelect(originalIndex)}
+                  className={`p-3 mb-2 rounded-lg cursor-pointer transition-all ${
+                    isCurrent 
+                      ? 'bg-blue-100 border-2 border-blue-500' 
+                      : isAnswered?.correct 
+                        ? 'bg-green-50 border border-green-200' 
+                        : isAnswered 
+                          ? 'bg-red-50 border border-red-200'
+                          : 'bg-gray-50 hover:bg-gray-100 border border-gray-200'
+                  }`}
+                  data-testid={`question-item-${idx}`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                      isCurrent ? 'bg-blue-500 text-white' :
+                      isAnswered?.correct ? 'bg-green-500 text-white' :
+                      isAnswered ? 'bg-red-500 text-white' :
+                      'bg-gray-200 text-gray-600'
+                    }`}>
+                      {idx + 1}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-gray-700 line-clamp-2">
+                        {q.questionText?.substring(0, 80)}...
+                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="outline" className="text-xs">{q.year}</Badge>
+                        <Badge variant="secondary" className="text-xs">{q.difficulty}</Badge>
+                      </div>
+                    </div>
+                    {isAnswered && (
+                      isAnswered.correct 
+                        ? <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
+                        : <XCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </ScrollArea>
+      </div>
+    </div>
+  );
 
   // Render Step 1: Exam Type Selection
   if (step === 1) {
@@ -361,7 +567,9 @@ const PYQSection = () => {
               <Badge variant="outline">{selectedChapter?.chapter}</Badge>
             </div>
             <h1 className="text-4xl font-heading font-bold">Choose Practice Mode</h1>
-            <p className="text-muted-foreground text-lg">How would you like to practice?</p>
+            <p className="text-muted-foreground text-lg">
+              {questions.length} questions available
+            </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-12">
@@ -378,6 +586,7 @@ const PYQSection = () => {
                 <p className="text-muted-foreground">
                   Practice all previous year questions sorted from latest to oldest
                 </p>
+                <Badge variant="secondary">{questions.length} Questions</Badge>
               </CardContent>
             </Card>
 
@@ -394,6 +603,7 @@ const PYQSection = () => {
                 <p className="text-muted-foreground">
                   Practice specific topics within this chapter
                 </p>
+                <Badge variant="secondary">{chapterTopics.length} Topics</Badge>
               </CardContent>
             </Card>
           </div>
@@ -402,22 +612,259 @@ const PYQSection = () => {
     );
   }
 
-  // Render Step 5: Question Viewer
-  if (step === 5 && questions.length > 0) {
+  // Render Step 5: Question List / Topic Selection
+  if (step === 5) {
+    if (practiceType === 'topic') {
+      // Topic Selection
+      return (
+        <div className="min-h-screen bg-background p-8">
+          <div className="max-w-6xl mx-auto space-y-6">
+            <Button variant="ghost" onClick={goBack} className="mb-4">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back
+            </Button>
+
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant="outline">{examType.replace('_', ' ')}</Badge>
+                <ChevronRight className="h-4 w-4" />
+                <Badge variant="outline">{subject}</Badge>
+                <ChevronRight className="h-4 w-4" />
+                <Badge variant="outline">{selectedChapter?.chapter}</Badge>
+              </div>
+              <h1 className="text-4xl font-heading font-bold">Select Topic</h1>
+              <p className="text-muted-foreground text-lg">Choose a topic to practice</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-8">
+              {chapterTopics.map((topic, idx) => {
+                const topicCount = allQuestions.filter(q => q.topic === topic).length;
+                return (
+                  <Card
+                    key={idx}
+                    className="cursor-pointer hover:shadow-hover transition-all hover:-translate-y-1"
+                    onClick={() => handleTopicSelect(topic)}
+                    data-testid={`topic-card-${idx}`}
+                  >
+                    <CardHeader>
+                      <CardTitle className="text-lg">{topic}</CardTitle>
+                      <CardDescription>{topicCount} questions</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <Button className="w-full" size="sm">
+                        Practice <ChevronRight className="h-4 w-4 ml-2" />
+                      </Button>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // PYQ Mode - Show scrollable question list
+    return (
+      <div className="min-h-screen bg-background p-8">
+        <div className="max-w-6xl mx-auto space-y-6">
+          <Button variant="ghost" onClick={goBack} className="mb-4">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
+
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge variant="outline">{examType.replace('_', ' ')}</Badge>
+              <ChevronRight className="h-4 w-4" />
+              <Badge variant="outline">{subject}</Badge>
+              <ChevronRight className="h-4 w-4" />
+              <Badge variant="outline">{selectedChapter?.chapter}</Badge>
+            </div>
+            <h1 className="text-4xl font-heading font-bold">Previous Year Questions</h1>
+          </div>
+
+          {/* Search Bar */}
+          <div className="relative max-w-xl">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <Input
+              placeholder="Search by question text or year..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-12 pr-4 py-3 text-lg"
+              data-testid="search-input"
+            />
+            
+            {/* Search Dropdown */}
+            {showSearchDropdown && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg z-50 max-h-96 overflow-auto">
+                {searchResults.map((q, idx) => (
+                  <div
+                    key={q.question_id || idx}
+                    className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
+                    onClick={() => handleSearchResultClick(q)}
+                    data-testid={`search-result-${idx}`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <Badge variant="outline" className="text-xs">{q.year}</Badge>
+                      <Badge variant="secondary" className="text-xs">{q.topic}</Badge>
+                    </div>
+                    <p className="text-sm text-gray-700 line-clamp-2">{q.questionText}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Year Filter Pills */}
+          <div className="flex gap-2 flex-wrap items-center">
+            <span className="text-sm text-muted-foreground mr-2">Filter by year:</span>
+            <Badge
+              variant={yearFilter === '' ? 'default' : 'outline'}
+              className="cursor-pointer"
+              onClick={() => setYearFilter('')}
+            >
+              All ({questions.length})
+            </Badge>
+            {availableYears.map(year => {
+              const count = questions.filter(q => q.year === year).length;
+              return (
+                <Badge
+                  key={year}
+                  variant={yearFilter === year.toString() ? 'default' : 'outline'}
+                  className="cursor-pointer"
+                  onClick={() => setYearFilter(yearFilter === year.toString() ? '' : year.toString())}
+                >
+                  {year} ({count})
+                </Badge>
+              );
+            })}
+          </div>
+
+          {/* Questions Grid */}
+          <ScrollArea className="h-[600px] border rounded-lg">
+            <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filteredQuestions.map((q, idx) => {
+                const originalIndex = questions.indexOf(q);
+                const isAnswered = answeredQuestions[originalIndex];
+                
+                return (
+                  <Card
+                    key={q.question_id || idx}
+                    className={`cursor-pointer hover:shadow-lg transition-all ${
+                      isAnswered?.correct 
+                        ? 'border-green-300 bg-green-50' 
+                        : isAnswered 
+                          ? 'border-red-300 bg-red-50'
+                          : 'hover:border-blue-300'
+                    }`}
+                    onClick={() => handleQuestionSelect(originalIndex)}
+                    data-testid={`question-card-${idx}`}
+                  >
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                            isAnswered?.correct ? 'bg-green-500 text-white' :
+                            isAnswered ? 'bg-red-500 text-white' :
+                            'bg-blue-100 text-blue-700'
+                          }`}>
+                            {idx + 1}
+                          </div>
+                          <Badge variant="outline">{q.year}</Badge>
+                          <Badge variant="secondary">{q.difficulty}</Badge>
+                        </div>
+                        {isAnswered && (
+                          isAnswered.correct 
+                            ? <CheckCircle className="h-5 w-5 text-green-500" />
+                            : <XCircle className="h-5 w-5 text-red-500" />
+                        )}
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-gray-700 line-clamp-3">
+                        {q.questionText?.substring(0, 150)}...
+                      </p>
+                      <div className="mt-2">
+                        <Badge variant="outline" className="text-xs">{q.topic}</Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </ScrollArea>
+        </div>
+      </div>
+    );
+  }
+
+  // Render Step 6: Question Viewer
+  if (step === 6 && questions.length > 0) {
     const currentQ = questions[currentQuestionIndex];
     const isAnswered = answeredQuestions[currentQuestionIndex];
 
     return (
       <div className="min-h-screen bg-background p-8">
+        <QuestionListSidebar />
+        
+        {/* Overlay when sidebar is open */}
+        {showQuestionList && (
+          <div 
+            className="fixed inset-0 bg-black/30 z-40"
+            onClick={() => setShowQuestionList(false)}
+          />
+        )}
+        
         <div className="max-w-4xl mx-auto space-y-6">
           <div className="flex justify-between items-center">
-            <Button variant="ghost" onClick={resetFlow}>
+            <Button variant="ghost" onClick={goBack}>
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Home
+              Back
             </Button>
-            <div className="text-sm text-muted-foreground">
-              Question {currentQuestionIndex + 1} of {questions.length}
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-muted-foreground">
+                Question {currentQuestionIndex + 1} of {questions.length}
+              </span>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowQuestionList(true)}
+                data-testid="show-question-list"
+              >
+                <List className="h-4 w-4 mr-2" />
+                All Questions
+              </Button>
             </div>
+          </div>
+
+          {/* Search Bar in Question View */}
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Jump to question..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+              data-testid="question-view-search"
+            />
+            
+            {showSearchDropdown && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg z-50 max-h-64 overflow-auto">
+                {searchResults.map((q, idx) => (
+                  <div
+                    key={q.question_id || idx}
+                    className="p-2 hover:bg-gray-50 cursor-pointer border-b last:border-b-0 text-sm"
+                    onClick={() => handleSearchResultClick(q)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs">{q.year}</Badge>
+                      <span className="line-clamp-1">{q.questionText?.substring(0, 60)}...</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -437,8 +884,11 @@ const PYQSection = () => {
               <div className="flex justify-between items-start">
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <Badge>Q{currentQ.questionNumber}</Badge>
-                    <Badge variant="outline">{currentQ.year}</Badge>
+                    <Badge>Q{currentQ.questionNumber || currentQuestionIndex + 1}</Badge>
+                    <Badge variant="outline" className="flex items-center gap-1">
+                      <Calendar className="h-3 w-3" />
+                      {currentQ.year}
+                    </Badge>
                     <Badge variant="secondary">{currentQ.difficulty}</Badge>
                   </div>
                   <CardTitle className="text-xl">
@@ -450,6 +900,9 @@ const PYQSection = () => {
             <CardContent className="space-y-6">
               <div className="space-y-3">
                 {['A', 'B', 'C', 'D'].map((option) => {
+                  const optionText = currentQ.options?.[option] || '';
+                  if (!optionText) return null;
+                  
                   const isSelected = selectedAnswer === option;
                   const isCorrectAnswer = currentQ.correctAnswer === option;
                   const showCorrect = showSolution && isCorrectAnswer;
@@ -476,7 +929,7 @@ const PYQSection = () => {
                       <div className="flex items-start gap-3">
                         <div
                           className={`
-                            w-8 h-8 rounded-full border-2 flex items-center justify-center font-semibold
+                            w-8 h-8 rounded-full border-2 flex items-center justify-center font-semibold flex-shrink-0
                             ${
                               showCorrect
                                 ? 'bg-green-500 text-white border-green-500'
@@ -490,7 +943,7 @@ const PYQSection = () => {
                         >
                           {option}
                         </div>
-                        <div className="flex-1">{currentQ.options[option]}</div>
+                        <div className="flex-1">{optionText}</div>
                       </div>
                     </div>
                   );
@@ -502,7 +955,7 @@ const PYQSection = () => {
                   {currentQ.solution && (
                     <div className="bg-blue-50 p-4 rounded-lg">
                       <h4 className="font-semibold mb-2">Solution:</h4>
-                      <p className="text-sm">{currentQ.solution}</p>
+                      <p className="text-sm whitespace-pre-wrap">{currentQ.solution}</p>
                     </div>
                   )}
 
@@ -543,6 +996,46 @@ const PYQSection = () => {
                     data-testid="next-question"
                   >
                     Next Question
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Quick Navigation */}
+          <Card>
+            <CardContent className="p-4">
+              <h4 className="text-sm font-medium mb-3">Quick Navigation</h4>
+              <div className="flex flex-wrap gap-2">
+                {questions.slice(0, 20).map((_, idx) => {
+                  const isAnsweredQ = answeredQuestions[idx];
+                  const isCurrent = idx === currentQuestionIndex;
+                  
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => handleQuestionSelect(idx)}
+                      className={`w-8 h-8 rounded text-sm font-medium transition-all ${
+                        isCurrent 
+                          ? 'bg-blue-500 text-white' 
+                          : isAnsweredQ?.correct 
+                            ? 'bg-green-100 text-green-700 border border-green-300' 
+                            : isAnsweredQ 
+                              ? 'bg-red-100 text-red-700 border border-red-300'
+                              : 'bg-gray-100 hover:bg-gray-200'
+                      }`}
+                    >
+                      {idx + 1}
+                    </button>
+                  );
+                })}
+                {questions.length > 20 && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setShowQuestionList(true)}
+                  >
+                    +{questions.length - 20} more
                   </Button>
                 )}
               </div>
