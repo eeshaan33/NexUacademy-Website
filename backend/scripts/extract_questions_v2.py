@@ -546,7 +546,7 @@ async def seed_questions_from_pdf(pdf_path, chapter_name, clear_existing=True):
     for q in questions:
         y = q.get('year') or 'Unknown'
         year_counts[y] = year_counts.get(y, 0) + 1
-    print(f"   Years: {dict(sorted(year_counts.items()))}")
+    print(f"   Years: {dict(sorted(year_counts.items(), key=lambda x: str(x[0])))}")
     
     if clear_existing:
         # Clear existing questions for this chapter
