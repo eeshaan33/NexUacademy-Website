@@ -11,7 +11,7 @@ Build a full-stack JEE preparation web application called "JEE Master" with:
 
 ## Tech Stack
 - **Frontend:** React, Tailwind CSS, shadcn/ui
-- **Backend:** FastAPI (Python) - *Note: Originally requested Node.js but implemented in Python*
+- **Backend:** FastAPI (Python)
 - **Database:** MongoDB
 
 ## Current Implementation Status
@@ -40,90 +40,91 @@ Build a full-stack JEE preparation web application called "JEE Master" with:
   - Solution display
   - Quick Navigation (numbered buttons)
   - "All Questions" sidebar with search and filter
-- **Question Count:** 881 total questions
-  - Chemical Bonding: 212 questions
-  - Amines: 195 questions
-  - Biomolecules: 171 questions
-  - Alcohols, Phenols, Ethers: 156 questions
-  - Analytical Chemistry: 122 questions
-  - Equilibrium: 25 questions
+
+#### Dashboard Analytics (Newly Implemented) ✅
+- **Questions Solved:** Real-time tracking of all questions answered
+- **Tests Taken:** Count of formal tests completed
+- **Average Accuracy:** Percentage of correct answers
+- **Current Streak:** Consecutive days of practice
+- All stats update in real-time as user practices
 
 #### PDF Question Extraction ✅
-- Successfully extracted 856 questions from 5 chemistry PDFs:
-  - Alcohols-Phenols-and-Ethers.pdf
-  - Amines.pdf
-  - Analytical-Chemistry.pdf
-  - Biomolecules.pdf
-  - Chemical-Bonding.pdf
-- Extraction script: `/app/backend/scripts/extract_questions.py`
+**Total Questions: 1,723** across 10 chemistry chapters:
 
-#### Database
-- MongoDB with collections: users, questions, user_sessions
-- Question schema includes: subject, chapter, topic, year, questionText, options, correctAnswer, difficulty, solution
+| Chapter | Questions |
+|---------|-----------|
+| Equilibrium | 250 |
+| Chemical Bonding and Molecular Structure | 212 |
+| Thermodynamics | 204 |
+| Chemical Kinetics | 196 |
+| Amines | 195 |
+| Biomolecules | 171 |
+| Alcohols, Phenols and Ethers | 156 |
+| Classification of Elements and Periodicity | 135 |
+| Analytical Chemistry | 122 |
+| Chemistry in Everyday Life | 82 |
+
+#### Database Collections
+- **users:** User accounts with auth info
+- **questions:** All PYQ questions with metadata
+- **question_attempts:** Individual question attempt tracking
+- **user_activity:** Daily activity for streak calculation
+- **user_sessions:** Auth sessions
+
+### API Endpoints
+
+#### Authentication
+- `POST /api/auth/register` - Register new user
+- `POST /api/auth/login` - Login
+- `GET /api/auth/me` - Get current user
+- `POST /api/auth/logout` - Logout
+
+#### Questions
+- `GET /api/questions/` - Get questions with filters
+- `GET /api/questions/syllabus` - Get complete syllabus
+- `GET /api/questions/{question_id}` - Get single question
+
+#### Analytics
+- `POST /api/analytics/record-attempt` - Record question attempt
+- `GET /api/analytics/dashboard` - Get dashboard stats
+- `GET /api/analytics/subject-wise` - Get subject performance
+- `GET /api/analytics/chapter-wise` - Get chapter performance
 
 ### Pending Features 🔄
 
 #### P1 - High Priority
-1. **Google Sheets Integration**
-   - Sync YouTube solution links from Google Sheet
-   - Setup guide created at `/app/google_sheets_setup_guide.md`
-   - Requires user to provide API credentials
-
-2. **Chapter Name Alignment**
-   - Some chapter names need to match NCERT/JEE official naming
-   - Syllabus file: `/app/backend/config/syllabus.py`
+1. **Google Sheets Integration** - Sync YouTube solution links
+2. **Improve PDF parsing** - Better option extraction accuracy
 
 #### P2 - Medium Priority
 1. Custom Test Builder
 2. Test Taking Interface
-3. Student Analytics Dashboard
-4. Question Bookmarking
+3. Question Bookmarking
+4. Detailed Analytics page
 
 #### P3 - Future Features
 1. Teacher Dashboard
-2. Test/Student/Class Management
-3. Live Classes section
-4. Notifications (Email/WhatsApp/Telegram)
+2. Live Classes section
+3. Notifications (Email/WhatsApp/Telegram)
+4. Leaderboards
+5. AI-powered Study Plans
 
 ## Key Files
 
 ### Backend
 - `/app/backend/server.py` - Main FastAPI application
-- `/app/backend/routes/question_routes.py` - Question API endpoints
-- `/app/backend/routes/auth_routes.py` - Authentication endpoints
-- `/app/backend/config/syllabus.py` - JEE syllabus data
-- `/app/backend/scripts/extract_questions.py` - PDF extraction script
+- `/app/backend/routes/analytics_routes.py` - Analytics & progress tracking
+- `/app/backend/routes/question_routes.py` - Question API
+- `/app/backend/scripts/extract_questions.py` - PDF extraction
 
 ### Frontend
-- `/app/frontend/src/App.js` - Main routing
-- `/app/frontend/src/pages/PYQSection.js` - PYQ component (fully implemented)
-- `/app/frontend/src/context/AuthContext.js` - Auth state management
-- `/app/frontend/src/utils/api.js` - API client
-
-## API Endpoints
-
-### Authentication
-- `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - Login
-- `GET /api/auth/me` - Get current user
-- `POST /api/auth/logout` - Logout
-- `POST /api/auth/google/session` - Google OAuth
-
-### Questions
-- `GET /api/questions/` - Get questions with filters (subject, chapter, topic, year, limit)
-- `GET /api/questions/syllabus` - Get complete syllabus
-- `GET /api/questions/syllabus/{subject}` - Get subject syllabus
-- `GET /api/questions/chapters/{subject}` - Get chapters
-- `GET /api/questions/{question_id}` - Get single question
+- `/app/frontend/src/pages/PYQSection.js` - PYQ component
+- `/app/frontend/src/pages/Dashboard.js` - Dashboard with stats
+- `/app/frontend/src/context/AuthContext.js` - Auth state
 
 ## Testing
 - Test credentials: `student@test.com` / `password123`
-- Test report: `/app/test_reports/iteration_1.json`
-- All major features tested and working (95% success rate)
-
-## Known Issues (Low Priority)
-1. Some MCQ questions have corrupted options from PDF extraction
-2. Question text formatting could be improved for complex formulas
+- All features tested via Playwright automation
 
 ---
 Last Updated: February 2026
