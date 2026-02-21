@@ -345,6 +345,41 @@ def determine_topic(question_text, chapter_name):
             'block': 's, p, d, f Blocks',
             'valence': 'Valence Electrons',
         },
+        'Coordination Compounds': {
+            'ligand': 'Ligands',
+            'coordination number': 'Coordination Number',
+            'isomer': 'Isomerism',
+            'crystal field': 'Crystal Field Theory',
+            'chelate': 'Chelation',
+            'nomenclature': 'Nomenclature',
+            'magnetic': 'Magnetic Properties',
+        },
+        'The d- and f-Block Elements': {
+            'transition': 'Transition Elements',
+            'lanthanide': 'Lanthanides',
+            'actinide': 'Actinides',
+            'oxidation state': 'Oxidation States',
+            'magnetic': 'Magnetic Properties',
+            'catalytic': 'Catalytic Properties',
+            'interstitial': 'Interstitial Compounds',
+        },
+        'Electrochemistry': {
+            'electrode potential': 'Electrode Potential',
+            'nernst': 'Nernst Equation',
+            'electrolysis': 'Electrolysis',
+            'faraday': 'Faraday Laws',
+            'cell': 'Electrochemical Cells',
+            'conductance': 'Conductance',
+            'corrosion': 'Corrosion',
+        },
+        'Environmental Chemistry': {
+            'pollution': 'Pollution',
+            'ozone': 'Ozone Layer',
+            'greenhouse': 'Greenhouse Effect',
+            'acid rain': 'Acid Rain',
+            'smog': 'Smog',
+            'water pollution': 'Water Pollution',
+        },
     }
     
     if chapter_name in topic_mapping:
