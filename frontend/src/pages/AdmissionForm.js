@@ -279,9 +279,10 @@ const AdmissionForm = ({ onComplete }) => {
         setAdmissionId(response.data.admission_id);
         setIsSuccess(true);
         
-        // Auto-login: Set user data and redirect to dashboard
-        if (response.data.user && onUserLogin) {
-          onUserLogin(response.data.user);
+        // Auto-login: Set user in auth context
+        if (response.data.user) {
+          setUser(response.data.user);
+          setIsAuthenticated(true);
         }
         
         toast.success('Welcome to JEE Master! Your account has been created.');
