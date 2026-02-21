@@ -1,0 +1,7 @@
+admission_id,student_name,father_name,mother_name,date_of_birth,gender,contact_number,email,address,city,state,pincode,course_applying,status,submitted_at,remarks
+ADM20260221E6BB93,UI Test Student,Test Father,,2006-05-15,Female,9876543210,ui_test_1c8769@example.com,"123 Test Street, Test Area",Mumbai,Maharashtra,400001,JEE Advanced 2025,approved,2026-02-21 08:22:37,
+ADM202602216491CD,Reject Test Student,Test Father,Test Mother,2005-06-20,Female,9876543211,reject_test_5ccf2ba9@example.com,456 Test Avenue,Test City,Test State,654321,JEE Advanced 2025,rejected,2026-02-21 08:20:53,
+ADM20260221314BE4,TEST_CCB4EF_Student,TEST_CCB4EF_Father,TEST_CCB4EF_Mother,2005-05-15,Male,9876543210,test_193ba7f8@example.com,123 Test Street,Test City,Test State,123456,JEE Main 2025,approved,2026-02-21 08:20:52,
+ADM202602219C5097,Reject Test Student,Test Father,Test Mother,2005-06-20,Female,9876543211,reject_test_9053f194@example.com,456 Test Avenue,Test City,Test State,654321,JEE Advanced 2025,rejected,2026-02-21 08:20:19,
+ADM20260221DE7141,TEST_E27FD3_Student,TEST_E27FD3_Father,TEST_E27FD3_Mother,2005-05-15,Male,9876543210,test_2af0dfb2@example.com,123 Test Street,Test City,Test State,123456,JEE Main 2025,approved,2026-02-21 08:20:18,
+ADM202602216D5004,Test Student,Test Father,Test Mother,2006-01-15,Male,9876543210,test.admission@example.com,123 Test Street,Delhi,Delhi,110001,JEE Main 2025,pending,2026-02-21 08:18:11,
