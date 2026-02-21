@@ -97,11 +97,10 @@ const PYQSection = () => {
 
   const fetchQuestions = async (chapterName) => {
     try {
-      const params = {
-        subject,
-        chapter: chapterName,
-        limit: 500
-      };
+      // Build params object, only including non-empty values
+      const params = { limit: 500 };
+      if (subject) params.subject = subject;
+      if (chapterName) params.chapter = chapterName;
 
       const response = await api.get('/questions/', { params });
       const sorted = response.data.questions.sort((a, b) => b.year - a.year);
