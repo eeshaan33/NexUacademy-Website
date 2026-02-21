@@ -127,6 +127,14 @@ const Login = () => {
               Sign up
             </Link>
           </p>
+
+          <div className="pt-4 border-t">
+            <Link to="/admission">
+              <Button variant="outline" className="w-full bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 hover:bg-green-100">
+                <span className="text-green-700">New Student? Apply for Admission</span>
+              </Button>
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </div>
