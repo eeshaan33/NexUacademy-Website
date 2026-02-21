@@ -38,6 +38,8 @@ function AppRouter() {
       {/* Public Routes */}
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
+      <Route path="/admission" element={<AdmissionForm />} />
+      <Route path="/admin" element={<AdminPanel />} />
       
       {/* Protected Routes with Layout */}
       <Route
