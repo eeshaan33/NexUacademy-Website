@@ -14,6 +14,8 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
 import PYQSection from "./pages/PYQSection";
+import AdmissionForm from "./pages/AdmissionForm";
+import AdminPanel from "./pages/AdminPanel";
 import { 
   MyTestsPage, 
   AssignedTestsPage, 
