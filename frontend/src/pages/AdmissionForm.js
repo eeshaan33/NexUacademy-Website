@@ -12,9 +12,11 @@ import {
 import api from '../utils/api';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
-const AdmissionForm = ({ onComplete, onUserLogin }) => {
+const AdmissionForm = ({ onComplete }) => {
   const navigate = useNavigate();
+  const { setUser, setIsAuthenticated } = useAuth();
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
