@@ -69,7 +69,8 @@ JEE_SYLLABUS = {
             {"chapter": "Amines", "topics": ["Classification", "Preparation", "Diazonium Salts"]},
             {"chapter": "Biomolecules", "topics": ["Carbohydrates", "Proteins", "Enzymes", "Nucleic Acids"]},
             {"chapter": "Polymers", "topics": ["Classification", "Types of Polymerization"]},
-            {"chapter": "Chemistry in Everyday Life", "topics": ["Drugs", "Antibiotics", "Food Preservatives"]}
+            {"chapter": "Chemistry in Everyday Life", "topics": ["Drugs", "Antibiotics", "Food Preservatives"]},
+            {"chapter": "Analytical Chemistry", "topics": ["Chromatography", "Titrations", "Qualitative Analysis", "Quantitative Analysis"]}
         ]
     },
     "Mathematics": {
