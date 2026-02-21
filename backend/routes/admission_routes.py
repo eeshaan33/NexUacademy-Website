@@ -1,14 +1,16 @@
-from fastapi import APIRouter, Request, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, Request, UploadFile, File, Form, HTTPException, Response
 from fastapi.responses import StreamingResponse
 from config.database import get_database
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 import uuid
 import base64
 import io
 import json
+import bcrypt
 from middleware.auth import get_current_user
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
+from services.email_service import send_admission_confirmation_email
 
 router = APIRouter(prefix="/admissions", tags=["admissions"])
 
@@ -19,7 +21,8 @@ class AdmissionForm(BaseModel):
     date_of_birth: str
     gender: str
     contact_number: str
-    email: str
+    email: EmailStr
+    password: str  # Added password field
     address: str
     city: str
     state: str
