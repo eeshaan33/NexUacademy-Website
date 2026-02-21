@@ -43,7 +43,7 @@ async def get_questions(
     year: Optional[int] = Query(None),
     difficulty: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(20, ge=1, le=500),
     request: Request = None
 ):
     """
