@@ -28,7 +28,12 @@ CHAPTER_MAPPING = {
     'Alcohols-Phenols-and-Ethers': 'Alcohols, Phenols and Ethers',
     'Amines': 'Amines',
     'Analytical-Chemistry': 'Analytical Chemistry',
-    'Biomolecules': 'Biomolecules'
+    'Biomolecules': 'Biomolecules',
+    'Chemical-Equilibrium': 'Equilibrium',
+    'Chemical-Kinetics': 'Chemical Kinetics',
+    'Chemical-Thermodynamics': 'Thermodynamics',
+    'Chemistry-in-Everyday-Life': 'Chemistry in Everyday Life',
+    'Classification-of-Elements': 'Classification of Elements and Periodicity'
 }
 
 def extract_year_from_text(text):
