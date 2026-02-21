@@ -33,9 +33,17 @@ class AdmissionForm(BaseModel):
     signature_base64: Optional[str] = None
 
 @router.post("/submit")
-async def submit_admission(form: AdmissionForm, request: Request):
-    """Submit admission form with all details"""
+async def submit_admission(form: AdmissionForm, request: Request, response: Response):
+    """Submit admission form with all details, create user account, and auto-login"""
     db = get_database()
+    
+    # Check if email already registered
+    existing_user = await db.users.find_one({"email": form.email})
+    if existing_user:
+        raise HTTPException(
+            status_code=400,
+            detail="This email is already registered. Please login instead."
+        )
     
     # Generate unique admission ID
     admission_id = f"ADM{datetime.now().strftime('%Y%m%d')}{uuid.uuid4().hex[:6].upper()}"
@@ -67,29 +75,69 @@ async def submit_admission(form: AdmissionForm, request: Request):
     
     await db.admissions.insert_one(admission_doc)
     
-    # Create user account if doesn't exist
-    existing_user = await db.users.find_one({"email": form.email})
-    if not existing_user:
-        import bcrypt
-        temp_password = uuid.uuid4().hex[:8]
-        hashed = bcrypt.hashpw(temp_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-        
-        user_doc = {
-            "user_id": f"user_{uuid.uuid4().hex[:12]}",
-            "email": form.email,
-            "name": form.student_name,
-            "password": hashed,
-            "role": "student",
-            "admission_id": admission_id,
-            "profile_complete": True,
-            "created_at": datetime.now(timezone.utc)
-        }
-        await db.users.insert_one(user_doc)
+    # Create user account with the password from form
+    hashed_password = bcrypt.hashpw(form.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    user_id = f"user_{uuid.uuid4().hex[:12]}"
+    
+    user_doc = {
+        "user_id": user_id,
+        "email": form.email,
+        "name": form.student_name,
+        "password": hashed_password,
+        "role": "student",
+        "admission_id": admission_id,
+        "profile_pic": form.photo_base64[:100] if form.photo_base64 else None,  # Store reference only
+        "phone_number": form.contact_number,
+        "profile_complete": True,
+        "created_at": datetime.now(timezone.utc),
+        "last_login": datetime.now(timezone.utc)
+    }
+    await db.users.insert_one(user_doc)
+    
+    # Create session for auto-login
+    session_token = f"session_{uuid.uuid4().hex}"
+    session_doc = {
+        "user_id": user_id,
+        "session_token": session_token,
+        "expires_at": datetime.now(timezone.utc) + timedelta(days=7),
+        "created_at": datetime.now(timezone.utc)
+    }
+    await db.user_sessions.insert_one(session_doc)
+    
+    # Set httpOnly cookie for auto-login
+    response.set_cookie(
+        key="session_token",
+        value=session_token,
+        httponly=True,
+        secure=True,
+        samesite="none",
+        path="/",
+        max_age=7 * 24 * 60 * 60  # 7 days
+    )
+    
+    # Send confirmation email (async, don't block response)
+    email_result = await send_admission_confirmation_email(
+        student_name=form.student_name,
+        email=form.email,
+        admission_id=admission_id,
+        course=form.course_applying
+    )
+    
+    # Return user data for frontend (without password)
+    user_response = {
+        "user_id": user_id,
+        "email": form.email,
+        "name": form.student_name,
+        "role": "student",
+        "admission_id": admission_id
+    }
     
     return {
         "success": True,
         "admission_id": admission_id,
-        "message": "Admission form submitted successfully"
+        "message": "Admission form submitted successfully! You are now logged in.",
+        "user": user_response,
+        "email_status": email_result.get("status", "unknown")
     }
 
 @router.get("/list")
