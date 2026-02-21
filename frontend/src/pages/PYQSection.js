@@ -98,7 +98,7 @@ const PYQSection = () => {
   const fetchQuestions = async (chapterName) => {
     try {
       // Build params object, only including non-empty values
-      const params = { limit: 500 };
+      const params = { limit: 100 };
       if (subject) params.subject = subject;
       if (chapterName) params.chapter = chapterName;
 
