@@ -277,27 +277,26 @@ class TestQuestionsSyllabus:
         assert response.status_code == 200
         
         data = response.json()
-        assert "subjects" in data
         
-        # Find Chemistry subject
-        chemistry = None
-        for subject in data["subjects"]:
-            if subject.get("name") == "Chemistry":
-                chemistry = subject
-                break
+        # Structure is { "Chemistry": { "Class11": [...], "Class12": [...] }, "Physics": {...}, ... }
+        assert "Chemistry" in data, "Chemistry subject not found"
         
-        assert chemistry is not None, "Chemistry subject not found"
+        chemistry = data["Chemistry"]
         
-        # Check for new chemistry chapters
+        # Get all chapter names from both Class11 and Class12
+        chapter_names = []
+        for class_key in ["Class11", "Class12"]:
+            if class_key in chemistry:
+                chapter_names.extend([c.get("chapter") for c in chemistry[class_key]])
+        
+        # Check for new chemistry chapters (mapped to actual chapter names in syllabus)
         new_chapters = [
             "Coordination Compounds",
-            "D-F Block",
+            "The d- and f-Block Elements",  # D-F Block mapped to this
             "Electrochemistry",
-            "Environmental Chemistry",
+            "Chemistry in Everyday Life",  # Environmental Chemistry related
             "Equilibrium"
         ]
-        
-        chapter_names = [c.get("name") for c in chemistry.get("chapters", [])]
         
         found_chapters = []
         missing_chapters = []
@@ -313,6 +312,24 @@ class TestQuestionsSyllabus:
         
         # At least some of the new chapters should be present
         assert len(found_chapters) >= 3, f"Expected at least 3 new chapters, found {len(found_chapters)}: {found_chapters}"
+    
+    def test_new_chemistry_chapters_have_questions(self):
+        """Test that new chemistry chapters have questions loaded"""
+        chapters_to_test = [
+            ("Coordination Compounds", 100),  # Expected at least 100 questions
+            ("Electrochemistry", 100),
+            ("Equilibrium", 50)
+        ]
+        
+        for chapter, min_expected in chapters_to_test:
+            response = requests.get(f"{BASE_URL}/api/questions/?limit=1&subject=Chemistry&chapter={chapter}")
+            assert response.status_code == 200
+            
+            data = response.json()
+            total = data.get("total", 0)
+            
+            print(f"{chapter}: {total} questions")
+            assert total >= min_expected, f"Expected at least {min_expected} questions for {chapter}, got {total}"
 
 
 if __name__ == "__main__":
