@@ -7,16 +7,20 @@ import { Badge } from '../components/ui/badge';
 import { 
   User, Mail, Phone, MapPin, Calendar, Camera, Upload, 
   PenTool, CheckCircle, ArrowLeft, ArrowRight, Loader2,
-  FileText, X
+  FileText, X, Lock, Eye, EyeOff
 } from 'lucide-react';
 import api from '../utils/api';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
-const AdmissionForm = ({ onComplete }) => {
+const AdmissionForm = ({ onComplete, onUserLogin }) => {
+  const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [admissionId, setAdmissionId] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
   // Form data
   const [formData, setFormData] = useState({
@@ -27,6 +31,8 @@ const AdmissionForm = ({ onComplete }) => {
     gender: '',
     contact_number: '',
     email: '',
+    password: '',
+    confirm_password: '',
     address: '',
     city: '',
     state: '',
