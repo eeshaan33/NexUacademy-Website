@@ -38,6 +38,8 @@ api_router.include_router(bookmark_routes.router)
 api_router.include_router(analytics_routes.router)
 api_router.include_router(admin_routes.router)
 api_router.include_router(admission_routes.router)
+api_router.include_router(test_template_routes.router)
+api_router.include_router(custom_test_routes.router)
 
 # Include the router in the main app
 app.include_router(api_router)
