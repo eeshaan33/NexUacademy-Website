@@ -70,11 +70,9 @@ const Layout = ({ children }) => {
               
               {/* Logo */}
               <Link to="/dashboard" className="flex items-center space-x-2 ml-2 md:ml-0">
-                <div className="bg-primary p-2 rounded-lg">
-                  <BookOpen className="h-6 w-6 text-white" />
-                </div>
+                <img src="/logo.png" alt="NexUacademy" className="h-10 w-10 object-contain" />
                 <span className="text-xl font-heading font-bold text-foreground hidden sm:inline">
-                  JEE Master
+                  NexUacademy
                 </span>
               </Link>
             </div>

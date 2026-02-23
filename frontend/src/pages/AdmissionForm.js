@@ -285,7 +285,7 @@ const AdmissionForm = ({ onComplete }) => {
           setIsAuthenticated(true);
         }
         
-        toast.success('Welcome to JEE Master! Your account has been created.');
+        toast.success('Welcome to NexUacademy! Your account has been created.');
         
         // Redirect to dashboard after short delay
         setTimeout(() => {
@@ -311,7 +311,7 @@ const AdmissionForm = ({ onComplete }) => {
               <CheckCircle className="h-16 w-16 text-green-600" />
             </div>
             <div className="space-y-2">
-              <h2 className="text-2xl font-bold text-green-800">Welcome to JEE Master!</h2>
+              <h2 className="text-2xl font-bold text-green-800">Welcome to NexUacademy!</h2>
               <p className="text-gray-600">Your account has been created and you're now logged in.</p>
             </div>
             <div className="bg-green-50 p-4 rounded-lg">
@@ -343,7 +343,8 @@ const AdmissionForm = ({ onComplete }) => {
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-800">JEE Master Admission</h1>
+          <img src="/logo.png" alt="NexUacademy" className="h-16 w-16 object-contain mx-auto mb-4" />
+          <h1 className="text-3xl font-bold text-gray-800">NexUacademy Admission</h1>
           <p className="text-gray-600 mt-2">Complete your admission form in 4 easy steps</p>
         </div>
 

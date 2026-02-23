@@ -68,10 +68,10 @@ const Signup = () => {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="w-full max-w-md shadow-card">
         <CardHeader className="space-y-2 text-center">
-          <div className="mx-auto bg-primary/10 p-3 rounded-full w-fit">
-            <BookOpen className="h-8 w-8 text-primary" />
+          <div className="mx-auto w-fit">
+            <img src="/logo.png" alt="NexUacademy" className="h-16 w-16 object-contain" />
           </div>
-          <CardTitle className="text-3xl font-heading">Join JEE Master</CardTitle>
+          <CardTitle className="text-3xl font-heading">Join NexUacademy</CardTitle>
           <CardDescription>Create your account to start preparing</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
