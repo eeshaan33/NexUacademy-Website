@@ -38,14 +38,6 @@ export const PYQPage = () => (
   />
 );
 
-export const MyTestsPage = () => (
-  <ComingSoon
-    title="My Tests"
-    description="Create Custom Practice Tests"
-    icon={BookOpen}
-  />
-);
-
 export const AssignedTestsPage = () => (
   <ComingSoon
     title="Assigned Tests"
