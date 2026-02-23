@@ -8,6 +8,7 @@ from pathlib import Path
 
 # Import route modules
 from routes import auth_routes, question_routes, test_routes, class_routes, bookmark_routes, analytics_routes, admin_routes, admission_routes
+from routes import test_template_routes, custom_test_routes
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
