@@ -19,7 +19,7 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
 # Create the main app
-app = FastAPI(title="JEE Master API", version="1.0.0")
+app = FastAPI(title="NexUacademy API", version="1.0.0")
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
@@ -27,7 +27,7 @@ api_router = APIRouter(prefix="/api")
 # Health check endpoint
 @api_router.get("/")
 async def root():
-    return {"message": "JEE Master API is running", "status": "healthy"}
+    return {"message": "NexUacademy API is running", "status": "healthy"}
 
 # Include all route modules
 api_router.include_router(auth_routes.router)
@@ -62,7 +62,7 @@ logger = logging.getLogger(__name__)
 
 @app.on_event("startup")
 async def startup_event():
-    logger.info("JEE Master API started successfully")
+    logger.info("NexUacademy API started successfully")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
