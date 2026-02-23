@@ -26,28 +26,28 @@ const TakeTestPage = () => {
   const [showResults, setShowResults] = useState(false);
   const [results, setResults] = useState(null);
 
+  // Fetch test on mount
   useEffect(() => {
-    fetchTest();
-  }, [testId]);
-
-  const fetchTest = async () => {
-    try {
-      setLoading(true);
-      const response = await api.get(`/custom-tests/${testId}/questions`);
-      setQuestions(response.data.questions || []);
-      setTimeLeft((response.data.duration || 180) * 60); // Convert to seconds
-      
-      // Also get test info
-      const testInfo = await api.get(`/custom-tests/${testId}`);
-      setTest(testInfo.data);
-    } catch (error) {
-      console.error('Error fetching test:', error);
-      toast.error('Failed to load test');
-      navigate('/tests/my-tests');
-    } finally {
-      setLoading(false);
-    }
-  };
+    const fetchTestData = async () => {
+      try {
+        setLoading(true);
+        const response = await api.get(`/custom-tests/${testId}/questions`);
+        setQuestions(response.data.questions || []);
+        setTimeLeft((response.data.duration || 180) * 60);
+        
+        const testInfo = await api.get(`/custom-tests/${testId}`);
+        setTest(testInfo.data);
+      } catch (error) {
+        console.error('Error fetching test:', error);
+        toast.error('Failed to load test');
+        navigate('/my-tests');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchTestData();
+  }, [testId, navigate]);
 
   // Timer
   useEffect(() => {
