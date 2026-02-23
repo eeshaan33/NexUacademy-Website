@@ -57,7 +57,6 @@ const TakeTestPage = () => {
       setTimeLeft(prev => {
         if (prev <= 1) {
           clearInterval(timer);
-          handleSubmit();
           return 0;
         }
         return prev - 1;
@@ -66,6 +65,14 @@ const TakeTestPage = () => {
     
     return () => clearInterval(timer);
   }, [timeLeft, showResults]);
+  
+  // Auto-submit when timer runs out
+  useEffect(() => {
+    if (timeLeft === 0 && !showResults && !submitting) {
+      handleSubmit();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeLeft, showResults, submitting]);
 
   const formatTime = (seconds) => {
     const hrs = Math.floor(seconds / 3600);
