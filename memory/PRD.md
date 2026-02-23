@@ -1,4 +1,4 @@
-# JEE Master - Product Requirements Document
+# NexUacademy - Product Requirements Document
 
 ## Original Problem Statement
 Build a full-stack JEE preparation web application with:
@@ -7,6 +7,7 @@ Build a full-stack JEE preparation web application with:
 - Online admission form with user account creation and email confirmation
 - Admin panel for managing admissions
 - Live Classes section with scheduling and recordings
+- Custom Test Builder for personalized practice tests
 
 ## Tech Stack
 - **Frontend:** React, Tailwind CSS, shadcn/ui
@@ -80,7 +81,7 @@ Build a full-stack JEE preparation web application with:
 - Approve/Reject applications
 - Export to CSV/Excel
 
-#### My Live Classes ✅ (NEW - Feb 2026)
+#### My Live Classes ✅
 **Features:**
 - **NextClassCard:** Featured card with live countdown timer
 - **UpcomingClassCard:** Cards for other upcoming classes
@@ -105,6 +106,63 @@ Build a full-stack JEE preparation web application with:
 - 1 hour before class
 - 15 minutes before class
 
+#### Custom Test Builder ✅ (NEW - Feb 23, 2026)
+**4-Step Test Creation Wizard:**
+1. **Step 1 - Exam Type:** Select JEE Main, JEE Advanced, or Mixed Practice
+2. **Step 2 - Topic Selection:**
+   - Physics/Chemistry/Mathematics tabs
+   - Expandable chapters with topic counts
+   - Select topics with available question counts
+   - Search chapters and topics
+3. **Step 3 - Configure:**
+   - Set question count per topic
+   - Year range selector (2010-2025)
+   - Duration setting with recommended time
+   - Subject-wise marks breakdown
+4. **Step 4 - Preview:**
+   - Summary cards (Total Questions, Marks, Duration, Year Range)
+   - Subject-wise distribution chart
+   - Save as Template option
+   - Generate & Start Test button
+
+**Test Taking Interface:**
+- Real-time countdown timer (turns red when < 5 mins)
+- Question display with subject badges and marks
+- MCQ options with selection highlighting
+- Numerical input for numerical questions
+- Question Palette showing answered/flagged/remaining
+- Flag questions for review
+- Clear answer button
+- Previous/Next navigation
+- Direct question navigation via palette
+- Auto-submit on timer expiry
+- Confirmation dialog for early submission
+
+**Test Results Display:**
+- Score summary card with gradient background
+- Correct/Incorrect/Skipped counts
+- Time taken
+- Percentage and Accuracy metrics
+- Question-wise analysis with:
+  - User answer vs correct answer
+  - Marks per question (+4/-1/0)
+  - Status indicator (green/red/gray)
+- Back to My Tests button
+- Retake Test option
+
+**API Endpoints:**
+- `GET /api/custom-tests/syllabus` - Get chapters/topics by subject
+- `GET /api/custom-tests/question-counts` - Get topic-wise question counts
+- `POST /api/custom-tests/generate` - Generate test from selected topics
+- `GET /api/custom-tests/{test_id}` - Get test details
+- `GET /api/custom-tests/{test_id}/questions` - Get questions (no answers)
+- `POST /api/custom-tests/{test_id}/submit` - Submit and get results
+- `GET /api/custom-tests/history/mine` - Get user's test history
+- `GET /api/test-templates` - Get saved templates
+- `POST /api/test-templates` - Create template
+- `PUT /api/test-templates/{id}` - Update template
+- `DELETE /api/test-templates/{id}` - Delete template
+
 ### Question Database Summary
 
 | Subject | Questions | MCQ | Numerical |
@@ -125,45 +183,19 @@ Build a full-stack JEE preparation web application with:
 | 2019 | 1,242 |
 | Older | 2,353 |
 
-### API Endpoints Summary
-
-#### Admissions
-- `POST /api/admissions/submit` - Submit admission (creates user, sends email, returns session)
-- `GET /api/admissions/list` - List all admissions (admin)
-- `GET /api/admissions/detail/{id}` - Get full details
-- `PUT /api/admissions/update-status/{id}` - Approve/Reject
-- `GET /api/admissions/export/excel` - Export CSV
-
-#### Authentication
-- `POST /api/auth/login` - Login with email/password
-- `POST /api/auth/register` - Register new user
-- `POST /api/auth/logout` - Logout
-- `GET /api/auth/me` - Get current user
-
-#### Questions
-- `GET /api/questions` - Get questions with filters
-- `GET /api/questions/syllabus` - Get syllabus structure
-
-#### Analytics
-- `POST /api/analytics/attempt` - Record question attempt
-- `GET /api/analytics/stats` - Get user statistics
-
-#### Classes
-- `GET /api/classes` - Get all classes
-- `GET /api/classes/upcoming` - Get upcoming classes
-- `GET /api/classes/past` - Get past classes
-- `POST /api/classes` - Create class
-- `PUT /api/classes/{id}` - Update class
-- `DELETE /api/classes/{id}` - Delete class
-- `POST /api/classes/{id}/attendance` - Mark attendance
-
 ### Key Routes
-- `/login` - Login page with admission link
+- `/login` - Login page with NexUacademy branding
+- `/signup` - Sign up page
 - `/admission` - Multi-step admission form
 - `/admin` - Admin panel for managing admissions
 - `/pyq` - PYQ practice section
 - `/dashboard` - Student dashboard
 - `/classes` - My Live Classes section
+- `/my-tests` - Custom Test Builder
+- `/test/:testId/take` - Test taking interface
+- `/assigned-tests` - Tests assigned by teacher (placeholder)
+- `/analytics` - Performance analytics (placeholder)
+- `/bookmarks` - Saved questions (placeholder)
 
 ### Integrations
 - **Resend:** Email confirmation for admissions and class reminders
@@ -173,11 +205,12 @@ Build a full-stack JEE preparation web application with:
 ---
 
 ## Pending Features 🔄
-1. Custom Test Builder
+1. ~~Custom Test Builder~~ ✅ COMPLETED
 2. Teacher dashboards
 3. Google Sheets sync for live classes
 4. Question bookmarking
 5. Email notifications for admission status changes
+6. Assigned tests from teachers
 
 ---
 Last Updated: February 23, 2026
