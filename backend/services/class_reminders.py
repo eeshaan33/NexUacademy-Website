@@ -53,8 +53,8 @@ def get_class_reminder_email(student_name: str, class_details: dict, reminder_ty
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
     </head>
     <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background: #f5f5f5;">
-      <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-        <h1 style="margin: 0; font-size: 28px;">🎓 JEE Master</h1>
+      <div style="background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+        <h1 style="margin: 0; font-size: 28px;">🎓 NexUacademy</h1>
         <h2 style="margin: 15px 0 0 0; font-size: 18px; font-weight: normal;">{reminder_text}</h2>
       </div>
       
@@ -101,7 +101,7 @@ def get_class_reminder_email(student_name: str, class_details: dict, reminder_ty
         
         <div style="text-align: center; margin: 30px 0;">
           <a href="{class_details.get("meeting_link", "#")}" 
-             style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+             style="display: inline-block; background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
             🎥 Join Class Now
           </a>
         </div>
@@ -119,8 +119,8 @@ def get_class_reminder_email(student_name: str, class_details: dict, reminder_ty
       </div>
       
       <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
-        <p>JEE Master - Your Path to IIT Success</p>
-        <p>If you have any questions, contact us at support@jeemaster.com</p>
+        <p>NexUacademy - Your Path to IIT Success</p>
+        <p>If you have any questions, contact us at support@nexuacademy.com</p>
       </div>
     </body>
     </html>
