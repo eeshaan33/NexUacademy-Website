@@ -111,6 +111,14 @@ function AppRouter() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/test/:testId/take"
+        element={
+          <ProtectedRoute>
+            <TakeTestPage />
+          </ProtectedRoute>
+        }
+      />
       
       {/* Default redirect */}
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
