@@ -16,10 +16,10 @@ import Dashboard from "./pages/Dashboard";
 import PYQSection from "./pages/PYQSection";
 import AdmissionForm from "./pages/AdmissionForm";
 import AdminPanel from "./pages/AdminPanel";
+import ClassesPage from "./pages/ClassesPage";
 import { 
   MyTestsPage, 
   AssignedTestsPage, 
-  ClassesPage, 
   AnalyticsPage, 
   BookmarksPage 
 } from "./pages/PlaceholderPages";
