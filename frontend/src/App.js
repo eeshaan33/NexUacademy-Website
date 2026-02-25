@@ -16,13 +16,12 @@ import Dashboard from "./pages/Dashboard";
 import PYQSection from "./pages/PYQSection";
 import AdmissionForm from "./pages/AdmissionForm";
 import AdminPanel from "./pages/AdminPanel";
-import ClassesPage from "./pages/ClassesPage";
-import MyTestsPage from "./pages/MyTestsPage";
-import TakeTestPage from "./pages/TakeTestPage";
 import { 
+  MyTestsPage,
   AssignedTestsPage, 
   AnalyticsPage, 
-  BookmarksPage 
+  BookmarksPage,
+  ClassesPage
 } from "./pages/PlaceholderPages";
 
 function AppRouter() {
