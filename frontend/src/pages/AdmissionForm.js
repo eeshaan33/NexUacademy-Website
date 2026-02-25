@@ -58,12 +58,11 @@ const AdmissionForm = ({ onComplete }) => {
   const [lastPos, setLastPos] = useState({ x: 0, y: 0 });
 
   const courses = [
-    'JEE Main 2025',
-    'JEE Advanced 2025',
-    'JEE Main + Advanced 2025',
-    'JEE Foundation (Class 11)',
-    'JEE Foundation (Class 12)',
-    'JEE Crash Course'
+    'JEE Mains 2027',
+    'JEE Mains 2028',
+    'JEE Advance 2027',
+    'JEE Advance 2028',
+    'JEE Mains 2029'
   ];
 
   const handleInputChange = (e) => {
