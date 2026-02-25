@@ -69,11 +69,8 @@ const Layout = ({ children }) => {
               </button>
               
               {/* Logo */}
-              <Link to="/dashboard" className="flex items-center space-x-2 ml-2 md:ml-0">
-                <img src="/logo.png" alt="NexUacademy" className="h-10 w-10 object-contain" />
-                <span className="text-xl font-heading font-bold text-foreground hidden sm:inline">
-                  NexUacademy
-                </span>
+              <Link to="/dashboard" className="flex items-center space-x-3 ml-2 md:ml-0">
+                <img src="/logo.png" alt="NexUacademy" className="h-12 w-auto object-contain" />
               </Link>
             </div>
 
