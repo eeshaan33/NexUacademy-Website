@@ -343,7 +343,7 @@ const AdmissionForm = ({ onComplete }) => {
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <img src="/logo.png" alt="NexUacademy" className="h-16 w-16 object-contain mx-auto mb-4" />
+          <img src="/logo.png" alt="NexUacademy" className="h-24 w-auto object-contain mx-auto mb-4" />
           <h1 className="text-3xl font-bold text-gray-800">NexUacademy Admission</h1>
           <p className="text-gray-600 mt-2">Complete your admission form in 4 easy steps</p>
         </div>
