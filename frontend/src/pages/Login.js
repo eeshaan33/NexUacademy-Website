@@ -50,7 +50,7 @@ const Login = () => {
       <Card className="w-full max-w-md shadow-card">
         <CardHeader className="space-y-2 text-center">
           <div className="mx-auto w-fit">
-            <img src="/logo.png" alt="NexUacademy" className="h-16 w-16 object-contain" />
+            <img src="/logo.png" alt="NexUacademy" className="h-24 w-auto object-contain" />
           </div>
           <CardTitle className="text-3xl font-heading">Welcome to NexUacademy</CardTitle>
           <CardDescription>Sign in to continue your JEE preparation</CardDescription>
