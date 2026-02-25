@@ -46,3 +46,12 @@
     text-wrap: balance;
   }
 }
+
+/* Hide Emergent badge */
+#emergent-badge,
+a[href*="emergent.sh"],
+a[href*="emergentagent.com"][style*="position: fixed"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
