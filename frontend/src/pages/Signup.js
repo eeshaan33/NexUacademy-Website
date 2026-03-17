@@ -6,6 +6,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import axios from 'axios';
 import { BookOpen, User, Mail, Lock, Chrome } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -21,6 +22,17 @@ const Signup = () => {
     batch_id: ''
   });
   const [loading, setLoading] = useState(false);
+  const [batches, setBatches] = useState([]);
+
+  React.useEffect(() => {
+    const loadBatches = async () => {
+      try {
+        const res = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/batches/`);
+        setBatches(res.data.batches || []);
+      } catch {}
+    };
+    loadBatches();
+  }, []);
 
   const handleChange = (e) => {
     setFormData({
@@ -124,16 +136,17 @@ const Signup = () => {
             </div>
             {formData.role === 'student' && (
               <div className="space-y-2">
-                <Label htmlFor="batch_id">Batch ID (Optional)</Label>
-                <Input
-                  id="batch_id"
-                  name="batch_id"
-                  type="text"
-                  placeholder="BATCH2024A"
-                  value={formData.batch_id}
-                  onChange={handleChange}
-                  data-testid="batch-input"
-                />
+                <Label htmlFor="batch_id">Select Batch</Label>
+                <Select value={formData.batch_id} onValueChange={(value) => setFormData({ ...formData, batch_id: value })}>
+                  <SelectTrigger data-testid="batch-select">
+                    <SelectValue placeholder="Select your batch" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {batches.map((b) => (
+                      <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
             <div className="space-y-2">

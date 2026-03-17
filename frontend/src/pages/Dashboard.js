@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { 
   BookOpen, 
   FileEdit, 
@@ -36,6 +36,11 @@ const Dashboard = () => {
 
     fetchStats();
   }, []);
+
+  // Redirect teachers to teacher dashboard (after hooks)
+  if (user?.role === 'teacher') {
+    return <Navigate to="/teacher" replace />;
+  }
 
   const navigationCards = [
     {

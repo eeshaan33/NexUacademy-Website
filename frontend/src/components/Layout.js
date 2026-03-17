@@ -11,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
+import NotificationBell from './NotificationBell';
 import { 
   BookOpen, 
   LayoutDashboard,
@@ -76,6 +77,7 @@ const Layout = ({ children }) => {
 
             {/* User menu */}
             <div className="flex items-center space-x-4">
+              <NotificationBell />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-10 w-10 rounded-full" data-testid="user-menu">
@@ -104,6 +106,16 @@ const Layout = ({ children }) => {
                     <User className="mr-2 h-4 w-4" />
                     <span>Profile</span>
                   </DropdownMenuItem>
+                  {user?.role === 'teacher' && (
+                    <>
+                      <DropdownMenuItem asChild>
+                        <Link to="/teacher" className="cursor-pointer">
+                          <LayoutDashboard className="mr-2 h-4 w-4" />
+                          <span>Teacher Dashboard</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout} data-testid="logout-button">
                     <LogOut className="mr-2 h-4 w-4" />

@@ -7,7 +7,7 @@ import requests
 import os
 import uuid
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://test-maker-staging.preview.emergentagent.com')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://nexu-exam-boost.preview.emergentagent.com')
 
 class TestAdmissionAPIs:
     """Admission system endpoint tests"""
