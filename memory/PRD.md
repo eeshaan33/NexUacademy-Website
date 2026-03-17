@@ -1,216 +1,132 @@
-# NexUacademy - Product Requirements Document
+# NexUacademy - JEE Preparation Platform PRD
 
 ## Original Problem Statement
-Build a full-stack JEE preparation web application with:
-- Comprehensive PYQ section with Physics, Chemistry, and Mathematics
-- Student dashboard with progress tracking
-- Online admission form with user account creation and email confirmation
-- Admin panel for managing admissions
-- Live Classes section with scheduling and recordings
-- Custom Test Builder for personalized practice tests
+Build a complete JEE preparation web application named "NexUacademy" with:
+- Teacher Dashboard for managing classes, tests, and student analytics
+- Student Website for attending classes, taking tests, and viewing PYQs
+- Browser Push Notifications for real-time updates
+- All data in MongoDB Atlas
 
 ## Tech Stack
-- **Frontend:** React, Tailwind CSS, shadcn/ui
-- **Backend:** FastAPI (Python)
-- **Database:** MongoDB
-- **Email:** Resend API
+- **Backend:** Python/FastAPI + Motor (async MongoDB driver)
+- **Frontend:** React 19 + Tailwind CSS + shadcn/ui
+- **Database:** MongoDB Atlas (cloud)
+- **Auth:** Session-based (httpOnly cookies) + Google OAuth (Emergent Auth)
+- **Push:** Web Push API + VAPID keys + pywebpush
 
-## Current Implementation Status
+## Core Architecture
+```
+/app
+├── backend/
+│   ├── server.py                    # FastAPI main server
+│   ├── .env                         # MongoDB Atlas, VAPID keys, JWT
+│   ├── config/
+│   │   ├── database.py              # MongoDB connection
+│   │   ├── batches.py               # Predefined batches
+│   │   └── syllabus.py              # JEE syllabus data
+│   ├── middleware/auth.py           # Session auth + role middleware
+│   ├── routes/
+│   │   ├── auth_routes.py           # Login, register, Google OAuth
+│   │   ├── teacher_class_routes.py  # Teacher class CRUD
+│   │   ├── teacher_test_routes.py   # Teacher test CRUD + questions
+│   │   ├── teacher_student_routes.py# Teacher student analytics
+│   │   ├── student_class_routes.py  # Student class view + attendance
+│   │   ├── student_test_routes.py   # Student test taking + results
+│   │   ├── notification_routes.py   # In-app notifications
+│   │   ├── push_routes.py           # Push subscription
+│   │   ├── batch_routes.py          # Predefined batches API
+│   │   ├── question_routes.py       # PYQ questions
+│   │   └── ... (other existing routes)
+│   └── services/
+│       ├── push_service.py          # VAPID push notifications
+│       └── email_service.py
+├── frontend/
+│   ├── src/
+│   │   ├── App.js                   # All routes (teacher + student)
+│   │   ├── components/
+│   │   │   ├── Layout.js            # Student layout + notification bell
+│   │   │   ├── TeacherLayout.js     # Teacher sidebar layout
+│   │   │   ├── NotificationBell.js  # Notification dropdown
+│   │   │   └── ui/                  # shadcn components
+│   │   ├── pages/
+│   │   │   ├── teacher/
+│   │   │   │   ├── TeacherDashboard.js   # Stats + quick actions
+│   │   │   │   ├── ManageClasses.js      # Schedule/edit/delete classes
+│   │   │   │   ├── CreateTest.js         # Multi-step test creation
+│   │   │   │   └── StudentAnalytics.js   # Student performance
+│   │   │   ├── student/
+│   │   │   │   ├── StudentClasses.js     # View assigned classes
+│   │   │   │   ├── AssignedTests.js      # View assigned tests
+│   │   │   │   ├── TakeTest.js           # Test-taking interface
+│   │   │   │   └── TestResults.js        # Results with teacher notes
+│   │   │   └── ... (existing pages)
+│   │   └── context/AuthContext.js
+│   └── public/service-worker.js     # Push notification handler
+```
 
-### Completed Features ✅
+## What's Been Implemented
 
-#### Authentication System
-- JWT-based session authentication with httpOnly cookies
-- Google OAuth via Emergent Auth
-- Login with email/password
-- Auto-login after admission form submission
-- Test accounts: `student@test.com` / `teacher@test.com` (password123)
+### Phase 1 - Completed (March 17, 2026)
+**Teacher Dashboard + Student Features + Push Notifications**
+- Complete teacher dashboard with stats cards, class management, test creation, student analytics
+- Multi-step test creation form with question-by-question entry and teacher notes
+- Teacher notes hidden during test, shown ONLY after submission for incorrect/unattempted answers
+- Student class viewing with auto-refresh every 30 seconds  
+- Student test-taking interface with timer, question palette, flagging
+- Test results page with detailed question-wise review
+- In-app notification bell with unread count (both layouts)
+- VAPID push notification infrastructure
+- Service worker for browser push notifications
+- Predefined batch system (6 JEE batches: 2027/2028/2029 Morning/Evening)
+- Updated signup page with batch selector dropdown
+- Teacher login redirects to teacher dashboard
+- Role-based access control (teacher/student middleware)
 
-#### PYQ Section (Fully Implemented)
-- **Total Questions: 13,415** across all subjects
-  - Physics: 4,246 questions (41 chapters)
-  - Mathematics: 5,071 questions (38 chapters)
-  - Chemistry: 4,098 questions (25 chapters)
-- Year categorization: 2010-2025 (strict extraction)
-- Topic categorization within each chapter
-- Question types: MCQ (10,730) and Numerical (2,685)
-- Navigation: Exam Type → Subject → Chapter → Practice Mode → Questions
-- Search with autocomplete
-- Year filter pills
-- Topic-wise and Year-wise practice modes
-- Question tracking with progress analytics
+### Previously Completed
+- Database migration to MongoDB Atlas (13k+ questions)
+- Full rebranding to "NexUacademy" with custom logo
+- PYQ Section with subject/chapter filtering
+- JWT + Google OAuth authentication
+- Admission form with course selection
+- Student dashboard with stats
 
-#### Dashboard Analytics ✅
-- Questions Solved (real-time)
-- Tests Taken
-- Average Accuracy
-- Current Streak
+## Predefined Batches
+- JEE-2027-Morning, JEE-2027-Evening
+- JEE-2028-Morning, JEE-2028-Evening
+- JEE-2029-Morning, JEE-2029-Evening
 
-#### Admission System ✅
-**Multi-step admission form with:**
-1. **Step 1 - Personal Details:**
-   - Student Name, Father/Mother Name
-   - Date of Birth, Gender
-   - Contact Number, Email
-   - **Create Password & Confirm Password**
-   
-2. **Step 2 - Address & Course:**
-   - Full Address, City, State, Pincode
-   - Course selection (6 JEE courses)
-   
-3. **Step 3 - Document Upload:**
-   - Camera selfie capture
-   - Gallery photo upload
-   - ID Proof upload (optional)
-   
-4. **Step 4 - Digital Signature:**
-   - Touch/mouse canvas signature
-   - Clear and redraw support
+## Key Database Collections
+- **users**: user_id, email, name, role, batch_id, push_subscription, notifications_enabled
+- **classes**: class_id, title, subject, teacher_id, meeting_link, scheduled_date_time, assigned_batches, attendance
+- **teacher_tests**: test_id, test_name, questions (with teacher_note), assigned_batches, status
+- **test_attempts**: attempt_id, test_id, student_id, answers, total_score, status
+- **notifications**: user_id, type, title, message, is_read
+- **questions**: 13k+ PYQ questions
 
-**On Submission:**
-- Creates user account with password
-- Sends confirmation email (Resend)
-- Auto-logs in the student
-- Redirects to dashboard
+## Test Credentials
+- Teacher: teacher@test.com / password123
+- Student: student@test.com / password123 (batch: JEE-2027-Morning)
 
-**Admin Panel:**
-- View all applications with stats
-- Filter by status (Pending/Approved/Rejected)
-- Search by name, email, or ID
-- View full details with photo and signature
-- Approve/Reject applications
-- Export to CSV/Excel
+## Testing Status
+- Backend: 19/19 tests passed (100%)
+- Frontend: All UI tests passed (100%)
+- E2E flow verified: Teacher creates test -> Student takes test -> Results with teacher notes
 
-#### My Live Classes ✅
-**Features:**
-- **NextClassCard:** Featured card with live countdown timer
-- **UpcomingClassCard:** Cards for other upcoming classes
-- **PastClassCard:** Cards with Watch Recording, Download Notes, Download Slides links
-- Subject-based color coding (Physics=blue, Chemistry=green, Math=red)
-- Join button activates 10 mins before class
-- Teacher photos and meeting platform info
-- Timeline and Calendar view toggle
+## P0/P1/P2 Backlog
 
-**API Endpoints:**
-- `GET /api/classes` - Get all classes with filters
-- `GET /api/classes/upcoming` - Get upcoming classes with can_join flag
-- `GET /api/classes/past` - Get past classes with recordings
-- `GET /api/classes/schedule?days=7` - Get schedule grouped by date
-- `POST /api/classes` - Create new class
-- `PUT /api/classes/{id}` - Update class
-- `POST /api/classes/{id}/attendance` - Mark attendance
-- `POST /api/classes/seed-sample` - Seed sample data
+### P0 (Critical)
+- Data quality from PDF parsing (missing images, malformed text in PYQ)
 
-**Email Reminders:**
-- 24 hours before class
-- 1 hour before class
-- 15 minutes before class
+### P1 (Important)
+- Chapter/Topic sorting in PYQ section
+- Google Sheets sync for live classes
+- Analytics page (student self-analytics)
 
-#### Custom Test Builder ✅ (NEW - Feb 23, 2026)
-**4-Step Test Creation Wizard:**
-1. **Step 1 - Exam Type:** Select JEE Main, JEE Advanced, or Mixed Practice
-2. **Step 2 - Topic Selection:**
-   - Physics/Chemistry/Mathematics tabs
-   - Expandable chapters with topic counts
-   - Select topics with available question counts
-   - Search chapters and topics
-3. **Step 3 - Configure:**
-   - Set question count per topic
-   - Year range selector (2010-2025)
-   - Duration setting with recommended time
-   - Subject-wise marks breakdown
-4. **Step 4 - Preview:**
-   - Summary cards (Total Questions, Marks, Duration, Year Range)
-   - Subject-wise distribution chart
-   - Save as Template option
-   - Generate & Start Test button
-
-**Test Taking Interface:**
-- Real-time countdown timer (turns red when < 5 mins)
-- Question display with subject badges and marks
-- MCQ options with selection highlighting
-- Numerical input for numerical questions
-- Question Palette showing answered/flagged/remaining
-- Flag questions for review
-- Clear answer button
-- Previous/Next navigation
-- Direct question navigation via palette
-- Auto-submit on timer expiry
-- Confirmation dialog for early submission
-
-**Test Results Display:**
-- Score summary card with gradient background
-- Correct/Incorrect/Skipped counts
-- Time taken
-- Percentage and Accuracy metrics
-- Question-wise analysis with:
-  - User answer vs correct answer
-  - Marks per question (+4/-1/0)
-  - Status indicator (green/red/gray)
-- Back to My Tests button
-- Retake Test option
-
-**API Endpoints:**
-- `GET /api/custom-tests/syllabus` - Get chapters/topics by subject
-- `GET /api/custom-tests/question-counts` - Get topic-wise question counts
-- `POST /api/custom-tests/generate` - Generate test from selected topics
-- `GET /api/custom-tests/{test_id}` - Get test details
-- `GET /api/custom-tests/{test_id}/questions` - Get questions (no answers)
-- `POST /api/custom-tests/{test_id}/submit` - Submit and get results
-- `GET /api/custom-tests/history/mine` - Get user's test history
-- `GET /api/test-templates` - Get saved templates
-- `POST /api/test-templates` - Create template
-- `PUT /api/test-templates/{id}` - Update template
-- `DELETE /api/test-templates/{id}` - Delete template
-
-### Question Database Summary
-
-| Subject | Questions | MCQ | Numerical |
-|---------|-----------|-----|-----------|
-| Mathematics | 5,071 | 4,200+ | 800+ |
-| Physics | 4,246 | 3,500+ | 700+ |
-| Chemistry | 4,098 | 3,000+ | 1,000+ |
-
-### Year Distribution
-| Year | Questions |
-|------|-----------|
-| 2025 | 1,247 |
-| 2024 | 2,033 |
-| 2023 | 1,906 |
-| 2022 | 1,739 |
-| 2021 | 1,857 |
-| 2020 | 1,038 |
-| 2019 | 1,242 |
-| Older | 2,353 |
-
-### Key Routes
-- `/login` - Login page with NexUacademy branding
-- `/signup` - Sign up page
-- `/admission` - Multi-step admission form
-- `/admin` - Admin panel for managing admissions
-- `/pyq` - PYQ practice section
-- `/dashboard` - Student dashboard
-- `/classes` - My Live Classes section
-- `/my-tests` - Custom Test Builder
-- `/test/:testId/take` - Test taking interface
-- `/assigned-tests` - Tests assigned by teacher (placeholder)
-- `/analytics` - Performance analytics (placeholder)
-- `/bookmarks` - Saved questions (placeholder)
-
-### Integrations
-- **Resend:** Email confirmation for admissions and class reminders
-- **PyMuPDF:** PDF parsing for question extraction
-- **React Signature Canvas:** Digital signatures
-
----
-
-## Pending Features 🔄
-1. ~~Custom Test Builder~~ ✅ COMPLETED
-2. Teacher dashboards
-3. Google Sheets sync for live classes
-4. Question bookmarking
-5. Email notifications for admission status changes
-6. Assigned tests from teachers
-
----
-Last Updated: February 23, 2026
+### P2 (Nice to have)
+- Bookmarks page implementation
+- Custom test builder (My Tests - currently placeholder)
+- Teacher-created batches (beyond predefined)
+- Leaderboards
+- Study plans / AI recommendations
+- Video lectures integration
+- Download results as CSV for teachers
