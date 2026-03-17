@@ -4,6 +4,7 @@ from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
+import asyncio
 from pathlib import Path
 
 # Import route modules
@@ -74,6 +75,10 @@ logger = logging.getLogger(__name__)
 @app.on_event("startup")
 async def startup_event():
     logger.info("NexUacademy API started successfully")
+    # Start the test reminder background scheduler
+    from services.reminder_scheduler import reminder_loop
+    asyncio.create_task(reminder_loop())
+    logger.info("Test reminder scheduler started")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

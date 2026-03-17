@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Checkbox } from '../../components/ui/checkbox';
 import { Switch } from '../../components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog';
-import { Plus, Trash2, FileEdit, ChevronRight, ChevronLeft, Eye, Send } from 'lucide-react';
+import { Plus, Trash2, FileEdit, ChevronRight, ChevronLeft, Eye, Send, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../utils/api';
 
@@ -252,7 +252,7 @@ const CreateTest = () => {
                     <div key={i} className="flex items-center justify-between px-3 py-2 text-sm">
                       <span className="truncate flex-1">Q{q.question_number}: {q.question_text.substring(0, 50)}...</span>
                       <div className="flex items-center space-x-1 ml-2">
-                        <Button variant="ghost" size="sm" onClick={() => editQuestion(i)}><Edit className="h-3 w-3" /></Button>
+                        <Button variant="ghost" size="sm" onClick={() => editQuestion(i)}><Pencil className="h-3 w-3" /></Button>
                         <Button variant="ghost" size="sm" onClick={() => deleteQuestion(i)}><Trash2 className="h-3 w-3 text-red-500" /></Button>
                       </div>
                     </div>
