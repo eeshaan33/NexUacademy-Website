@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Plus, Trash2, Edit, Video, Calendar, Clock, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../utils/api';
+import { setPageTitle } from '../../utils/pageTitle';
 
 const SUBJECTS = ['Physics', 'Chemistry', 'Mathematics', 'General'];
 const PLATFORMS = ['Zoom', 'Google Meet', 'Microsoft Teams'];
@@ -18,6 +19,10 @@ const ManageClasses = () => {
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+
+  useEffect(() => {
+    setPageTitle('Manage Classes');
+  }, []);
   const [batches, setBatches] = useState([]);
   const [form, setForm] = useState({
     title: '', subject: 'Physics', chapter: '', topic: '',

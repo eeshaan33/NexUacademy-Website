@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { BookOpen, Construction, Clock, FileText, BarChart3, Bookmark } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Link } from 'react-router-dom';
+import { setPageTitle } from '../utils/pageTitle';
 
 const ComingSoon = ({ title, description, icon: Icon = Construction, message }) => {
   return (

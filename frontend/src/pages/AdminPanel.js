@@ -1,437 +1,283 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { Badge } from '../components/ui/badge';
 import { Input } from '../components/ui/input';
-import { 
-  Users, FileText, Download, Search, Eye, CheckCircle, XCircle,
-  Clock, Filter, RefreshCw, ChevronLeft, ChevronRight, Mail, Phone
-} from 'lucide-react';
-import api from '../utils/api';
+import { Label } from '../components/ui/label';
+import { Badge } from '../components/ui/badge';
+import { Lock, User, Mail, Plus, LogOut, Shield, Eye, EyeOff, Users } from 'lucide-react';
+import axios from 'axios';
 import { toast } from 'sonner';
+import { setPageTitle } from '../utils/pageTitle';
+
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const AdminPanel = () => {
-  const [admissions, setAdmissions] = useState([]);
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [selectedAdmission, setSelectedAdmission] = useState(null);
-  const [filter, setFilter] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [adminToken, setAdminToken] = useState('');
+  const [loginData, setLoginData] = useState({ username: '', password: '' });
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [teacherForm, setTeacherForm] = useState({ name: '', email: '', password: '' });
+  const [createLoading, setCreateLoading] = useState(false);
+  const [teachers, setTeachers] = useState([]);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showTeacherPassword, setShowTeacherPassword] = useState(false);
 
   useEffect(() => {
-    fetchData();
-  }, [filter, page]);
+    setPageTitle('Admin Panel');
+  }, []);
 
-  const fetchData = async () => {
-    setLoading(true);
+  const handleAdminLogin = async (e) => {
+    e.preventDefault();
+    setLoginLoading(true);
     try {
-      const [admissionsRes, statsRes] = await Promise.all([
-        api.get('/admissions/list', {
-          params: {
-            status: filter !== 'all' ? filter : undefined,
-            limit: 10,
-            skip: (page - 1) * 10
-          }
-        }),
-        api.get('/admissions/stats')
-      ]);
-      
-      setAdmissions(admissionsRes.data.admissions);
-      setTotalPages(admissionsRes.data.pages);
-      setStats(statsRes.data);
+      const { data } = await axios.post(`${API}/admin/login`, loginData, { withCredentials: true });
+      setAdminToken(data.token);
+      setIsLoggedIn(true);
+      toast.success('Admin login successful');
+      fetchTeachers(data.token);
     } catch (error) {
-      console.error('Failed to fetch data:', error);
-      toast.error('Failed to load admissions');
+      toast.error(error.response?.data?.detail || 'Invalid admin credentials');
     } finally {
-      setLoading(false);
+      setLoginLoading(false);
     }
   };
 
-  const fetchAdmissionDetail = async (admissionId) => {
+  const fetchTeachers = async (token) => {
     try {
-      const response = await api.get(`/admissions/detail/${admissionId}`);
-      setSelectedAdmission(response.data);
-    } catch (error) {
-      toast.error('Failed to load admission details');
-    }
-  };
-
-  const updateStatus = async (admissionId, status) => {
-    try {
-      await api.put(`/admissions/update-status/${admissionId}?status=${status}`);
-      toast.success(`Admission ${status}`);
-      fetchData();
-      setSelectedAdmission(null);
-    } catch (error) {
-      toast.error('Failed to update status');
-    }
-  };
-
-  const exportToExcel = async () => {
-    try {
-      const response = await api.get('/admissions/export/excel', {
-        responseType: 'blob'
+      const { data } = await axios.get(`${API}/admin/teachers`, {
+        withCredentials: true,
+        headers: { Authorization: `Bearer ${token || adminToken}` }
       });
-      
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', 'admissions.csv');
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      
-      toast.success('Export downloaded successfully');
+      setTeachers(data.teachers || []);
     } catch (error) {
-      toast.error('Failed to export data');
+      console.error('Failed to fetch teachers:', error);
     }
   };
 
-  const filteredAdmissions = admissions.filter(a => 
-    !searchQuery || 
-    a.student_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    a.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    a.admission_id?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case 'approved':
-        return <Badge className="bg-green-500"><CheckCircle className="h-3 w-3 mr-1" /> Approved</Badge>;
-      case 'rejected':
-        return <Badge className="bg-red-500"><XCircle className="h-3 w-3 mr-1" /> Rejected</Badge>;
-      default:
-        return <Badge className="bg-yellow-500"><Clock className="h-3 w-3 mr-1" /> Pending</Badge>;
+  const handleCreateTeacher = async (e) => {
+    e.preventDefault();
+    if (!teacherForm.name.trim() || !teacherForm.email.trim() || !teacherForm.password.trim()) {
+      toast.error('All fields are required');
+      return;
+    }
+    if (teacherForm.password.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+    setCreateLoading(true);
+    try {
+      await axios.post(`${API}/admin/create-teacher`, teacherForm, {
+        withCredentials: true,
+        headers: { Authorization: `Bearer ${adminToken}` }
+      });
+      toast.success(`Teacher account created for ${teacherForm.email}`);
+      setTeacherForm({ name: '', email: '', password: '' });
+      fetchTeachers();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to create teacher account');
+    } finally {
+      setCreateLoading(false);
     }
   };
+
+  const handleLogout = async () => {
+    try {
+      await axios.post(`${API}/admin/logout`, {}, {
+        withCredentials: true,
+        headers: { Authorization: `Bearer ${adminToken}` }
+      });
+    } catch {}
+    setIsLoggedIn(false);
+    setAdminToken('');
+    setTeachers([]);
+    toast.success('Logged out');
+  };
+
+  if (!isLoggedIn) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md bg-slate-800 border-slate-700">
+          <CardHeader className="text-center space-y-3">
+            <div className="mx-auto w-16 h-16 bg-amber-500/10 rounded-2xl flex items-center justify-center">
+              <Shield className="h-8 w-8 text-amber-500" />
+            </div>
+            <CardTitle className="text-2xl text-white">Admin Access</CardTitle>
+            <CardDescription className="text-slate-400">NexUacademy Administration Panel</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleAdminLogin} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="admin-username" className="text-slate-300">Username</Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
+                  <Input
+                    id="admin-username"
+                    value={loginData.username}
+                    onChange={(e) => setLoginData({ ...loginData, username: e.target.value })}
+                    required
+                    className="pl-10 bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
+                    placeholder="Admin username"
+                    data-testid="admin-username-input"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="admin-password" className="text-slate-300">Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
+                  <Input
+                    id="admin-password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={loginData.password}
+                    onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
+                    required
+                    className="pl-10 pr-10 bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
+                    placeholder="Admin password"
+                    data-testid="admin-password-input"
+                  />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 text-slate-500 hover:text-slate-300">
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+              <Button type="submit" className="w-full bg-amber-600 hover:bg-amber-700 text-white" disabled={loginLoading} data-testid="admin-login-button">
+                {loginLoading ? 'Authenticating...' : 'Access Admin Panel'}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-slate-900 p-6">
+      <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-800">Admin Panel</h1>
-            <p className="text-gray-600">Manage student admissions</p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center">
+              <Shield className="h-5 w-5 text-amber-500" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-white">Admin Panel</h1>
+              <p className="text-sm text-slate-400">NexUacademy Teacher Management</p>
+            </div>
           </div>
-          <div className="flex gap-3">
-            <Button variant="outline" onClick={fetchData}>
-              <RefreshCw className="h-4 w-4 mr-2" /> Refresh
-            </Button>
-            <Button onClick={exportToExcel} className="bg-green-600 hover:bg-green-700">
-              <Download className="h-4 w-4 mr-2" /> Export CSV
-            </Button>
-          </div>
+          <Button variant="outline" onClick={handleLogout} className="border-slate-600 text-slate-300 hover:bg-slate-800" data-testid="admin-logout-button">
+            <LogOut className="h-4 w-4 mr-2" /> Logout
+          </Button>
         </div>
 
-        {/* Stats Cards */}
-        {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card className="bg-white">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Total Applications</p>
-                    <p className="text-3xl font-bold">{stats.total}</p>
+        {/* Create Teacher Form */}
+        <Card className="bg-slate-800 border-slate-700">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center gap-2">
+              <Plus className="h-5 w-5 text-amber-500" /> Create Teacher Account
+            </CardTitle>
+            <CardDescription className="text-slate-400">
+              Add a new teacher to the NexUacademy platform. They can log in using the main login page.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleCreateTeacher} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-slate-300">Teacher Name</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
+                    <Input
+                      value={teacherForm.name}
+                      onChange={(e) => setTeacherForm({ ...teacherForm, name: e.target.value })}
+                      required
+                      className="pl-10 bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
+                      placeholder="Dr. John Doe"
+                      data-testid="teacher-name-input"
+                    />
                   </div>
-                  <Users className="h-10 w-10 text-blue-500 opacity-50" />
                 </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-white">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Pending</p>
-                    <p className="text-3xl font-bold text-yellow-600">{stats.pending}</p>
+                <div className="space-y-2">
+                  <Label className="text-slate-300">Email Address</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
+                    <Input
+                      type="email"
+                      value={teacherForm.email}
+                      onChange={(e) => setTeacherForm({ ...teacherForm, email: e.target.value })}
+                      required
+                      className="pl-10 bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
+                      placeholder="teacher@nexuacademy.com"
+                      data-testid="teacher-email-input"
+                    />
                   </div>
-                  <Clock className="h-10 w-10 text-yellow-500 opacity-50" />
                 </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-white">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Approved</p>
-                    <p className="text-3xl font-bold text-green-600">{stats.approved}</p>
-                  </div>
-                  <CheckCircle className="h-10 w-10 text-green-500 opacity-50" />
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-white">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Rejected</p>
-                    <p className="text-3xl font-bold text-red-600">{stats.rejected}</p>
-                  </div>
-                  <XCircle className="h-10 w-10 text-red-500 opacity-50" />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* Filters and Search */}
-        <Card className="bg-white">
-          <CardContent className="pt-6">
-            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-              <div className="flex gap-2">
-                <Button 
-                  variant={filter === 'all' ? 'default' : 'outline'}
-                  onClick={() => { setFilter('all'); setPage(1); }}
-                  size="sm"
-                >
-                  All
-                </Button>
-                <Button 
-                  variant={filter === 'pending' ? 'default' : 'outline'}
-                  onClick={() => { setFilter('pending'); setPage(1); }}
-                  size="sm"
-                >
-                  Pending
-                </Button>
-                <Button 
-                  variant={filter === 'approved' ? 'default' : 'outline'}
-                  onClick={() => { setFilter('approved'); setPage(1); }}
-                  size="sm"
-                >
-                  Approved
-                </Button>
-                <Button 
-                  variant={filter === 'rejected' ? 'default' : 'outline'}
-                  onClick={() => { setFilter('rejected'); setPage(1); }}
-                  size="sm"
-                >
-                  Rejected
-                </Button>
               </div>
-              
-              <div className="relative w-full md:w-72">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Search by name, email, or ID..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
+              <div className="space-y-2">
+                <Label className="text-slate-300">Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
+                  <Input
+                    type={showTeacherPassword ? 'text' : 'password'}
+                    value={teacherForm.password}
+                    onChange={(e) => setTeacherForm({ ...teacherForm, password: e.target.value })}
+                    required
+                    minLength={6}
+                    className="pl-10 pr-10 bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
+                    placeholder="Minimum 6 characters"
+                    data-testid="teacher-password-input"
+                  />
+                  <button type="button" onClick={() => setShowTeacherPassword(!showTeacherPassword)} className="absolute right-3 top-3 text-slate-500 hover:text-slate-300">
+                    {showTeacherPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
-            </div>
+              <Button type="submit" className="bg-amber-600 hover:bg-amber-700 text-white" disabled={createLoading} data-testid="create-teacher-button">
+                {createLoading ? 'Creating...' : 'Create Teacher Account'}
+              </Button>
+            </form>
           </CardContent>
         </Card>
 
-        {/* Admissions Table */}
-        <Card className="bg-white">
+        {/* Teachers List */}
+        <Card className="bg-slate-800 border-slate-700">
           <CardHeader>
-            <CardTitle>Applications</CardTitle>
+            <CardTitle className="text-white flex items-center gap-2">
+              <Users className="h-5 w-5 text-amber-500" /> Existing Teachers ({teachers.length})
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            {loading ? (
-              <div className="text-center py-8">
-                <RefreshCw className="h-8 w-8 animate-spin mx-auto text-gray-400" />
-                <p className="mt-2 text-gray-600">Loading...</p>
-              </div>
-            ) : filteredAdmissions.length === 0 ? (
-              <div className="text-center py-8">
-                <FileText className="h-12 w-12 mx-auto text-gray-300" />
-                <p className="mt-2 text-gray-600">No applications found</p>
-              </div>
+            {teachers.length === 0 ? (
+              <p className="text-slate-500 text-center py-8">No teacher accounts yet. Create one above.</p>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b bg-gray-50">
-                      <th className="text-left p-3 font-medium">ID</th>
-                      <th className="text-left p-3 font-medium">Student Name</th>
-                      <th className="text-left p-3 font-medium">Course</th>
-                      <th className="text-left p-3 font-medium">Contact</th>
-                      <th className="text-left p-3 font-medium">Date</th>
-                      <th className="text-left p-3 font-medium">Status</th>
-                      <th className="text-left p-3 font-medium">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredAdmissions.map((admission) => (
-                      <tr key={admission.admission_id} className="border-b hover:bg-gray-50">
-                        <td className="p-3 font-mono text-sm">{admission.admission_id}</td>
-                        <td className="p-3">
-                          <div className="font-medium">{admission.student_name}</div>
-                          <div className="text-sm text-gray-500">{admission.email}</div>
-                        </td>
-                        <td className="p-3">{admission.course_applying}</td>
-                        <td className="p-3">
-                          <div className="flex items-center gap-1 text-sm">
-                            <Phone className="h-3 w-3" /> {admission.contact_number}
-                          </div>
-                        </td>
-                        <td className="p-3 text-sm">
-                          {new Date(admission.submitted_at).toLocaleDateString()}
-                        </td>
-                        <td className="p-3">{getStatusBadge(admission.status)}</td>
-                        <td className="p-3">
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => fetchAdmissionDetail(admission.admission_id)}
-                          >
-                            <Eye className="h-4 w-4 mr-1" /> View
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between mt-4 pt-4 border-t">
-                <p className="text-sm text-gray-600">
-                  Page {page} of {totalPages}
-                </p>
-                <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    disabled={page === 1}
-                    onClick={() => setPage(p => p - 1)}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    disabled={page === totalPages}
-                    onClick={() => setPage(p => p + 1)}
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
+              <div className="space-y-3">
+                {teachers.map((teacher) => (
+                  <div key={teacher.user_id} className="flex items-center justify-between p-4 bg-slate-700/50 rounded-lg border border-slate-600">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-indigo-500/20 rounded-full flex items-center justify-center">
+                        <span className="text-indigo-400 font-semibold text-sm">
+                          {teacher.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'T'}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="text-white font-medium">{teacher.name}</p>
+                        <p className="text-slate-400 text-sm">{teacher.email}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-indigo-500/20 text-indigo-400 border-indigo-500/30">Teacher</Badge>
+                      {teacher.last_login && (
+                        <span className="text-xs text-slate-500">
+                          Last login: {new Date(teacher.last_login).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </CardContent>
         </Card>
       </div>
-
-      {/* Detail Modal */}
-      {selectedAdmission && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <Card className="max-w-2xl w-full max-h-[90vh] overflow-auto">
-            <CardHeader className="border-b">
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle>Application Details</CardTitle>
-                  <CardDescription>ID: {selectedAdmission.admission_id}</CardDescription>
-                </div>
-                <Button variant="ghost" size="sm" onClick={() => setSelectedAdmission(null)}>
-                  <XCircle className="h-5 w-5" />
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-6 space-y-6">
-              {/* Photo and Signature */}
-              <div className="flex gap-6">
-                {selectedAdmission.photo && (
-                  <div className="text-center">
-                    <p className="text-sm text-gray-600 mb-2">Photo</p>
-                    <img 
-                      src={selectedAdmission.photo} 
-                      alt="Student" 
-                      className="w-32 h-40 object-cover rounded-lg border"
-                    />
-                  </div>
-                )}
-                {selectedAdmission.signature && (
-                  <div className="text-center">
-                    <p className="text-sm text-gray-600 mb-2">Signature</p>
-                    <img 
-                      src={selectedAdmission.signature} 
-                      alt="Signature" 
-                      className="h-20 border rounded bg-white"
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Personal Details */}
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-gray-600">Student Name</p>
-                  <p className="font-medium">{selectedAdmission.student_name}</p>
-                </div>
-                <div>
-                  <p className="text-gray-600">Date of Birth</p>
-                  <p className="font-medium">{selectedAdmission.date_of_birth}</p>
-                </div>
-                <div>
-                  <p className="text-gray-600">Father's Name</p>
-                  <p className="font-medium">{selectedAdmission.father_name}</p>
-                </div>
-                <div>
-                  <p className="text-gray-600">Mother's Name</p>
-                  <p className="font-medium">{selectedAdmission.mother_name || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-gray-600">Gender</p>
-                  <p className="font-medium">{selectedAdmission.gender}</p>
-                </div>
-                <div>
-                  <p className="text-gray-600">Contact</p>
-                  <p className="font-medium">{selectedAdmission.contact_number}</p>
-                </div>
-                <div>
-                  <p className="text-gray-600">Email</p>
-                  <p className="font-medium">{selectedAdmission.email}</p>
-                </div>
-                <div>
-                  <p className="text-gray-600">Course</p>
-                  <p className="font-medium">{selectedAdmission.course_applying}</p>
-                </div>
-              </div>
-
-              {/* Address */}
-              <div>
-                <p className="text-sm text-gray-600">Address</p>
-                <p className="font-medium">
-                  {selectedAdmission.address}, {selectedAdmission.city}, {selectedAdmission.state} - {selectedAdmission.pincode}
-                </p>
-              </div>
-
-              {/* Status */}
-              <div className="flex items-center gap-4">
-                <span className="text-sm text-gray-600">Current Status:</span>
-                {getStatusBadge(selectedAdmission.status)}
-              </div>
-
-              {/* Action Buttons */}
-              {selectedAdmission.status === 'pending' && (
-                <div className="flex gap-3 pt-4 border-t">
-                  <Button 
-                    className="flex-1 bg-green-600 hover:bg-green-700"
-                    onClick={() => updateStatus(selectedAdmission.admission_id, 'approved')}
-                  >
-                    <CheckCircle className="h-4 w-4 mr-2" /> Approve
-                  </Button>
-                  <Button 
-                    className="flex-1 bg-red-600 hover:bg-red-700"
-                    onClick={() => updateStatus(selectedAdmission.admission_id, 'rejected')}
-                  >
-                    <XCircle className="h-4 w-4 mr-2" /> Reject
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
     </div>
   );
 };

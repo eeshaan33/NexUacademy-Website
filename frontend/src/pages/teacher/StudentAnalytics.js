@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../componen
 import { Users, ArrowLeft, BarChart3, Target, FileEdit, TrendingUp } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import api from '../../utils/api';
+import { setPageTitle } from '../../utils/pageTitle';
 
 const StudentAnalytics = () => {
   const [students, setStudents] = useState([]);
@@ -15,6 +16,10 @@ const StudentAnalytics = () => {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [analytics, setAnalytics] = useState(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+
+  useEffect(() => {
+    setPageTitle('Student Analytics');
+  }, []);
 
   useEffect(() => {
     loadStudents();

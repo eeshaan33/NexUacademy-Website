@@ -40,13 +40,13 @@ async def register(user_data: UserCreate, response: Response):
     # Hash password
     hashed_password = bcrypt.hashpw(user_data.password.encode('utf-8'), bcrypt.gensalt())
     
-    # Create user document
+    # Create user document (Registration is for students only)
     user_id = f"user_{uuid.uuid4().hex[:12]}"
     user_doc = {
         "user_id": user_id,
         "email": user_data.email,
         "name": user_data.name,
-        "role": user_data.role,
+        "role": "student",
         "batch_id": user_data.batch_id,
         "profile_pic": user_data.profile_pic,
         "phone_number": user_data.phone_number,

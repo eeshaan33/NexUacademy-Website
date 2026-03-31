@@ -5,11 +5,16 @@ import { Button } from '../../components/ui/button';
 import { FileEdit, Clock, Calendar, Play, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../utils/api';
+import { setPageTitle } from '../../utils/pageTitle';
 
 const AssignedTests = () => {
   const [tests, setTests] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    setPageTitle('Assigned Tests');
+  }, []);
 
   const loadTests = async () => {
     try {

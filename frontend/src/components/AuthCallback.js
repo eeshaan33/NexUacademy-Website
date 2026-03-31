@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 
@@ -8,13 +8,11 @@ const API = `${BACKEND_URL}/api`;
 
 const AuthCallback = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const { setUser, setIsAuthenticated } = useAuth();
   const hasProcessed = useRef(false);
 
   useEffect(() => {
     const processSession = async () => {
-      // CRITICAL: Prevent double processing in StrictMode
       if (hasProcessed.current) return;
       hasProcessed.current = true;
 
@@ -29,7 +27,6 @@ const AuthCallback = () => {
       const sessionId = sessionIdMatch[1];
 
       try {
-        // Exchange session_id for user data
         const response = await axios.post(
           `${API}/auth/google/session`,
           {},
@@ -42,12 +39,14 @@ const AuthCallback = () => {
         setUser(response.data.user);
         setIsAuthenticated(true);
 
-        // Clear hash and navigate to dashboard
         window.location.hash = '';
-        navigate('/dashboard', { 
-          replace: true,
-          state: { user: response.data.user }
-        });
+
+        const userRole = response.data.user?.role;
+        if (userRole === 'teacher') {
+          navigate('/teacher', { replace: true, state: { user: response.data.user } });
+        } else {
+          navigate('/dashboard', { replace: true, state: { user: response.data.user } });
+        }
       } catch (error) {
         console.error('Auth callback error:', error);
         navigate('/login', { replace: true });

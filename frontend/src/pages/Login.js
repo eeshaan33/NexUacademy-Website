@@ -1,21 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { BookOpen, Mail, Lock, Chrome } from 'lucide-react';
+import { Mail, Lock, Chrome } from 'lucide-react';
 import { toast } from 'sonner';
+import { setPageTitle } from '../utils/pageTitle';
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, isAuthenticated, user } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setPageTitle('Login');
+  }, []);
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      if (user.role === 'teacher') {
+        navigate('/teacher', { replace: true });
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
+    }
+  }, [isAuthenticated, user, navigate]);
 
   const handleChange = (e) => {
     setFormData({
@@ -29,9 +44,13 @@ const Login = () => {
     setLoading(true);
 
     try {
-      await login(formData.email, formData.password);
+      const data = await login(formData.email, formData.password);
       toast.success('Login successful!');
-      navigate('/dashboard');
+      if (data.user?.role === 'teacher') {
+        navigate('/teacher', { replace: true });
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Login failed');
     } finally {
@@ -40,7 +59,6 @@ const Login = () => {
   };
 
   const handleGoogleLogin = () => {
-    // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
     const redirectUrl = window.location.origin + '/dashboard';
     window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
   };
@@ -53,7 +71,7 @@ const Login = () => {
             <img src="/logo.png" alt="NexUacademy" className="h-24 w-auto object-contain" />
           </div>
           <CardTitle className="text-3xl font-heading">Welcome to NexUacademy</CardTitle>
-          <CardDescription>Sign in to continue your JEE preparation</CardDescription>
+          <CardDescription>Sign in to continue your learning journey</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -82,7 +100,7 @@ const Login = () => {
                   id="password"
                   name="password"
                   type="password"
-                  placeholder="••••••••"
+                  placeholder="Enter your password"
                   value={formData.password}
                   onChange={handleChange}
                   required

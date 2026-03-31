@@ -5,11 +5,16 @@ import { Button } from '../../components/ui/button';
 import { Clock, Flag, ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../utils/api';
+import { setPageTitle } from '../../utils/pageTitle';
 
 const TakeTest = () => {
   const { attemptId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    setPageTitle('Take Test');
+  }, []);
 
   const [test, setTest] = useState(location.state?.test || null);
   const [attempt, setAttempt] = useState(location.state?.attempt || null);

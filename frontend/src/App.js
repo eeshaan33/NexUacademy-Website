@@ -1,7 +1,7 @@
 import React from "react";
 import "@/App.css";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
-import { AuthProvider } from "./context/AuthContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import { Toaster } from "sonner";
 
 // Components
@@ -30,6 +30,14 @@ import StudentClasses from "./pages/student/StudentClasses";
 import AssignedTests from "./pages/student/AssignedTests";
 import TakeTest from "./pages/student/TakeTest";
 import TestResults from "./pages/student/TestResults";
+
+function RoleBasedRedirect() {
+  const { user, isAuthenticated, loading } = useAuth();
+  if (loading) return null;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (user?.role === 'teacher') return <Navigate to="/teacher" replace />;
+  return <Navigate to="/dashboard" replace />;
+}
 
 function AppRouter() {
   const location = useLocation();
@@ -66,8 +74,8 @@ function AppRouter() {
       <Route path="/test-results/:attemptId" element={<ProtectedRoute><Layout><TestResults /></Layout></ProtectedRoute>} />
 
       {/* Default redirect */}
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/" element={<RoleBasedRedirect />} />
+      <Route path="*" element={<RoleBasedRedirect />} />
     </Routes>
   );
 }

@@ -4,6 +4,7 @@ import { Button } from '../../components/ui/button';
 import { Video, Calendar, Clock, ExternalLink, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../utils/api';
+import { setPageTitle } from '../../utils/pageTitle';
 
 const StudentClasses = () => {
   const [classes, setClasses] = useState([]);
@@ -18,6 +19,7 @@ const StudentClasses = () => {
   };
 
   useEffect(() => {
+    setPageTitle('My Classes');
     loadClasses();
     const interval = setInterval(loadClasses, 30000);
     return () => clearInterval(interval);

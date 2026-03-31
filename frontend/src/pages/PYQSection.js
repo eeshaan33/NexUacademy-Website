@@ -12,9 +12,15 @@ import {
 import api from '../utils/api';
 import { toast } from 'sonner';
 
+import { setPageTitle } from '../utils/pageTitle';
+
 const PYQSection = () => {
   // Navigation state
   const [step, setStep] = useState(1);
+
+  useEffect(() => {
+    setPageTitle('PYQ Section');
+  }, []);
   const [examType, setExamType] = useState('');
   const [subject, setSubject] = useState('');
   const [selectedChapter, setSelectedChapter] = useState(null);

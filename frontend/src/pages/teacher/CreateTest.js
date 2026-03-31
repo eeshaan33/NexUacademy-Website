@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Plus, Trash2, FileEdit, ChevronRight, ChevronLeft, Eye, Send, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../utils/api';
+import { setPageTitle } from '../../utils/pageTitle';
 
 const EXAM_TYPES = ['JEE_Main', 'JEE_Advanced', 'Practice'];
 const SUBJECTS = ['Physics', 'Chemistry', 'Mathematics', 'All Subjects'];
@@ -18,6 +19,10 @@ const DIFFICULTIES = ['Easy', 'Medium', 'Hard'];
 
 const CreateTest = () => {
   const [tests, setTests] = useState([]);
+
+  useEffect(() => {
+    setPageTitle('Create Test');
+  }, []);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [step, setStep] = useState(1);

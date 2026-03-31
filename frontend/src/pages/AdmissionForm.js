@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -13,11 +13,17 @@ import api from '../utils/api';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { setPageTitle } from '../utils/pageTitle';
 
 const AdmissionForm = ({ onComplete }) => {
   const navigate = useNavigate();
   const { setUser, setIsAuthenticated } = useAuth();
   const [step, setStep] = useState(1);
+
+  useEffect(() => {
+    setPageTitle('Admission Form');
+  }, []);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [admissionId, setAdmissionId] = useState('');

@@ -4,12 +4,17 @@ import { useAuth } from '../../context/AuthContext';
 import { Card, CardContent } from '../../components/ui/card';
 import { BookOpen, FileEdit, Users, TrendingUp } from 'lucide-react';
 import api from '../../utils/api';
+import { setPageTitle } from '../../utils/pageTitle';
 
 const TeacherDashboard = () => {
   const { user } = useAuth();
   const [classStats, setClassStats] = useState({ total: 0, upcoming: 0, completed: 0 });
   const [testStats, setTestStats] = useState({ total: 0, scheduled: 0, draft: 0 });
   const [studentCount, setStudentCount] = useState(0);
+
+  useEffect(() => {
+    setPageTitle('Teacher Dashboard');
+  }, []);
 
   useEffect(() => {
     const load = async () => {

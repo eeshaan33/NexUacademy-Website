@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Link, Navigate } from 'react-router-dom';
+import { setPageTitle } from '../utils/pageTitle';
 import { 
   BookOpen, 
   FileEdit, 
@@ -21,6 +22,10 @@ const Dashboard = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setPageTitle('Student Dashboard');
+  }, []);
 
   useEffect(() => {
     const fetchStats = async () => {

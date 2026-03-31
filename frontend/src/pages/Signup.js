@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/button';
@@ -7,12 +7,13 @@ import { Label } from '../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import axios from 'axios';
-import { BookOpen, User, Mail, Lock, Chrome } from 'lucide-react';
+import { User, Mail, Lock, Chrome } from 'lucide-react';
 import { toast } from 'sonner';
+import { setPageTitle } from '../utils/pageTitle';
 
 const Signup = () => {
   const navigate = useNavigate();
-  const { register } = useAuth();
+  const { register, isAuthenticated, user } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -24,7 +25,17 @@ const Signup = () => {
   const [loading, setLoading] = useState(false);
   const [batches, setBatches] = useState([]);
 
-  React.useEffect(() => {
+  useEffect(() => {
+    setPageTitle('Sign Up');
+  }, []);
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isAuthenticated, user, navigate]);
+
+  useEffect(() => {
     const loadBatches = async () => {
       try {
         const res = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/batches/`);
@@ -41,13 +52,6 @@ const Signup = () => {
     });
   };
 
-  const handleRoleChange = (value) => {
-    setFormData({
-      ...formData,
-      role: value
-    });
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -56,13 +60,23 @@ const Signup = () => {
       return;
     }
 
+    if (formData.password.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+
+    if (!formData.batch_id) {
+      toast.error('Please select a batch');
+      return;
+    }
+
     setLoading(true);
 
     try {
       const { confirmPassword, ...registerData } = formData;
       await register(registerData);
-      toast.success('Registration successful!');
-      navigate('/dashboard');
+      toast.success('Registration successful! Welcome to NexUacademy!');
+      navigate('/dashboard', { replace: true });
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Registration failed');
     } finally {
@@ -71,7 +85,6 @@ const Signup = () => {
   };
 
   const handleGoogleSignup = () => {
-    // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
     const redirectUrl = window.location.origin + '/dashboard';
     window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
   };
@@ -84,7 +97,7 @@ const Signup = () => {
             <img src="/logo.png" alt="NexUacademy" className="h-24 w-auto object-contain" />
           </div>
           <CardTitle className="text-3xl font-heading">Join NexUacademy</CardTitle>
-          <CardDescription>Create your account to start preparing</CardDescription>
+          <CardDescription>Create your student account to start preparing</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -123,32 +136,18 @@ const Signup = () => {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="role">I am a</Label>
-              <Select value={formData.role} onValueChange={handleRoleChange}>
-                <SelectTrigger data-testid="role-select">
-                  <SelectValue />
+              <Label htmlFor="batch_id">Select Batch</Label>
+              <Select value={formData.batch_id} onValueChange={(value) => setFormData({ ...formData, batch_id: value })}>
+                <SelectTrigger data-testid="batch-select">
+                  <SelectValue placeholder="Select your batch" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="student">Student</SelectItem>
-                  <SelectItem value="teacher">Teacher</SelectItem>
+                  {batches.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
-            {formData.role === 'student' && (
-              <div className="space-y-2">
-                <Label htmlFor="batch_id">Select Batch</Label>
-                <Select value={formData.batch_id} onValueChange={(value) => setFormData({ ...formData, batch_id: value })}>
-                  <SelectTrigger data-testid="batch-select">
-                    <SelectValue placeholder="Select your batch" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {batches.map((b) => (
-                      <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <div className="relative">
@@ -157,10 +156,11 @@ const Signup = () => {
                   id="password"
                   name="password"
                   type="password"
-                  placeholder="••••••••"
+                  placeholder="Minimum 6 characters"
                   value={formData.password}
                   onChange={handleChange}
                   required
+                  minLength={6}
                   className="pl-10"
                   data-testid="password-input"
                 />
@@ -174,7 +174,7 @@ const Signup = () => {
                   id="confirmPassword"
                   name="confirmPassword"
                   type="password"
-                  placeholder="••••••••"
+                  placeholder="Re-enter password"
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   required
@@ -189,7 +189,7 @@ const Signup = () => {
               disabled={loading}
               data-testid="signup-button"
             >
-              {loading ? 'Creating account...' : 'Sign up'}
+              {loading ? 'Creating account...' : 'Create Student Account'}
             </Button>
           </form>
 

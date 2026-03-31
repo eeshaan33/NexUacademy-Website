@@ -4,11 +4,16 @@ import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { CheckCircle, XCircle, Minus, ArrowLeft, MessageSquare } from 'lucide-react';
 import api from '../../utils/api';
+import { setPageTitle } from '../../utils/pageTitle';
 
 const TestResults = () => {
   const { attemptId } = useParams();
   const [attempt, setAttempt] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setPageTitle('Test Results');
+  }, []);
 
   useEffect(() => {
     const load = async () => {
