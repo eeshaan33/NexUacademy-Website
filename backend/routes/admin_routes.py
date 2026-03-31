@@ -1,7 +1,9 @@
 from fastapi import APIRouter, HTTPException, status, Request, Response
 from pydantic import BaseModel, EmailStr
+from typing import Optional
 from datetime import datetime, timezone, timedelta
 from config.database import get_database
+from middleware.auth import get_current_user
 import bcrypt
 import uuid
 import logging
@@ -9,64 +11,50 @@ import logging
 router = APIRouter(prefix="/admin", tags=["admin"])
 logger = logging.getLogger(__name__)
 
-ADMIN_USERNAME = "admin"
-ADMIN_PASSWORD = "nexuacademy123"
-
-class AdminLoginRequest(BaseModel):
-    username: str
-    password: str
+ADMIN_EMAIL = "admin@nexuacademy.com"
+ADMIN_DEFAULT_PASSWORD = "nexuacademy123"
 
 class CreateTeacherRequest(BaseModel):
     name: str
     email: EmailStr
     password: str
 
-async def verify_admin_session(request: Request):
-    db = get_database()
-    session_token = request.cookies.get("admin_session_token")
-    if not session_token:
-        auth_header = request.headers.get("Authorization")
-        if auth_header and auth_header.startswith("Bearer "):
-            session_token = auth_header.replace("Bearer ", "")
-    if not session_token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Admin not authenticated")
-    session = await db.admin_sessions.find_one({"session_token": session_token}, {"_id": 0})
-    if not session:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid admin session")
-    expires_at = session["expires_at"]
-    if isinstance(expires_at, str):
-        expires_at = datetime.fromisoformat(expires_at)
-    if expires_at.tzinfo is None:
-        expires_at = expires_at.replace(tzinfo=timezone.utc)
-    if expires_at < datetime.now(timezone.utc):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Admin session expired")
-    return True
+class ContactFormRequest(BaseModel):
+    name: str
+    email: EmailStr
+    phone: str
+    course: str
+    message: Optional[str] = ""
 
-@router.post("/login")
-async def admin_login(data: AdminLoginRequest, response: Response):
-    if data.username != ADMIN_USERNAME or data.password != ADMIN_PASSWORD:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid admin credentials")
+async def ensure_admin_user():
     db = get_database()
-    session_token = f"admin_{uuid.uuid4().hex}"
-    await db.admin_sessions.insert_one({
-        "session_token": session_token,
-        "expires_at": datetime.now(timezone.utc) + timedelta(hours=12),
-        "created_at": datetime.now(timezone.utc)
-    })
-    response.set_cookie(
-        key="admin_session_token",
-        value=session_token,
-        httponly=True,
-        secure=True,
-        samesite="none",
-        path="/",
-        max_age=12 * 60 * 60
-    )
-    return {"message": "Admin login successful", "token": session_token}
+    admin = await db.users.find_one({"email": ADMIN_EMAIL})
+    if not admin:
+        hashed = bcrypt.hashpw(ADMIN_DEFAULT_PASSWORD.encode('utf-8'), bcrypt.gensalt())
+        await db.users.insert_one({
+            "user_id": f"user_admin_{uuid.uuid4().hex[:8]}",
+            "email": ADMIN_EMAIL,
+            "name": "Admin",
+            "role": "admin",
+            "batch_id": None,
+            "profile_pic": None,
+            "phone_number": None,
+            "telegram_id": None,
+            "password": hashed.decode('utf-8'),
+            "created_at": datetime.now(timezone.utc),
+            "last_login": None
+        })
+        logger.info("Admin user created: admin@nexuacademy.com")
+
+async def require_admin(request: Request):
+    user = await get_current_user(request)
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    return user
 
 @router.post("/create-teacher")
 async def create_teacher(data: CreateTeacherRequest, request: Request):
-    await verify_admin_session(request)
+    await require_admin(request)
     db = get_database()
     existing = await db.users.find_one({"email": data.email})
     if existing:
@@ -94,16 +82,48 @@ async def create_teacher(data: CreateTeacherRequest, request: Request):
 
 @router.get("/teachers")
 async def list_teachers(request: Request):
-    await verify_admin_session(request)
+    await require_admin(request)
     db = get_database()
     teachers = await db.users.find({"role": "teacher"}, {"_id": 0, "password": 0}).to_list(100)
     return {"teachers": teachers}
 
-@router.post("/logout")
-async def admin_logout(request: Request, response: Response):
+@router.post("/contact")
+async def submit_contact(data: ContactFormRequest):
     db = get_database()
-    session_token = request.cookies.get("admin_session_token")
-    if session_token:
-        await db.admin_sessions.delete_one({"session_token": session_token})
-    response.delete_cookie(key="admin_session_token", path="/", samesite="none", secure=True)
-    return {"message": "Admin logout successful"}
+    contact_doc = {
+        "contact_id": f"contact_{uuid.uuid4().hex[:12]}",
+        "name": data.name,
+        "email": data.email,
+        "phone": data.phone,
+        "course": data.course,
+        "message": data.message,
+        "status": "new",
+        "created_at": datetime.now(timezone.utc)
+    }
+    await db.contact_inquiries.insert_one(contact_doc)
+    contact_doc.pop("_id", None)
+    return {"message": "Your message has been sent successfully! We'll get back to you within 24 hours.", "inquiry": contact_doc}
+
+@router.get("/contacts")
+async def list_contacts(request: Request):
+    await require_admin(request)
+    db = get_database()
+    contacts = await db.contact_inquiries.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    stats = {
+        "total": await db.contact_inquiries.count_documents({}),
+        "new": await db.contact_inquiries.count_documents({"status": "new"}),
+        "responded": await db.contact_inquiries.count_documents({"status": "responded"})
+    }
+    return {"contacts": contacts, "stats": stats}
+
+@router.put("/contacts/{contact_id}/status")
+async def update_contact_status(contact_id: str, request: Request):
+    await require_admin(request)
+    db = get_database()
+    result = await db.contact_inquiries.update_one(
+        {"contact_id": contact_id},
+        {"$set": {"status": "responded", "responded_at": datetime.now(timezone.utc)}}
+    )
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Contact not found")
+    return {"message": "Status updated"}

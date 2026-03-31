@@ -75,6 +75,9 @@ logger = logging.getLogger(__name__)
 @app.on_event("startup")
 async def startup_event():
     logger.info("NexUacademy API started successfully")
+    # Ensure admin user exists
+    from routes.admin_routes import ensure_admin_user
+    await ensure_admin_user()
     # Start the test reminder background scheduler
     from services.reminder_scheduler import reminder_loop
     asyncio.create_task(reminder_loop())

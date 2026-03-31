@@ -17,6 +17,7 @@ import Dashboard from "./pages/Dashboard";
 import PYQSection from "./pages/PYQSection";
 import AdmissionForm from "./pages/AdmissionForm";
 import AdminPanel from "./pages/AdminPanel";
+import LandingPage from "./pages/LandingPage";
 import { MyTestsPage, AnalyticsPage, BookmarksPage } from "./pages/PlaceholderPages";
 
 // Teacher pages
@@ -34,7 +35,8 @@ import TestResults from "./pages/student/TestResults";
 function RoleBasedRedirect() {
   const { user, isAuthenticated, loading } = useAuth();
   if (loading) return null;
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (!isAuthenticated) return <Navigate to="/landing" replace />;
+  if (user?.role === 'admin') return <Navigate to="/admin" replace />;
   if (user?.role === 'teacher') return <Navigate to="/teacher" replace />;
   return <Navigate to="/dashboard" replace />;
 }
@@ -49,6 +51,7 @@ function AppRouter() {
   return (
     <Routes>
       {/* Public Routes */}
+      <Route path="/landing" element={<LandingPage />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/admission" element={<AdmissionForm />} />

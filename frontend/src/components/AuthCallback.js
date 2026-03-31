@@ -42,7 +42,9 @@ const AuthCallback = () => {
         window.location.hash = '';
 
         const userRole = response.data.user?.role;
-        if (userRole === 'teacher') {
+        if (userRole === 'admin') {
+          navigate('/admin', { replace: true, state: { user: response.data.user } });
+        } else if (userRole === 'teacher') {
           navigate('/teacher', { replace: true, state: { user: response.data.user } });
         } else {
           navigate('/dashboard', { replace: true, state: { user: response.data.user } });

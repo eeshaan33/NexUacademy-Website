@@ -24,7 +24,9 @@ const Login = () => {
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      if (user.role === 'teacher') {
+      if (user.role === 'admin') {
+        navigate('/admin', { replace: true });
+      } else if (user.role === 'teacher') {
         navigate('/teacher', { replace: true });
       } else {
         navigate('/dashboard', { replace: true });
@@ -46,7 +48,9 @@ const Login = () => {
     try {
       const data = await login(formData.email, formData.password);
       toast.success('Login successful!');
-      if (data.user?.role === 'teacher') {
+      if (data.user?.role === 'admin') {
+        navigate('/admin', { replace: true });
+      } else if (data.user?.role === 'teacher') {
         navigate('/teacher', { replace: true });
       } else {
         navigate('/dashboard', { replace: true });
