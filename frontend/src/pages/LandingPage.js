@@ -27,11 +27,11 @@ const PHOTOS = {
 const fadeUp = { hidden: { opacity: 0, y: 40 }, visible: { opacity: 1, y: 0, transition: { duration: 0.6 } } };
 const stagger = { visible: { transition: { staggerChildren: 0.1 } } };
 
-function Section({ children, className = '', id }) {
+function Section({ children, className = '', id, style }) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, amount: 0.15 });
   return (
-    <motion.section ref={ref} id={id} initial="hidden" animate={isInView ? 'visible' : 'hidden'} variants={stagger} className={className}>
+    <motion.section ref={ref} id={id} style={style} initial="hidden" animate={isInView ? 'visible' : 'hidden'} variants={stagger} className={className}>
       {children}
     </motion.section>
   );
