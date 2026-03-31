@@ -1,132 +1,88 @@
-# NexUacademy - JEE Preparation Platform PRD
+# NexUacademy - Product Requirements Document
 
 ## Original Problem Statement
-Build a complete JEE preparation web application named "NexUacademy" with:
-- Teacher Dashboard for managing classes, tests, and student analytics
-- Student Website for attending classes, taking tests, and viewing PYQs
-- Browser Push Notifications for real-time updates
-- All data in MongoDB Atlas
+Build a comprehensive JEE/NEET coaching platform with a Teacher Dashboard, Student Website, and browser-based Push Notification system. The platform serves both teachers (content creators) and students (learners) through a shared backend with role-based access.
 
 ## Tech Stack
-- **Backend:** Python/FastAPI + Motor (async MongoDB driver)
-- **Frontend:** React 19 + Tailwind CSS + shadcn/ui
-- **Database:** MongoDB Atlas (cloud)
-- **Auth:** Session-based (httpOnly cookies) + Google OAuth (Emergent Auth)
-- **Push:** Web Push API + VAPID keys + pywebpush
+- **Frontend:** React 18 + Tailwind CSS + shadcn/ui
+- **Backend:** Python/FastAPI
+- **Database:** MongoDB Atlas (DB: `nexuacademy`)
+- **Auth:** Cookie-based sessions (httpOnly), Emergent-managed Google OAuth
+- **Notifications:** Web Push (pywebpush), APScheduler for reminders
+
+## User Personas
+1. **Students** - Register, take tests, view classes, track performance
+2. **Teachers** - Create tests/classes, view analytics (accounts created by admin only)
+3. **Admin** - Create teacher accounts (hardcoded credentials)
 
 ## Core Architecture
 ```
 /app
-├── backend/
-│   ├── server.py                    # FastAPI main server
-│   ├── .env                         # MongoDB Atlas, VAPID keys, JWT
-│   ├── config/
-│   │   ├── database.py              # MongoDB connection
-│   │   ├── batches.py               # Predefined batches
-│   │   └── syllabus.py              # JEE syllabus data
-│   ├── middleware/auth.py           # Session auth + role middleware
-│   ├── routes/
-│   │   ├── auth_routes.py           # Login, register, Google OAuth
-│   │   ├── teacher_class_routes.py  # Teacher class CRUD
-│   │   ├── teacher_test_routes.py   # Teacher test CRUD + questions
-│   │   ├── teacher_student_routes.py# Teacher student analytics
-│   │   ├── student_class_routes.py  # Student class view + attendance
-│   │   ├── student_test_routes.py   # Student test taking + results
-│   │   ├── notification_routes.py   # In-app notifications
-│   │   ├── push_routes.py           # Push subscription
-│   │   ├── batch_routes.py          # Predefined batches API
-│   │   ├── question_routes.py       # PYQ questions
-│   │   └── ... (other existing routes)
-│   └── services/
-│       ├── push_service.py          # VAPID push notifications
-│       └── email_service.py
-├── frontend/
-│   ├── src/
-│   │   ├── App.js                   # All routes (teacher + student)
-│   │   ├── components/
-│   │   │   ├── Layout.js            # Student layout + notification bell
-│   │   │   ├── TeacherLayout.js     # Teacher sidebar layout
-│   │   │   ├── NotificationBell.js  # Notification dropdown
-│   │   │   └── ui/                  # shadcn components
-│   │   ├── pages/
-│   │   │   ├── teacher/
-│   │   │   │   ├── TeacherDashboard.js   # Stats + quick actions
-│   │   │   │   ├── ManageClasses.js      # Schedule/edit/delete classes
-│   │   │   │   ├── CreateTest.js         # Multi-step test creation
-│   │   │   │   └── StudentAnalytics.js   # Student performance
-│   │   │   ├── student/
-│   │   │   │   ├── StudentClasses.js     # View assigned classes
-│   │   │   │   ├── AssignedTests.js      # View assigned tests
-│   │   │   │   ├── TakeTest.js           # Test-taking interface
-│   │   │   │   └── TestResults.js        # Results with teacher notes
-│   │   │   └── ... (existing pages)
-│   │   └── context/AuthContext.js
-│   └── public/service-worker.js     # Push notification handler
+├── backend/ (FastAPI, port 8001)
+│   ├── routes/ (auth, admin, teacher_*, student_*, batch, notification, push)
+│   ├── middleware/auth.py (session-based auth, role guards)
+│   ├── services/ (push, reminders)
+│   └── config/ (database, batches)
+└── frontend/ (React, port 3000)
+    ├── pages/ (Login, Signup, AdminPanel, Dashboard)
+    │   ├── teacher/ (TeacherDashboard, ManageClasses, CreateTest, StudentAnalytics)
+    │   └── student/ (StudentClasses, AssignedTests, TakeTest, TestResults)
+    ├── components/ (Layout, TeacherLayout, AuthCallback, NotificationBell)
+    └── utils/ (api.js, pageTitle.js)
 ```
 
 ## What's Been Implemented
 
-### Phase 1 - Completed (March 17, 2026)
-**Teacher Dashboard + Student Features + Push Notifications**
-- Complete teacher dashboard with stats cards, class management, test creation, student analytics
-- Multi-step test creation form with question-by-question entry and teacher notes
-- Teacher notes hidden during test, shown ONLY after submission for incorrect/unattempted answers
-- Student class viewing with auto-refresh every 30 seconds  
-- Student test-taking interface with timer, question palette, flagging
-- Test results page with detailed question-wise review
-- In-app notification bell with unread count (both layouts)
-- VAPID push notification infrastructure
-- Service worker for browser push notifications
-- Predefined batch system (6 JEE batches: 2027/2028/2029 Morning/Evening)
-- Updated signup page with batch selector dropdown
-- Teacher login redirects to teacher dashboard
-- Role-based access control (teacher/student middleware)
+### Phase 1 - Core Platform (Completed)
+- [x] Full Teacher Dashboard (classes CRUD, test creation, student analytics)
+- [x] Student features (view classes, take tests, view results)
+- [x] Push notification system + test reminders
+- [x] Batch management (5 predefined batches)
+- [x] Teacher notes visible only on incorrect/unattempted questions
 
-### Previously Completed
-- Database migration to MongoDB Atlas (13k+ questions)
-- Full rebranding to "NexUacademy" with custom logo
-- PYQ Section with subject/chapter filtering
-- JWT + Google OAuth authentication
-- Admission form with course selection
-- Student dashboard with stats
-
-## Predefined Batches
-- JEE-2027-Morning, JEE-2027-Evening
-- JEE-2028-Morning, JEE-2028-Evening
-- JEE-2029-Morning, JEE-2029-Evening
-
-## Key Database Collections
-- **users**: user_id, email, name, role, batch_id, push_subscription, notifications_enabled
-- **classes**: class_id, title, subject, teacher_id, meeting_link, scheduled_date_time, assigned_batches, attendance
-- **teacher_tests**: test_id, test_name, questions (with teacher_note), assigned_batches, status
-- **test_attempts**: attempt_id, test_id, student_id, answers, total_score, status
-- **notifications**: user_id, type, title, message, is_read
-- **questions**: 13k+ PYQ questions
+### Phase 2 - Auth & Access (Completed - Feb 2026)
+- [x] **Role-based auto-redirect**: Teachers → /teacher, Students → /dashboard
+- [x] **Admin Panel** (/admin): Separate auth, create teacher accounts
+  - Admin credentials: username=admin, password=nexuacademy123
+- [x] **All page titles** updated to "NexUacademy"
+- [x] **Signup restricted** to students only (teacher accounts admin-created)
+- [x] **Google OAuth** with role-based redirect (Emergent-managed)
 
 ## Test Credentials
+- Student: student@test.com / password123
 - Teacher: teacher@test.com / password123
-- Student: student@test.com / password123 (batch: JEE-2027-Morning)
+- Admin: username=admin / nexuacademy123
 
-## Testing Status
-- Backend: 19/19 tests passed (100%)
-- Frontend: All UI tests passed (100%)
-- E2E flow verified: Teacher creates test -> Student takes test -> Results with teacher notes
+## Key API Endpoints
+- `POST /api/admin/login` - Admin authentication
+- `POST /api/admin/create-teacher` - Create teacher (admin only)
+- `GET /api/admin/teachers` - List teachers (admin only)
+- `POST /api/auth/login` - User login (returns role for redirect)
+- `POST /api/auth/register` - Student registration only
+- `POST /api/auth/google/session` - Google OAuth callback
+- `GET /api/batches` - List predefined batches
+- `POST /api/teacher/classes/create` - Create class
+- `POST /api/teacher/tests/create` - Create test
+- `GET /api/student/tests/assigned` - Student's assigned tests
 
-## P0/P1/P2 Backlog
+## Prioritized Backlog
 
-### P0 (Critical)
-- Data quality from PDF parsing (missing images, malformed text in PYQ)
+### P0 (Next Up)
+- Class Reminder System (similar to test reminders)
 
-### P1 (Important)
-- Chapter/Topic sorting in PYQ section
-- Google Sheets sync for live classes
-- Analytics page (student self-analytics)
+### P1
+- Detailed Student Analytics UI (graphs, heatmaps using recharts)
+- Teacher: Detailed test results per student + CSV export
 
-### P2 (Nice to have)
-- Bookmarks page implementation
-- Custom test builder (My Tests - currently placeholder)
-- Teacher-created batches (beyond predefined)
+### P2
+- Phase 2 Batch Management (teachers create custom batches)
+- Student-facing "My Analytics" page
+- Bookmarks feature
+- Custom Test Builder (rebuild "My Tests")
 - Leaderboards
-- Study plans / AI recommendations
-- Video lectures integration
-- Download results as CSV for teachers
+- Study Plans
+- Video Lecture sections
+
+### Refactoring
+- Create Pydantic models for Test, Class, TestAttempt, Notification
+- Consider frontend state management (Zustand) for growing complexity
