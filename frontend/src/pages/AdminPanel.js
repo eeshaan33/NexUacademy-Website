@@ -6,13 +6,13 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Badge } from '../components/ui/badge';
-import { Shield, User, Mail, Lock, Plus, Users, MessageSquare, Eye, EyeOff, CheckCircle, Clock } from 'lucide-react';
+import { Shield, User, Mail, Lock, Plus, Users, MessageSquare, Eye, EyeOff, CheckCircle, Clock, LogOut } from 'lucide-react';
 import api from '../utils/api';
 import { toast } from 'sonner';
 import { setPageTitle } from '../utils/pageTitle';
 
 const AdminPanel = () => {
-  const { user, isAuthenticated, loading } = useAuth();
+  const { user, isAuthenticated, loading, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('teachers');
   const [teacherForm, setTeacherForm] = useState({ name: '', email: '', password: '' });
   const [createLoading, setCreateLoading] = useState(false);
@@ -106,6 +106,11 @@ const AdminPanel = () => {
                 {tab.badge > 0 && <Badge className="ml-2 bg-red-500 text-white text-xs">{tab.badge}</Badge>}
               </Button>
             ))}
+            <Button variant="outline" onClick={logout}
+              className="border-red-500/40 text-red-400 hover:bg-red-500/10 hover:text-red-300 ml-2"
+              data-testid="admin-logout-btn">
+              <LogOut className="h-4 w-4 mr-2" />Logout
+            </Button>
           </div>
         </div>
 
