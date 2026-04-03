@@ -76,7 +76,6 @@ export default function JEEMainInterface() {
   }, [attempt, answers]);
 
   const handleSubmit = async (auto = false) => {
-    if (!auto && !window.confirm('Are you sure you want to submit?')) return;
     clearInterval(timerRef.current);
     clearInterval(autoSaveRef.current);
     try {
@@ -91,7 +90,7 @@ export default function JEEMainInterface() {
         answers: ansArr, time_spent: timeSpent, autoSubmitted: auto,
       });
       if (auto) alert('Time up! Test auto-submitted.');
-      navigate(`/student/tests/results/${data.attempt.attempt_id}`, { replace: true });
+      navigate(`/test-results/${data.attempt.attempt_id}`, { replace: true });
     } catch (e) { alert('Submit failed. Please try again.'); }
   };
 

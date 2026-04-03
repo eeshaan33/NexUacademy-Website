@@ -74,7 +74,6 @@ export default function JEEAdvancedInterface() {
   }, [attempt, answers]);
 
   const handleSubmit = async (auto = false) => {
-    if (!auto && !window.confirm('Submit your test?')) return;
     clearInterval(timerRef.current); clearInterval(autoSaveRef.current);
     try {
       const qs = test.questions || [];
@@ -86,7 +85,7 @@ export default function JEEAdvancedInterface() {
         answers: ansArr, time_spent: Math.floor((Date.now() - startTime.current) / 1000), autoSubmitted: auto,
       });
       if (auto) alert('Time up! Auto-submitted.');
-      navigate(`/student/tests/results/${data.attempt.attempt_id}`, { replace: true });
+      navigate(`/test-results/${data.attempt.attempt_id}`, { replace: true });
     } catch { alert('Submit failed.'); }
   };
 

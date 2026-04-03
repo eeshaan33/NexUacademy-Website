@@ -5,6 +5,36 @@ import { Button } from '../../components/ui/button';
 import { CheckCircle, XCircle, Minus, ArrowLeft, MessageSquare } from 'lucide-react';
 import api from '../../utils/api';
 import { setPageTitle } from '../../utils/pageTitle';
+import 'katex/dist/katex.min.css';
+import { InlineMath, BlockMath } from 'react-katex';
+
+const BACKEND = process.env.REACT_APP_BACKEND_URL;
+
+function renderMath(text) {
+  if (!text) return text;
+  if (typeof text !== 'string') return String(text);
+  const parts = text.split(/(\$\$[\s\S]*?\$\$|\$[^$]+?\$)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('$$') && part.endsWith('$$')) {
+      try { return <BlockMath key={i} math={part.slice(2, -2)} />; } catch { return part; }
+    } else if (part.startsWith('$') && part.endsWith('$')) {
+      try { return <InlineMath key={i} math={part.slice(1, -1)} />; } catch { return part; }
+    }
+    return <span key={i}>{part}</span>;
+  });
+}
+
+function getOptionText(val) {
+  if (!val) return '';
+  if (typeof val === 'string') return val;
+  return val.text || '';
+}
+
+function getOptionImage(val) {
+  if (!val) return '';
+  if (typeof val === 'string') return '';
+  return val.imageUrl || '';
+}
 
 const TestResults = () => {
   const { attemptId } = useParams();
@@ -95,13 +125,20 @@ const TestResults = () => {
                   </span>
                 </div>
 
-                <p className="text-base text-slate-800 mb-3 whitespace-pre-wrap">{ans.question_text}</p>
-                {ans.question_image_url && <img src={ans.question_image_url} alt="" className="max-w-full max-h-40 mb-3 rounded" />}
+                <div className="text-base text-slate-800 mb-3">{renderMath(ans.question_text)}</div>
+                {ans.question_image_url && <img src={ans.question_image_url.startsWith('/') ? `${BACKEND}${ans.question_image_url}` : ans.question_image_url} alt="" className="max-w-full max-h-40 mb-3 rounded" />}
 
+                {/* MCQ Options */}
+                {ans.question_type?.startsWith('MCQ') && (
                 <div className="grid grid-cols-2 gap-2 mb-3">
                   {Object.entries(ans.options || {}).map(([key, val]) => {
-                    const isSelected = ans.selected_answer === key;
-                    const isAnswer = ans.correct_answer === key;
+                    const optText = getOptionText(val);
+                    const optImg = getOptionImage(val);
+                    if (!optText && !optImg) return null;
+                    const correctList = ans.correct_answers || (ans.correct_answer ? [ans.correct_answer] : []);
+                    const isAnswer = correctList.includes(key);
+                    const selectedVal = ans.selected_answer;
+                    const isSelected = Array.isArray(selectedVal) ? selectedVal.includes(key) : selectedVal === key;
                     return (
                       <div
                         key={key}
@@ -110,13 +147,23 @@ const TestResults = () => {
                         <span className={`font-medium ${isAnswer ? 'text-green-700' : isSelected ? 'text-red-700' : 'text-slate-500'}`}>
                           {key})
                         </span>{' '}
-                        {val}
+                        {renderMath(optText)}
+                        {optImg && <img src={optImg.startsWith('/') ? `${BACKEND}${optImg}` : optImg} alt={key} className="mt-1 max-w-[120px] rounded" />}
                         {isAnswer && <CheckCircle className="inline h-3.5 w-3.5 ml-1 text-green-500" />}
                         {isSelected && !isCorrect && <XCircle className="inline h-3.5 w-3.5 ml-1 text-red-500" />}
                       </div>
                     );
                   })}
                 </div>
+                )}
+
+                {/* Numerical Answer Display */}
+                {ans.question_type?.startsWith('Numerical') && (
+                  <div className="mb-3 p-3 bg-slate-50 rounded-lg border text-sm space-y-1">
+                    <div>Your answer: <span className={`font-semibold ${isCorrect ? 'text-green-700' : 'text-red-700'}`}>{ans.selected_answer ?? 'Not attempted'}</span></div>
+                    <div>Correct answer: <span className="font-semibold text-green-700">{ans.numerical_answer ?? (ans.correct_answers || []).join(', ')}</span></div>
+                  </div>
+                )}
 
                 {/* Teacher Note - ONLY shown for incorrect/unattempted */}
                 {ans.teacher_note && (

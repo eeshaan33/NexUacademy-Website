@@ -31,6 +31,8 @@ import StudentClasses from "./pages/student/StudentClasses";
 import AssignedTests from "./pages/student/AssignedTests";
 import TakeTest from "./pages/student/TakeTest";
 import TestResults from "./pages/student/TestResults";
+import JEEMainInterface from "./pages/student/JEEMainInterface";
+import JEEAdvancedInterface from "./pages/student/JEEAdvancedInterface";
 
 function RoleBasedRedirect() {
   const { user, isAuthenticated, loading } = useAuth();
@@ -39,6 +41,16 @@ function RoleBasedRedirect() {
   if (user?.role === 'admin') return <Navigate to="/admin" replace />;
   if (user?.role === 'teacher') return <Navigate to="/teacher" replace />;
   return <Navigate to="/dashboard" replace />;
+}
+
+function SmartTestRouter() {
+  const location = useLocation();
+  const test = location.state?.test;
+  const pattern = test?.test_pattern;
+
+  if (pattern === 'JEE_Advanced_Pattern') return <JEEAdvancedInterface />;
+  if (pattern === 'JEE_Main_Pattern') return <JEEMainInterface />;
+  return <TakeTest />;
 }
 
 function AppRouter() {
@@ -73,7 +85,7 @@ function AppRouter() {
       <Route path="/bookmarks" element={<ProtectedRoute><Layout><BookmarksPage /></Layout></ProtectedRoute>} />
 
       {/* Test taking (no layout - fullscreen) */}
-      <Route path="/take-test/:attemptId" element={<ProtectedRoute><TakeTest /></ProtectedRoute>} />
+      <Route path="/take-test/:attemptId" element={<ProtectedRoute><SmartTestRouter /></ProtectedRoute>} />
       <Route path="/test-results/:attemptId" element={<ProtectedRoute><Layout><TestResults /></Layout></ProtectedRoute>} />
 
       {/* Default redirect */}

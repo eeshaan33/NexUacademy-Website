@@ -79,6 +79,11 @@ const AssignedTests = () => {
                         <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{test.duration} min</span>
                         <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{formatDate(test.scheduled_date_time)}</span>
                         <span>{test.total_questions} Q</span>
+                        {test.test_pattern && (
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${test.test_pattern === 'JEE_Advanced_Pattern' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
+                            {test.test_pattern === 'JEE_Advanced_Pattern' ? 'JEE Advanced' : 'JEE Main'}
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="ml-4 shrink-0">
