@@ -18,7 +18,7 @@ import os
 import uuid
 from datetime import datetime, timedelta
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://jee-prep-hub-16.preview.emergentagent.com')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://jee-test-engine.preview.emergentagent.com')
 
 # Test credentials
 TEACHER_EMAIL = "teacher@test.com"
