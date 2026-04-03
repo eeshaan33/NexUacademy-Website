@@ -17,5 +17,5 @@
 - Batch: JEE Mains 2027
 
 ## Test Data (created for testing)
-- JEE Main test: test_id=ttest_55c6448044bf (Pattern: JEE_Main_Pattern, Batch: JEE Mains 2027, 2 questions)
-- JEE Advanced test: test_id=ttest_a430b6a6c893 (Pattern: JEE_Advanced_Pattern, Batch: JEE Mains 2027, 2 questions)
+- JEE Main test: test_id=ttest_55c6448044bf (Pattern: JEE_Main_Pattern, Batch: JEE Mains 2027, 2 questions, SUBMITTED by student, Score: 4/8)
+- JEE Advanced test: test_id=ttest_a430b6a6c893 (Pattern: JEE_Advanced_Pattern, Batch: JEE Mains 2027, 2 questions, SUBMITTED by student)
