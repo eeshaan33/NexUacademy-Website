@@ -172,16 +172,30 @@ async def get_subject_wise_performance(request: Request):
         {"_id": 0}
     ).to_list(length=None)
     
+    # Bulk-fetch all question metadata once (avoids N+1)
+    all_qids = list({
+        a["question_id"]
+        for attempt in attempts
+        for a in attempt.get("answers", [])
+        if a.get("question_id")
+    })
+    question_map = {}
+    if all_qids:
+        qs = await db.questions.find(
+            {"question_id": {"$in": all_qids}},
+            {"_id": 0, "question_id": 1, "subject": 1}
+        ).to_list(length=None)
+        question_map = {q["question_id"]: q for q in qs}
+
     # Aggregate by subject
     subject_stats = defaultdict(lambda: {"correct": 0, "total": 0, "time": 0})
     
     for attempt in attempts:
         for answer in attempt.get("answers", []):
-            # Get question to find subject
-            question = await db.questions.find_one(
-                {"question_id": answer["question_id"]},
-                {"_id": 0, "subject": 1}
-            )
+            qid = answer.get("question_id")
+            if not qid:
+                continue
+            question = question_map.get(qid)
             if question:
                 subject = question["subject"]
                 subject_stats[subject]["total"] += 1
@@ -215,15 +229,30 @@ async def get_chapter_wise_performance(request: Request):
         {"_id": 0}
     ).to_list(length=None)
     
+    # Bulk-fetch all question metadata once (avoids N+1)
+    all_qids = list({
+        a["question_id"]
+        for attempt in attempts
+        for a in attempt.get("answers", [])
+        if a.get("question_id")
+    })
+    question_map = {}
+    if all_qids:
+        qs = await db.questions.find(
+            {"question_id": {"$in": all_qids}},
+            {"_id": 0, "question_id": 1, "subject": 1, "chapter": 1}
+        ).to_list(length=None)
+        question_map = {q["question_id"]: q for q in qs}
+
     # Aggregate by chapter
     chapter_stats = defaultdict(lambda: {"correct": 0, "total": 0})
     
     for attempt in attempts:
         for answer in attempt.get("answers", []):
-            question = await db.questions.find_one(
-                {"question_id": answer["question_id"]},
-                {"_id": 0, "subject": 1, "chapter": 1}
-            )
+            qid = answer.get("question_id")
+            if not qid:
+                continue
+            question = question_map.get(qid)
             if question:
                 key = f"{question['subject']}|{question['chapter']}"
                 chapter_stats[key]["total"] += 1
@@ -258,15 +287,30 @@ async def get_weak_topics(request: Request):
         {"_id": 0}
     ).to_list(length=None)
     
+    # Bulk-fetch all question metadata once (avoids N+1)
+    all_qids = list({
+        a["question_id"]
+        for attempt in attempts
+        for a in attempt.get("answers", [])
+        if a.get("question_id")
+    })
+    question_map = {}
+    if all_qids:
+        qs = await db.questions.find(
+            {"question_id": {"$in": all_qids}},
+            {"_id": 0, "question_id": 1, "subject": 1, "chapter": 1, "topic": 1}
+        ).to_list(length=None)
+        question_map = {q["question_id"]: q for q in qs}
+
     # Aggregate by topic
     topic_stats = defaultdict(lambda: {"correct": 0, "total": 0, "subject": "", "chapter": ""})
     
     for attempt in attempts:
         for answer in attempt.get("answers", []):
-            question = await db.questions.find_one(
-                {"question_id": answer["question_id"]},
-                {"_id": 0, "subject": 1, "chapter": 1, "topic": 1}
-            )
+            qid = answer.get("question_id")
+            if not qid:
+                continue
+            question = question_map.get(qid)
             if question:
                 topic = question["topic"]
                 topic_stats[topic]["total"] += 1

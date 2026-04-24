@@ -230,14 +230,25 @@ async def submit_test(attempt_id: str, request: Request):
     # Calculate score
     score = 0
     correct_count = 0
-    
-    for answer in attempt.get("answers", []):
+
+    answers_list = attempt.get("answers", [])
+    # Bulk-fetch all question marks once (avoids N+1)
+    qids = list({a["question_id"] for a in answers_list if a.get("question_id")})
+    question_map = {}
+    if qids:
+        qs = await db.questions.find(
+            {"question_id": {"$in": qids}},
+            {"_id": 0, "question_id": 1, "marks": 1, "negative_marks": 1}
+        ).to_list(length=None)
+        question_map = {q["question_id"]: q for q in qs}
+
+    for answer in answers_list:
+        qid = answer.get("question_id")
+        question = question_map.get(qid, {}) if qid else {}
         if answer["is_correct"]:
-            question = await db.questions.find_one({"question_id": answer["question_id"]})
             score += question.get("marks", 4)
             correct_count += 1
         else:
-            question = await db.questions.find_one({"question_id": answer["question_id"]})
             score += question.get("negative_marks", -1)
     
     # Calculate accuracy
