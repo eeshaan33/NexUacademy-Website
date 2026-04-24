@@ -313,7 +313,7 @@ async def delete_question(question_id: str, request: Request):
 
 
 @router.delete("/bulk/all")
-async def delete_all_questions(request: Request, confirm: str = Query(...)):
+async def delete_all_questions(request: Request, confirm: str = Query("")):
     """Admin-only: wipe entire PYQ bank. Require ?confirm=WIPE to proceed."""
     await _require_admin(request)
     if confirm != "WIPE":

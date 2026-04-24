@@ -72,6 +72,13 @@ Build a comprehensive JEE/NEET coaching platform with a Teacher Dashboard, Stude
 - [x] **Pydantic Request Validation** — New `models/requests.py` with `TestCreateRequest`, `QuestionAddRequest`, `TestUpdateRequest`, `ClassCreateRequest`. Invalid payloads now return 422 with field-level errors.
 - [x] **Custom Test Builder** — `/my-tests` full flow: Home (history) → Wizard (Step 1: exam/difficulty/years/duration, Step 2: chapter picker with per-chapter count) → Generate → Ready screen → `/my-tests/take/:testId` test taker with timer + palette → Submit → results screen.
 
+### Phase 7 - Admin Dashboard & Resume Flow (Completed - Feb 2026)
+- [x] **Resume-in-progress Custom Test** — Server-side `test_sessions` collection tracks each active attempt with auto-expiry. Taker calls `start-session` on mount → resumes if active, creates fresh if not. Auto-save (1.5s debounce) via `save-progress`. `/my-tests` home surfaces a yellow "Resume Your Tests" card with remaining time.
+- [x] **Admin 'Seed PYQ Bank'** — New `AdminPanel → PYQ Bank` tab with: total-questions stat + subject bar chart, Quick Seed Sample Pack (15-question rotating pool, 5-200 count), Bulk CSV Import (paste / download template / shows per-row errors), and a gated "Delete ALL" danger-zone button.
+- [x] **Pydantic Refactor** extended to `custom_test_routes`, `question_routes`, `analytics_routes`, `admin_dashboard_routes`, `student_suggestion_routes`. New shared schemas: `QuestionAttemptRequest`, `PageViewRequest`, `CustomTestCreateRequest`, `CustomTestSubmissionRequest`, `SaveProgressRequest`, `BulkImportRequest`, `SuggestionCreateRequest`, `SuggestionUpdateRequest`.
+- [x] **Admin Analytics Dashboard** — Route `/admin` (tab: Analytics). Page-view tracking via `PageViewTracker` component (silent POST to `/analytics/pageview` on every SPA route change). Charts: Most Visited Pages (bar), Daily Traffic (line), Device Breakdown (donut), Batch Distribution (bar). Stat cards (visits, uniques, users, new suggestions). Time-range filter (7/30/90/365). CSV export. Student suggestions moderation panel with status/priority filters + detail dialog (status, priority, admin notes, delete).
+- [x] **Student Suggestion Box** — Global floating button (students only) → modal with Type/Subject/Message → submits to `/student/suggestions/`. Upvote toggle endpoint available.
+
 ## Test Credentials
 - Student: student@test.com / password123 (batch: JEE Mains 2027)
 - Teacher: teacher@test.com / password123

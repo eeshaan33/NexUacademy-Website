@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -57,6 +57,9 @@ const SuggestionBox = () => {
             <DialogTitle className="flex items-center gap-2">
               <MessageSquare className="h-5 w-5 text-indigo-600" /> Send a Suggestion
             </DialogTitle>
+            <DialogDescription>
+              Share feedback, report a bug, or propose a new feature.
+            </DialogDescription>
           </DialogHeader>
 
           {success ? (
