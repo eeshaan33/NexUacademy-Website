@@ -4,10 +4,14 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Label } from './ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { Database, Upload, Sparkles, Trash2, FileDown, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
+import { Database, Upload, Sparkles, Trash2, FileDown, CheckCircle, AlertTriangle, Loader2, ListFilter, Search, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../utils/api';
+
+const BACKEND = process.env.REACT_APP_BACKEND_URL;
 
 const SAMPLE_CSV = `exam_type,subject,chapter,topic,year,difficulty,question_text,option_a,option_b,option_c,option_d,correct_answer
 JEE_Main,Physics,Kinematics,1D motion,2022,Medium,"Find acceleration if v = 2t²",2t,4t,t²,2t²,B
@@ -20,6 +24,14 @@ const AdminPyqSeederPane = () => {
   const [busy, setBusy] = useState(false);
   const [importResult, setImportResult] = useState(null);
 
+  // Browser state
+  const [filters, setFilters] = useState({ exam_type: '', subject: '', q: '' });
+  const [page, setPage] = useState(1);
+  const [list, setList] = useState({ questions: [], total: 0, pages: 1 });
+  const [listLoading, setListLoading] = useState(false);
+  const [preview, setPreview] = useState(null);
+  const [deleting, setDeleting] = useState(null);
+
   const loadStats = async () => {
     try {
       const { data } = await api.get('/questions/stats');
@@ -28,6 +40,36 @@ const AdminPyqSeederPane = () => {
   };
 
   useEffect(() => { loadStats(); }, []);
+
+  const loadList = async () => {
+    setListLoading(true);
+    try {
+      const params = { page, limit: 25 };
+      if (filters.exam_type) params.exam_type = filters.exam_type;
+      if (filters.subject) params.subject = filters.subject;
+      if (filters.q) params.q = filters.q;
+      const { data } = await api.get('/questions/admin/list', { params });
+      setList(data);
+    } catch (e) {
+      toast.error('Failed to load questions');
+    } finally { setListLoading(false); }
+  };
+
+  useEffect(() => { loadList(); }, [page, filters.exam_type, filters.subject]); // eslint-disable-line
+
+  const handleDelete = async (qid) => {
+    if (!window.confirm('Delete this question? Students will no longer see it in the PYQ bank.')) return;
+    setDeleting(qid);
+    try {
+      await api.delete(`/questions/admin/${qid}`);
+      toast.success('Question deleted');
+      loadStats();
+      loadList();
+      setPreview(null);
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Delete failed');
+    } finally { setDeleting(null); }
+  };
 
   const handleSeedSample = async () => {
     setBusy(true);
@@ -172,6 +214,144 @@ const AdminPyqSeederPane = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Browse & delete */}
+      <Card className="bg-slate-800 border-slate-700">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-slate-200 text-sm flex items-center justify-between">
+            <span className="flex items-center gap-2"><ListFilter className="h-4 w-4 text-indigo-400" /> Browse PYQ Bank</span>
+            <span className="text-xs text-slate-400 font-normal">{list.total?.toLocaleString()} questions · live sync with students</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            <div className="relative flex-1 min-w-[220px]">
+              <Search className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <Input
+                className="bg-slate-700 border-slate-600 text-white pl-9"
+                placeholder="Search text, chapter, topic…"
+                value={filters.q}
+                onChange={(e) => setFilters({ ...filters, q: e.target.value })}
+                onKeyDown={(e) => e.key === 'Enter' && loadList()}
+                data-testid="pyq-search-input"
+              />
+            </div>
+            <Select value={filters.exam_type || 'all'} onValueChange={(v) => setFilters({ ...filters, exam_type: v === 'all' ? '' : v })}>
+              <SelectTrigger className="w-40 bg-slate-700 border-slate-600 text-white" data-testid="pyq-filter-exam"><SelectValue placeholder="Exam" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All exams</SelectItem>
+                <SelectItem value="JEE_Main">JEE Main</SelectItem>
+                <SelectItem value="JEE_Advanced">JEE Advanced</SelectItem>
+                <SelectItem value="NEET">NEET</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filters.subject || 'all'} onValueChange={(v) => setFilters({ ...filters, subject: v === 'all' ? '' : v })}>
+              <SelectTrigger className="w-40 bg-slate-700 border-slate-600 text-white" data-testid="pyq-filter-subject"><SelectValue placeholder="Subject" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All subjects</SelectItem>
+                <SelectItem value="Physics">Physics</SelectItem>
+                <SelectItem value="Chemistry">Chemistry</SelectItem>
+                <SelectItem value="Mathematics">Mathematics</SelectItem>
+                <SelectItem value="Biology">Biology</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button size="sm" variant="outline" className="border-slate-600 text-slate-200 hover:bg-slate-700" onClick={() => { setPage(1); loadList(); }}>
+              Search
+            </Button>
+          </div>
+
+          {listLoading ? (
+            <div className="py-10 text-center"><Loader2 className="h-5 w-5 animate-spin mx-auto text-slate-400" /></div>
+          ) : list.questions.length === 0 ? (
+            <p className="py-10 text-center text-slate-400 text-sm">No questions match your filters.</p>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-left text-slate-400 border-b border-slate-700">
+                    <tr>
+                      <th className="py-2 px-2">Question</th>
+                      <th className="py-2 px-2 w-24">Subject</th>
+                      <th className="py-2 px-2 w-28">Chapter</th>
+                      <th className="py-2 px-2 w-14">Year</th>
+                      <th className="py-2 px-2 w-14">Diff.</th>
+                      <th className="py-2 px-2 w-20 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-700">
+                    {list.questions.map((q) => (
+                      <tr key={q.question_id} className="hover:bg-slate-700/50" data-testid={`pyq-row-${q.question_id}`}>
+                        <td className="py-2 px-2 text-slate-200">
+                          <div className="flex items-center gap-2">
+                            {q.question_image_url && <ImageIcon className="h-3 w-3 text-slate-400 shrink-0" />}
+                            <span className="truncate max-w-md">{q.question_text?.slice(0, 140) || '—'}</span>
+                          </div>
+                        </td>
+                        <td className="py-2 px-2 text-slate-400 text-xs">{q.subject}</td>
+                        <td className="py-2 px-2 text-slate-400 text-xs truncate max-w-[160px]">{q.chapter}</td>
+                        <td className="py-2 px-2 text-slate-400 text-xs">{q.year}</td>
+                        <td className="py-2 px-2 text-slate-400 text-xs">{q.difficulty}</td>
+                        <td className="py-2 px-2 text-right space-x-1">
+                          <Button variant="ghost" size="sm" onClick={() => setPreview(q)} className="text-indigo-300 hover:bg-indigo-500/10 h-7">View</Button>
+                          <Button variant="ghost" size="sm" disabled={deleting === q.question_id} onClick={() => handleDelete(q.question_id)} className="text-red-400 hover:bg-red-500/10 h-7" data-testid={`pyq-delete-${q.question_id}`}>
+                            {deleting === q.question_id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex items-center justify-between pt-2 text-sm text-slate-400">
+                <span>Page {list.page} of {list.pages}</span>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" className="border-slate-600 text-slate-200 hover:bg-slate-700" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>Prev</Button>
+                  <Button size="sm" variant="outline" className="border-slate-600 text-slate-200 hover:bg-slate-700" onClick={() => setPage((p) => Math.min(list.pages, p + 1))} disabled={page >= list.pages}>Next</Button>
+                </div>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Preview dialog */}
+      <Dialog open={!!preview} onOpenChange={(v) => !v && setPreview(null)}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Question preview</DialogTitle>
+            <DialogDescription>
+              {preview?.exam_type?.replace('_', ' ')} · {preview?.subject} · {preview?.chapter} · {preview?.year}
+            </DialogDescription>
+          </DialogHeader>
+          {preview && (
+            <div className="space-y-3 text-sm">
+              <p className="text-slate-800 whitespace-pre-wrap">{preview.question_text}</p>
+              {preview.question_image_url && (
+                <img
+                  src={preview.question_image_url.startsWith('/') ? `${BACKEND}${preview.question_image_url}` : preview.question_image_url}
+                  alt=""
+                  className="max-w-full rounded border"
+                />
+              )}
+              <div className="space-y-1">
+                {['A', 'B', 'C', 'D'].map((k) => preview.options?.[k] && (
+                  <div key={k} className={`p-2 rounded ${preview.correct_answer === k ? 'bg-emerald-50 border border-emerald-300' : 'bg-slate-50'}`}>
+                    <span className="font-semibold mr-2">{k}.</span>{preview.options[k]}
+                    {preview.correct_answer === k && <span className="ml-2 text-emerald-600 text-xs font-semibold">(correct)</span>}
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2 pt-3 border-t">
+                <Button variant="outline" className="flex-1" onClick={() => setPreview(null)}>Close</Button>
+                <Button className="bg-red-600 hover:bg-red-700 text-white" onClick={() => handleDelete(preview.question_id)} data-testid="preview-delete">
+                  <Trash2 className="h-4 w-4 mr-1" /> Delete
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Danger zone */}
       <Card className="bg-red-900/10 border-red-700/30">

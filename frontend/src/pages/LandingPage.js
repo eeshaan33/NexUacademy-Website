@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, useInView, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { ChevronUp, Menu, X, Phone, Mail, MapPin, Send, Linkedin, Instagram, MessageCircle, ExternalLink, ChevronLeft, ChevronRight, Star, GraduationCap, BookOpen, Trophy, Users, Microscope, Monitor, Award, Clock, Briefcase, Beaker, Target, Rocket } from 'lucide-react';
+import { ChevronUp, Menu, X, Phone, Mail, MapPin, Send, Linkedin, Instagram, Youtube, MessageCircle, ExternalLink, ChevronLeft, ChevronRight, Star, GraduationCap, BookOpen, Trophy, Users, Microscope, Monitor, Award, Clock, Briefcase, Beaker, Target, Rocket } from 'lucide-react';
 import axios from 'axios';
 import { setPageTitle } from '../utils/pageTitle';
+import VideoTestimonials from '../components/landing/VideoTestimonials';
+import RealResults from '../components/landing/RealResults';
+import YouTubeSection from '../components/landing/YouTubeSection';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -88,10 +91,9 @@ export default function LandingPage() {
   };
 
   const testimonials = [
-    { name: 'Rahul Sharma', achievement: 'AIR 142, JEE Advanced 2024 | IIT Bombay', text: "Sir's teaching methodology made complex Chemistry concepts crystal clear. The personalized attention and dedicated doubt-clearing sessions were absolute game-changers for my JEE preparation.", rating: 5 },
-    { name: 'Priya Patel', achievement: 'IIT Delhi, CSE | JEE Advanced AIR 289', text: "The structured curriculum and regular mock tests helped me track my progress effectively. Nitin Sir's real-world examples made even the toughest topics easy to understand.", rating: 5 },
-    { name: 'Amit Kumar', achievement: 'AIIMS Delhi | NEET 2024 AIR 156', text: "As a NEET aspirant, I found the Chemistry coaching absolutely outstanding. Sir's teaching style is unique \u2013 he makes you understand rather than just memorize.", rating: 5 },
-    { name: 'Sneha Reddy', achievement: 'NSEC Gold Medalist 2024 | Selected for OCSC', text: "NexUacademy's flexible online platform allowed me to study from a small town while receiving world-class coaching. Nitin Sir's guidance was invaluable in my Olympiad preparation.", rating: 5 },
+    { name: 'Harshit', achievement: 'AIR 916, JEE Advanced | IIT Guwahati', text: "NexUacademy's Chemistry coaching was exceptional. The concepts were crystal clear and practice problems were JEE-level.", rating: 5 },
+    { name: 'Tanishq Saxena', achievement: 'AIR 341, JEE Advanced | IIT Kharagpur', text: "Nitin Sir's teaching methodology helped me secure a top 500 rank. Highly recommended!", rating: 5 },
+    { name: 'Samyak Rai', achievement: 'INCHO Qualifier | IIT Hyderabad', text: "The Olympiad preparation at NexUacademy was outstanding. Made it to INCHO!", rating: 5 },
   ];
 
   const navLinks = [
@@ -373,6 +375,15 @@ export default function LandingPage() {
         </div>
       </Section>
 
+      {/* REAL RESULTS (top achievers) */}
+      <RealResults navy={BRAND.navy} />
+
+      {/* VIDEO TESTIMONIALS */}
+      <VideoTestimonials bg={BRAND.bgLight} navy={BRAND.navy} />
+
+      {/* YOUTUBE CHANNEL */}
+      <YouTubeSection navy={BRAND.navy} />
+
       {/* CTA */}
       <Section className="py-20 md:py-28 px-4 text-white text-center relative" style={{ background: `linear-gradient(135deg, ${BRAND.navy}, ${BRAND.lightNavy})` }}>
         <div className="max-w-4xl mx-auto relative z-10">
@@ -483,6 +494,7 @@ export default function LandingPage() {
               {[
                 { icon: Linkedin, href: 'https://www.linkedin.com/in/nitinsaini-104513112' },
                 { icon: Instagram, href: 'https://instagram.com/nexuacademy' },
+                { icon: Youtube, href: 'https://www.youtube.com/@NexUacademypvtltd' },
                 { icon: Send, href: 'https://t.me/NexUacademypvtltd' },
                 { icon: MessageCircle, href: 'https://whatsapp.com/channel/0029VbCqE3X23n3jMUSbCt3a' },
               ].map((s, i) => (

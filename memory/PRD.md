@@ -79,6 +79,12 @@ Build a comprehensive JEE/NEET coaching platform with a Teacher Dashboard, Stude
 - [x] **Admin Analytics Dashboard** — Route `/admin` (tab: Analytics). Page-view tracking via `PageViewTracker` component (silent POST to `/analytics/pageview` on every SPA route change). Charts: Most Visited Pages (bar), Daily Traffic (line), Device Breakdown (donut), Batch Distribution (bar). Stat cards (visits, uniques, users, new suggestions). Time-range filter (7/30/90/365). CSV export. Student suggestions moderation panel with status/priority filters + detail dialog (status, priority, admin notes, delete).
 - [x] **Student Suggestion Box** — Global floating button (students only) → modal with Type/Subject/Message → submits to `/student/suggestions/`. Upvote toggle endpoint available.
 
+### Phase 8 - CSV Validation, PYQ Browser, Content (Completed - Feb 2026)
+- [x] **Rich CSV validation** — Bulk import now detects duplicates within a CSV batch AND vs existing DB rows (keyed by exam_type + subject + question_text). Normalises `question_image_url` (http(s) kept, bare filenames prefixed `/uploads/`, garbage dropped). Returns `inserted / duplicates_skipped / errors` with per-row details.
+- [x] **Admin 'Browse PYQ Bank'** — New searchable/filterable table (exam, subject, chapter, year, difficulty, fuzzy text search), paginated with preview dialog (shows correct answer highlighted) and inline delete. Live-syncs to students (delete reflects immediately in `/api/questions/`).
+- [x] **Landing content refresh** — Replaced fake testimonials with REAL student data (Harshit AIR 916 IIT Guwahati, Tanishq Saxena AIR 341 IIT Kharagpur, Samyak Rai INCHO Qualifier IIT Hyderabad). Added `VideoTestimonials` (3 YouTube Shorts with modal player), `RealResults` (achievement cards + summary stats), `YouTubeSection` (channel embed + Subscribe CTA). Added YouTube icon to social links footer.
+- [x] **Sample Questions page** — New public `/sample-questions` route with 2 real JEE Advanced 2023 Chemistry questions (Dry Ice Sublimation, Raoult's Law) + locked-solution "Sign up for free" CTA.
+
 ## Test Credentials
 - Student: student@test.com / password123 (batch: JEE Mains 2027)
 - Teacher: teacher@test.com / password123

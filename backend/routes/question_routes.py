@@ -136,13 +136,29 @@ async def bulk_import(payload: BulkImportRequest, request: Request):
             "total": await db.questions.count_documents({})}
 
 
+def _normalize_image_url(url: str) -> str:
+    """Normalise image URLs — strip whitespace, accept relative /uploads paths,
+    reject anything that isn't an http(s) URL or a /uploads path."""
+    url = (url or "").strip()
+    if not url:
+        return ""
+    if url.startswith(("http://", "https://", "/uploads/")):
+        return url
+    # Accept bare filenames and prefix with /uploads/
+    if "/" not in url and "." in url:
+        return f"/uploads/{url}"
+    # Anything else — drop
+    return ""
+
+
 @router.post("/bulk-import/csv")
 async def bulk_import_csv(request: Request):
     """Admin-only: parse pasted CSV body and import.
 
-    Expected headers:
-      exam_type,subject,chapter,topic,year,difficulty,question_text,
-      option_a,option_b,option_c,option_d,correct_answer[,solution_youtube_url,solution_timestamp]
+    Features:
+      * Accepts optional `question_image_url` column (normalised to /uploads/... or http(s))
+      * Detects duplicates inside the CSV and already in the DB (exam_type + subject + question_text)
+      * Returns inserted, duplicates_skipped, and per-row errors
     """
     admin = await _require_admin(request)
     db = get_database()
@@ -156,18 +172,43 @@ async def bulk_import_csv(request: Request):
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"CSV parse error: {e}")
 
-    inserted, errors = 0, []
+    inserted, errors, dup_skipped = 0, [], []
+    seen_in_batch = set()
+
     for idx, row in enumerate(reader, start=2):
         try:
+            qtext = row["question_text"].strip()
+            subj = row["subject"].strip()
+            exam = row["exam_type"].strip()
+
+            key = (exam.lower(), subj.lower(), qtext.lower()[:200])
+
+            # Duplicate within CSV?
+            if key in seen_in_batch:
+                dup_skipped.append({"row": idx, "reason": "duplicate within CSV"})
+                continue
+            seen_in_batch.add(key)
+
+            # Duplicate already in DB?
+            existing = await db.questions.find_one({
+                "exam_type": exam,
+                "subject": subj,
+                "question_text": qtext,
+            })
+            if existing:
+                dup_skipped.append({"row": idx, "reason": "duplicate of existing question",
+                                    "existing_question_id": existing.get("question_id")})
+                continue
+
             q_dict = {
-                "exam_type": row["exam_type"].strip(),
-                "subject": row["subject"].strip(),
+                "exam_type": exam,
+                "subject": subj,
                 "chapter": row["chapter"].strip(),
                 "topic": row.get("topic", "").strip(),
                 "year": int(row["year"]),
                 "difficulty": row.get("difficulty", "Medium").strip() or "Medium",
-                "question_text": row["question_text"].strip(),
-                "question_image_url": row.get("question_image_url", "").strip(),
+                "question_text": qtext,
+                "question_image_url": _normalize_image_url(row.get("question_image_url", "")),
                 "options": {
                     "A": row["option_a"].strip(),
                     "B": row["option_b"].strip(),
@@ -194,8 +235,68 @@ async def bulk_import_csv(request: Request):
         except Exception as e:
             errors.append({"row": idx, "error": str(e)[:200]})
 
-    return {"success": True, "inserted": inserted, "errors": errors[:50],
+    return {"success": True, "inserted": inserted,
+            "duplicates_skipped": dup_skipped[:100],
+            "duplicates_skipped_count": len(dup_skipped),
+            "errors": errors[:50],
+            "errors_count": len(errors),
             "total": await db.questions.count_documents({})}
+
+
+@router.get("/admin/list")
+async def admin_list_questions(
+    request: Request,
+    exam_type: Optional[str] = Query(None),
+    subject: Optional[str] = Query(None),
+    chapter: Optional[str] = Query(None),
+    year: Optional[int] = Query(None),
+    difficulty: Optional[str] = Query(None),
+    q: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    limit: int = Query(30, ge=1, le=200),
+):
+    """Admin-only: search + paginate the entire PYQ bank with richer metadata."""
+    await _require_admin(request)
+    db = get_database()
+
+    f = {}
+    for k, v in (("exam_type", exam_type), ("subject", subject), ("chapter", chapter),
+                 ("year", year), ("difficulty", difficulty)):
+        if v:
+            f[k] = v
+    if q:
+        f["$or"] = [
+            {"question_text": {"$regex": q, "$options": "i"}},
+            {"chapter": {"$regex": q, "$options": "i"}},
+            {"topic": {"$regex": q, "$options": "i"}},
+        ]
+
+    total = await db.questions.count_documents(f)
+    skip = (page - 1) * limit
+    rows = await db.questions.find(f, {"_id": 0}).sort("created_at", -1).skip(skip).limit(limit).to_list(length=limit)
+    return {"total": total, "page": page, "limit": limit,
+            "pages": (total + limit - 1) // limit,
+            "questions": rows}
+
+
+@router.delete("/admin/{question_id}")
+async def admin_delete_question(question_id: str, request: Request):
+    """Admin-only: delete any question. Auto-invalidates it from active tests.
+
+    Students fetching the PYQ bank always read live from db.questions, so no cache flush needed —
+    delete is immediately reflected on the student side.
+    """
+    await _require_admin(request)
+    db = get_database()
+    res = await db.questions.delete_one({"question_id": question_id})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Question not found")
+    # Also remove from any in-progress tests (best-effort cleanup)
+    await db.tests.update_many(
+        {"questions.question_id": question_id},
+        {"$pull": {"questions": {"question_id": question_id}}},
+    )
+    return {"success": True, "deleted": question_id}
 
 
 @router.post("/seed-sample")

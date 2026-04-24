@@ -36,6 +36,7 @@ import TestResults from "./pages/student/TestResults";
 import JEEMainInterface from "./pages/student/JEEMainInterface";
 import JEEAdvancedInterface from "./pages/student/JEEAdvancedInterface";
 import AnalyticsDashboard from "./pages/student/AnalyticsDashboard";
+import SampleQuestions from "./pages/SampleQuestions";
 import CustomTestTaker from "./pages/student/CustomTestTaker";
 
 // Shared components
@@ -98,6 +99,8 @@ function AppRouter() {
       {/* Test taking (no layout - fullscreen) */}
       <Route path="/take-test/:attemptId" element={<ProtectedRoute><SmartTestRouter /></ProtectedRoute>} />
       <Route path="/test-results/:attemptId" element={<ProtectedRoute><Layout><TestResults /></Layout></ProtectedRoute>} />
+
+      <Route path="/sample-questions" element={<SampleQuestions />} />
 
       {/* Default redirect */}
       <Route path="/" element={<RoleBasedRedirect />} />
