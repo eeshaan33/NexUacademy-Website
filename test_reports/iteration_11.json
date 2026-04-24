@@ -1,0 +1,66 @@
+{
+  "summary": "Iteration 11 — validated bookmark overhaul (pyq + test_attempt with snapshot + by-question delete + ids endpoint), Pydantic validation on teacher test/class write endpoints (422 on invalid, 200 on valid/legacy payload), and the Custom Test Builder end-to-end (syllabus -> generate -> fetch-no-leak -> submit). Frontend /my-tests wizard verified in browser: opens wizard, Step 1 -> Step 2, chapters rendered for Physics (30), multi-chapter selection, Generate Test produced 'Test Ready!' screen with 10 Q / 40 marks / 60m and success toast. /bookmarks page loads with search box. Backend 21/21 passed.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter11_features.py",
+    "/app/test_reports/pytest/iter11_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "bookmark_routes.py correctly dedupes by (student_id, source, question_key) and returns 400 on duplicate; /ids endpoint powers FE toggle state cleanly.",
+    "models/requests.py: TestCreateRequest enforces duration gt=0/le=600 and exam_type Literal; ClassCreateRequest requires title/subject/meeting_link/scheduled_date/scheduled_time/assigned_batches — emits 422 with proper loc.",
+    "custom_test_routes.py: generate payload keys are examType/selectedTopics[list of TopicConfig]/yearRange/totalQuestions/totalMarks/duration; submit expects 'timeSpent' (camelCase) not 'time_taken'. Frontend uses camelCase correctly. /{test_id} GET strips correctAnswer — verified no correctAnswer/correct_answers/correct_answer leaks in the response.",
+    "Legacy add-question with only `correct_answer` (no `correct_answers`) still succeeds — normalization logic on line 90 of teacher_test_routes.py confirmed working.",
+    "Static 'JEE_Main' examType in DB: FE's 'JEE Main' (space) human label must be mapped to 'JEE_Main' before calling /custom-tests/generate, otherwise the query returns 0 questions and endpoint returns 400. Verified FE passes 'JEE_Main' through 'Mixed'/'JEE_Main'/'JEE_Advanced' enum select — consistent with DB."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter11_features.py (new)"
+  ],
+  "success_rate": {
+    "backend": "100% (21/21)",
+    "frontend": "Verified /my-tests wizard end-to-end (open -> step2 -> chapter select -> generate -> Ready screen). /bookmarks loads. PYQ deep-drill-down to question-level bookmark icon not traversed in automation due to multi-step navigation without data-testids, but backend path for both pyq and test_attempt bookmark CRUD fully validated via API tests."
+  },
+  "test_credentials": {
+    "student": "student@test.com / password123",
+    "teacher": "teacher@test.com / password123",
+    "admin": "admin@nexuacademy.com / nexuacademy123",
+    "sample_test_id": "ttest_a430b6a6c893"
+  },
+  "seed_data_creation": "Tests create then delete TEST_-prefixed bookmarks, TEST_ teacher tests (legacy create + draft), and a TEST_ class. All cleanup is inline — idempotent. No leftover data.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Bookmark endpoints: POST /api/bookmarks/ expects {source:'pyq'|'test_attempt', question_id|test_id+question_number, snapshot:{...}}. DELETE /api/bookmarks/by-question?source=...&question_id=... (or test_id+question_number). GET /api/bookmarks/ids returns {pyq_question_ids, test_question_keys}. Custom test submit endpoint expects 'timeSpent' not 'time_taken'. Custom test generate uses camelCase: examType (JEE_Main/JEE_Advanced/Mixed), selectedTopics:List[{subject,chapter,topic,questionCount,difficulty}], yearRange:{start,end}, totalQuestions, totalMarks, duration. FE MyTestsPage lives at /my-tests with data-testid=my-tests-page / build-test-btn / builder-step-next / chapter-{Subject}-{chapter} / generate-test-btn / start-custom-test. Student currently has 0 prior attempts in /api/student/test-attempts endpoint (404 response — possibly endpoint name differs; confirmed sample_test_id ttest_a430b6a6c893 exists per credentials file but visiting /test-results/{id} without a real attempt_id won't work — need attempt_id from a submitted attempt).",
+  "features_tested": {
+    "bookmarks_pyq_create_with_snapshot": "PASSED",
+    "bookmarks_pyq_duplicate_400": "PASSED",
+    "bookmarks_pyq_ids_endpoint": "PASSED",
+    "bookmarks_pyq_list_returns_snapshot": "PASSED",
+    "bookmarks_pyq_delete_by_question": "PASSED",
+    "bookmarks_pyq_delete_nonexistent_404": "PASSED",
+    "bookmarks_test_attempt_create": "PASSED",
+    "bookmarks_test_attempt_ids": "PASSED",
+    "bookmarks_test_attempt_delete_by_question": "PASSED",
+    "teacher_test_create_missing_subject_422": "PASSED",
+    "teacher_test_create_invalid_duration_422": "PASSED",
+    "teacher_test_create_legacy_payload_200": "PASSED",
+    "teacher_add_question_missing_text_422": "PASSED",
+    "teacher_add_question_legacy_correct_answer_200": "PASSED",
+    "teacher_class_create_missing_required_422": "PASSED",
+    "teacher_class_create_valid_200": "PASSED",
+    "custom_test_syllabus": "PASSED — Physics/Chemistry/Mathematics × Class11/Class12 returned",
+    "custom_test_generate": "PASSED — test_id returned",
+    "custom_test_get_no_answer_leak": "PASSED — no correctAnswer/correct_answers/correct_answer in question payload",
+    "custom_test_submit_scoring": "PASSED — returns marks/score/accuracy",
+    "frontend_my_tests_wizard": "PASSED — /my-tests -> Build -> step2 -> select chapters -> Generate -> Test Ready screen with Start Now",
+    "frontend_bookmarks_page_loads": "PASSED — search box visible"
+  },
+  "rca_of_issue": "N/A — all new features and regression checks pass."
+}

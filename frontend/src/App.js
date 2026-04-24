@@ -19,7 +19,7 @@ import AdmissionForm from "./pages/AdmissionForm";
 import AdminPanel from "./pages/AdminPanel";
 import LandingPage from "./pages/LandingPage";
 import BookmarksPage from "./pages/BookmarksPage";
-import { MyTestsPage } from "./pages/PlaceholderPages";
+import MyTestsPage from "./pages/MyTestsPage";
 
 // Teacher pages
 import TeacherDashboard from "./pages/teacher/TeacherDashboard";
@@ -36,6 +36,7 @@ import TestResults from "./pages/student/TestResults";
 import JEEMainInterface from "./pages/student/JEEMainInterface";
 import JEEAdvancedInterface from "./pages/student/JEEAdvancedInterface";
 import AnalyticsDashboard from "./pages/student/AnalyticsDashboard";
+import CustomTestTaker from "./pages/student/CustomTestTaker";
 
 function RoleBasedRedirect() {
   const { user, isAuthenticated, loading } = useAuth();
@@ -83,6 +84,7 @@ function AppRouter() {
       <Route path="/dashboard" element={<ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute>} />
       <Route path="/pyq" element={<ProtectedRoute><PYQSection /></ProtectedRoute>} />
       <Route path="/my-tests" element={<ProtectedRoute><Layout><MyTestsPage /></Layout></ProtectedRoute>} />
+      <Route path="/my-tests/take/:testId" element={<ProtectedRoute><CustomTestTaker /></ProtectedRoute>} />
       <Route path="/assigned-tests" element={<ProtectedRoute><Layout><AssignedTests /></Layout></ProtectedRoute>} />
       <Route path="/classes" element={<ProtectedRoute><Layout><StudentClasses /></Layout></ProtectedRoute>} />
       <Route path="/analytics" element={<ProtectedRoute><Layout><AnalyticsDashboard /></Layout></ProtectedRoute>} />

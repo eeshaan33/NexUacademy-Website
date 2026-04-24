@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
-import { CheckCircle, XCircle, Minus, ArrowLeft, MessageSquare } from 'lucide-react';
+import { CheckCircle, XCircle, Minus, ArrowLeft, MessageSquare, Bookmark, BookmarkCheck } from 'lucide-react';
+import { toast } from 'sonner';
 import api from '../../utils/api';
 import { setPageTitle } from '../../utils/pageTitle';
 import 'katex/dist/katex.min.css';
@@ -40,6 +41,8 @@ const TestResults = () => {
   const { attemptId } = useParams();
   const [attempt, setAttempt] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [bookmarkKeys, setBookmarkKeys] = useState(new Set());
+  const [bookmarkBusy, setBookmarkBusy] = useState(false);
 
   useEffect(() => {
     setPageTitle('Test Results');
@@ -53,8 +56,55 @@ const TestResults = () => {
       } catch { }
       finally { setLoading(false); }
     };
+    const loadBookmarks = async () => {
+      try {
+        const r = await api.get('/bookmarks/ids');
+        setBookmarkKeys(new Set(r.data.test_question_keys || []));
+      } catch { /* ignore */ }
+    };
     load();
+    loadBookmarks();
   }, [attemptId]);
+
+  const toggleBookmark = async (ans) => {
+    if (bookmarkBusy || !attempt?.test_id) return;
+    setBookmarkBusy(true);
+    const key = `${attempt.test_id}::${ans.question_number}`;
+    const isBookmarked = bookmarkKeys.has(key);
+    try {
+      if (isBookmarked) {
+        await api.delete('/bookmarks/by-question', {
+          params: { source: 'test_attempt', test_id: attempt.test_id, question_number: ans.question_number },
+        });
+        const next = new Set(bookmarkKeys); next.delete(key); setBookmarkKeys(next);
+        toast.success('Removed from bookmarks');
+      } else {
+        await api.post('/bookmarks/', {
+          source: 'test_attempt',
+          test_id: attempt.test_id,
+          attempt_id: attempt.attempt_id,
+          question_number: ans.question_number,
+          snapshot: {
+            question_text: ans.question_text,
+            question_image_url: ans.question_image_url,
+            question_type: ans.question_type,
+            options: ans.options,
+            correct_answers: ans.correct_answers,
+            numerical_answer: ans.numerical_answer,
+            subject: ans.subject,
+            chapter: ans.chapter,
+            topic: ans.topic,
+          },
+        });
+        setBookmarkKeys(new Set(bookmarkKeys).add(key));
+        toast.success('Saved to bookmarks');
+      }
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Failed to update bookmark');
+    } finally {
+      setBookmarkBusy(false);
+    }
+  };
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center text-slate-400">Loading results...</div>;
@@ -118,11 +168,25 @@ const TestResults = () => {
           return (
             <Card key={i} className={`border-0 shadow-sm border-l-4 ${isCorrect ? 'border-l-green-500' : isUnattempted ? 'border-l-slate-300' : 'border-l-red-500'}`} data-testid={`result-q${ans.question_number}`}>
               <CardContent className="p-5">
-                <div className="flex items-start justify-between mb-3">
+                <div className="flex items-start justify-between mb-3 gap-2">
                   <span className="text-sm font-medium text-slate-500">Q{ans.question_number}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${isCorrect ? 'bg-green-100 text-green-700' : isUnattempted ? 'bg-slate-100 text-slate-500' : 'bg-red-100 text-red-700'}`}>
-                    {isCorrect ? `+${ans.marks}` : isUnattempted ? '0' : ans.marks}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => toggleBookmark(ans)}
+                      disabled={bookmarkBusy}
+                      className="p-1 hover:bg-slate-100 rounded transition"
+                      data-testid={`bookmark-q${ans.question_number}`}
+                      title={bookmarkKeys.has(`${attempt.test_id}::${ans.question_number}`) ? 'Remove bookmark' : 'Save to bookmarks'}
+                    >
+                      {bookmarkKeys.has(`${attempt.test_id}::${ans.question_number}`)
+                        ? <BookmarkCheck className="h-4 w-4 text-indigo-600" />
+                        : <Bookmark className="h-4 w-4 text-slate-400" />}
+                    </button>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${isCorrect ? 'bg-green-100 text-green-700' : isUnattempted ? 'bg-slate-100 text-slate-500' : 'bg-red-100 text-red-700'}`}>
+                      {isCorrect ? `+${ans.marks}` : isUnattempted ? '0' : ans.marks}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="text-base text-slate-800 mb-3">{renderMath(ans.question_text)}</div>

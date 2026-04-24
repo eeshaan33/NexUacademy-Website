@@ -1,1048 +1,343 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Button } from '../components/ui/button';
-import { Badge } from '../components/ui/badge';
-import { Input } from '../components/ui/input';
-import { 
-  ChevronRight, ChevronLeft, ChevronDown, Save, Play, Clock, 
-  FileText, Trash2, Star, Calendar, BookOpen, Search, X, 
-  ArrowLeft, Check, AlertCircle
-} from 'lucide-react';
-import api from '../utils/api';
-import { toast } from 'sonner';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Card, CardContent } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Badge } from '../components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import {
+  FileEdit, Sparkles, ChevronRight, ChevronLeft, PlayCircle, History,
+  CheckCircle, Loader2, Target,
+} from 'lucide-react';
+import { toast } from 'sonner';
+import api from '../utils/api';
+import { setPageTitle } from '../utils/pageTitle';
 
-// Subject colors
-const subjectColors = {
-  Physics: { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-400', gradient: 'from-blue-500 to-blue-600' },
-  Chemistry: { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-400', gradient: 'from-green-500 to-green-600' },
-  Mathematics: { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-400', gradient: 'from-red-500 to-red-600' }
-};
+const SUBJECTS = ['Physics', 'Chemistry', 'Mathematics'];
+const DIFFICULTIES = ['Mixed', 'Easy', 'Medium', 'Hard'];
+const EXAM_TYPES = ['Mixed', 'JEE_Main', 'JEE_Advanced'];
+const CURRENT_YEAR = new Date().getFullYear();
 
 const MyTestsPage = () => {
   const navigate = useNavigate();
+  const [view, setView] = useState('home');
+  const [loading, setLoading] = useState(false);
+  const [history, setHistory] = useState([]);
+
   const [step, setStep] = useState(1);
-  const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
-  const [savedTemplates, setSavedTemplates] = useState([]);
-  
-  // Test Configuration State
-  const [examType, setExamType] = useState('');
-  const [selectedTopics, setSelectedTopics] = useState([]);
-  const [yearRange, setYearRange] = useState({ start: 2020, end: 2025 });
-  const [duration, setDuration] = useState(180);
-  
-  // Syllabus data
+  const [examType, setExamType] = useState('JEE_Main');
+  const [yearRange, setYearRange] = useState({ start: 2015, end: CURRENT_YEAR });
+  const [difficulty, setDifficulty] = useState('Mixed');
+  const [duration, setDuration] = useState(60);
+  const [perChapter, setPerChapter] = useState(5);
   const [syllabus, setSyllabus] = useState(null);
-  const [questionCounts, setQuestionCounts] = useState({});
-  
-  useEffect(() => {
-    fetchInitialData();
-  }, []);
+  const [selected, setSelected] = useState({});
+  const [generating, setGenerating] = useState(false);
+  const [lastGenerated, setLastGenerated] = useState(null);
 
-  const fetchInitialData = async () => {
+  useEffect(() => { setPageTitle('My Tests'); loadHistory(); }, []);
+  useEffect(() => { if (view === 'builder' && !syllabus) loadSyllabus(); }, [view]); // eslint-disable-line
+
+  const loadHistory = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const [syllabusRes, templatesRes] = await Promise.all([
-        api.get('/custom-tests/syllabus'),
-        api.get('/test-templates').catch(() => ({ data: [] }))
-      ]);
-      
-      setSyllabus(syllabusRes.data);
-      setSavedTemplates(templatesRes.data || []);
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      toast.error('Failed to load data');
-    } finally {
-      setLoading(false);
+      const { data } = await api.get('/custom-tests/history/mine');
+      setHistory(data.attempts || []);
+    } catch { /* ignore */ }
+    finally { setLoading(false); }
+  };
+
+  const loadSyllabus = async () => {
+    try {
+      const { data } = await api.get('/custom-tests/syllabus');
+      setSyllabus(data);
+    } catch (e) {
+      toast.error('Failed to load syllabus');
     }
   };
 
-  const fetchQuestionCounts = useCallback(async () => {
-    try {
-      const res = await api.get('/custom-tests/question-counts', {
-        params: { examType: examType || undefined }
-      });
-      setQuestionCounts(res.data);
-    } catch (error) {
-      console.error('Error fetching counts:', error);
-    }
-  }, [examType]);
+  const totalQuestions = useMemo(
+    () => Object.values(selected).reduce((sum, s) => sum + (s.questionCount || 0), 0),
+    [selected]
+  );
 
-  useEffect(() => {
-    if (examType) {
-      fetchQuestionCounts();
-    }
-  }, [examType, fetchQuestionCounts]);
-
-  const handleLoadTemplate = (template) => {
-    setExamType(template.exam_type);
-    setSelectedTopics(template.selected_topics.map(t => ({
-      subject: t.subject,
-      chapter: t.chapter,
-      topic: t.topic,
-      questionCount: t.questionCount,
-      difficulty: t.difficulty || 'Mixed'
-    })));
-    setYearRange({ start: template.year_range.start, end: template.year_range.end });
-    setDuration(template.duration);
-    setStep(4);
-    toast.success('Template loaded');
-  };
-
-  const handleDeleteTemplate = async (templateId) => {
-    if (!window.confirm('Delete this template?')) return;
-    
-    try {
-      await api.delete(`/test-templates/${templateId}`);
-      setSavedTemplates(prev => prev.filter(t => t.template_id !== templateId));
-      toast.success('Template deleted');
-    } catch (error) {
-      toast.error('Failed to delete template');
-    }
-  };
-
-  const calculateTotals = () => {
-    const totals = {
-      questions: 0,
-      marks: 0,
-      Physics: { questions: 0, marks: 0 },
-      Chemistry: { questions: 0, marks: 0 },
-      Mathematics: { questions: 0, marks: 0 }
-    };
-    
-    selectedTopics.forEach(topic => {
-      const marks = topic.questionCount * 4;
-      totals.questions += topic.questionCount;
-      totals.marks += marks;
-      if (totals[topic.subject]) {
-        totals[topic.subject].questions += topic.questionCount;
-        totals[topic.subject].marks += marks;
-      }
+  const toggleChapter = (subject, chapter) => {
+    const key = `${subject}|${chapter.chapter}`;
+    setSelected((prev) => {
+      const next = { ...prev };
+      if (next[key]) delete next[key];
+      else next[key] = { subject, chapter: chapter.chapter, topic: chapter.chapter, questionCount: perChapter, difficulty };
+      return next;
     });
-    
-    return totals;
   };
 
-  const handleSaveTemplate = async () => {
-    const name = window.prompt('Enter template name:', 'My Test Template');
-    if (!name) return;
-    
-    try {
-      const totals = calculateTotals();
-      
-      await api.post('/test-templates', {
-        templateName: name,
-        examType,
-        selectedTopics: selectedTopics.map(t => ({
-          subject: t.subject,
-          chapter: t.chapter,
-          topic: t.topic,
-          questionCount: t.questionCount,
-          difficulty: t.difficulty
-        })),
-        yearRange: yearRange,
-        duration,
-        totalQuestions: totals.questions,
-        totalMarks: totals.marks,
-        subjectBreakdown: {
-          Physics: totals.Physics,
-          Chemistry: totals.Chemistry,
-          Mathematics: totals.Mathematics
-        }
-      });
-      
-      toast.success('Template saved successfully!');
-      fetchInitialData();
-    } catch (error) {
-      toast.error('Failed to save template');
-    }
+  const updateChapterCount = (key, n) => {
+    setSelected((prev) => ({ ...prev, [key]: { ...prev[key], questionCount: Math.max(1, Math.min(30, Number(n) || 1)) } }));
   };
 
-  const handleGenerateTest = async () => {
+  const generateTest = async () => {
+    if (totalQuestions < 5) { toast.error('Select at least 5 questions'); return; }
     setGenerating(true);
-    
     try {
-      const totals = calculateTotals();
-      
-      const response = await api.post('/custom-tests/generate', {
+      const payload = {
         examType,
-        selectedTopics: selectedTopics.map(t => ({
-          subject: t.subject,
-          chapter: t.chapter,
-          topic: t.topic,
-          questionCount: t.questionCount,
-          difficulty: t.difficulty
-        })),
-        yearRange: yearRange,
+        selectedTopics: Object.values(selected).map((s) => ({ ...s, difficulty })),
+        yearRange,
         duration,
-        totalQuestions: totals.questions,
-        totalMarks: totals.marks
-      });
-      
-      if (response.data.success) {
-        toast.success(response.data.message);
-        // Navigate to take test
-        navigate(`/test/${response.data.test_id}/take`);
+        totalQuestions,
+        totalMarks: totalQuestions * 4,
+      };
+      const { data } = await api.post('/custom-tests/generate', payload);
+      setLastGenerated(data);
+      if (data.warnings?.length) {
+        toast.warning(`Test created with ${data.total_questions} questions (some chapters had fewer available).`);
+      } else {
+        toast.success('Custom test ready!');
       }
-    } catch (error) {
-      const msg = error.response?.data?.detail || 'Failed to generate test';
-      toast.error(msg);
+      setView('ready');
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Failed to generate test');
     } finally {
       setGenerating(false);
     }
   };
 
-  if (loading) {
+  const startTest = (testId) => navigate(`/my-tests/take/${testId}`);
+
+  if (view === 'home') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600"></div>
+      <div className="max-w-5xl mx-auto p-6 space-y-6" data-testid="my-tests-page">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-2">
+              <FileEdit className="h-7 w-7 text-indigo-600" /> My Tests
+            </h1>
+            <p className="text-sm text-slate-500 mt-1">Build custom practice tests from the PYQ bank and review your attempts.</p>
+          </div>
+          <Button onClick={() => { setView('builder'); setStep(1); setSelected({}); setLastGenerated(null); }} className="bg-indigo-600 hover:bg-indigo-700" data-testid="build-test-btn">
+            <Sparkles className="h-4 w-4 mr-2" /> Build Custom Test
+          </Button>
+        </div>
+
+        <Card className="border-0 shadow-sm">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <History className="h-5 w-5 text-slate-500" />
+              <h2 className="font-semibold text-slate-700">Recent Attempts</h2>
+            </div>
+            {loading ? (
+              <div className="py-8 text-center text-slate-400">Loading…</div>
+            ) : history.length === 0 ? (
+              <div className="py-10 text-center space-y-2">
+                <Target className="h-10 w-10 text-slate-300 mx-auto" />
+                <p className="text-slate-500">No custom tests yet</p>
+                <p className="text-sm text-slate-400">Click "Build Custom Test" to create your first practice test.</p>
+              </div>
+            ) : (
+              <div className="divide-y">
+                {history.map((a) => (
+                  <div key={a.attempt_id} className="py-3 flex items-center justify-between gap-3" data-testid={`history-${a.attempt_id}`}>
+                    <div className="min-w-0">
+                      <div className="font-medium text-slate-800 truncate">{a.test_name || a.test_id}</div>
+                      <div className="text-xs text-slate-400 flex flex-wrap items-center gap-2 mt-0.5">
+                        <span>{new Date(a.submitted_at).toLocaleString()}</span>
+                        {a.exam_type && <Badge variant="outline" className="text-[10px]">{a.exam_type.replace('_', ' ')}</Badge>}
+                        {a.subject_breakdown && (
+                          <span className="text-slate-400">
+                            {Object.entries(a.subject_breakdown).filter(([, n]) => n > 0).map(([s, n]) => `${s.charAt(0)} ${n}`).join(' · ')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="font-semibold text-slate-900">{a.total_marks}<span className="text-xs text-slate-400"> / {a.max_marks}</span></div>
+                      <div className={`text-xs font-medium ${a.accuracy >= 60 ? 'text-emerald-600' : a.accuracy >= 40 ? 'text-amber-600' : 'text-red-500'}`}>{a.accuracy}% accuracy</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 p-4 sm:p-6">
-      <div className="max-w-7xl mx-auto">
-        
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate('/dashboard')}
-            className="rounded-full"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div>
-            <h1 className="text-3xl sm:text-4xl font-bold text-gray-800">
-              🎯 Create Custom Test
-            </h1>
-            <p className="text-gray-600 mt-1">
-              Build your personalized practice test by selecting topics and settings
-            </p>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
-          {/* Main Builder Panel */}
-          <div className="lg:col-span-2">
-            
-            {/* Progress Steps */}
-            <Card className="mb-6">
-              <CardContent className="p-4 sm:p-6">
-                <div className="flex items-center justify-between overflow-x-auto">
-                  {[
-                    { num: 1, title: 'Exam Type' },
-                    { num: 2, title: 'Select Topics' },
-                    { num: 3, title: 'Configure' },
-                    { num: 4, title: 'Preview' }
-                  ].map((s, index) => (
-                    <div key={s.num} className="flex items-center flex-shrink-0">
-                      <div className="flex items-center">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition ${
-                          step >= s.num 
-                            ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white' 
-                            : 'bg-gray-200 text-gray-500'
-                        }`}>
-                          {step > s.num ? <Check className="w-5 h-5" /> : s.num}
-                        </div>
-                        <span className={`ml-2 font-medium hidden sm:block ${
-                          step >= s.num ? 'text-gray-800' : 'text-gray-400'
-                        }`}>
-                          {s.title}
-                        </span>
-                      </div>
-                      {index < 3 && (
-                        <ChevronRight className="w-6 h-6 text-gray-300 mx-2" />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-            
-            {/* Step Content */}
-            <Card>
-              <CardContent className="p-6 sm:p-8">
-                
-                {/* Step 1: Exam Type Selection */}
-                {step === 1 && (
-                  <Step1ExamType 
-                    examType={examType}
-                    setExamType={setExamType}
-                    onNext={() => setStep(2)}
-                  />
-                )}
-                
-                {/* Step 2: Topic Selection */}
-                {step === 2 && (
-                  <Step2TopicSelection
-                    syllabus={syllabus}
-                    selectedTopics={selectedTopics}
-                    setSelectedTopics={setSelectedTopics}
-                    questionCounts={questionCounts}
-                    onNext={() => setStep(3)}
-                    onBack={() => setStep(1)}
-                  />
-                )}
-                
-                {/* Step 3: Configuration */}
-                {step === 3 && (
-                  <Step3Configuration
-                    selectedTopics={selectedTopics}
-                    setSelectedTopics={setSelectedTopics}
-                    yearRange={yearRange}
-                    setYearRange={setYearRange}
-                    duration={duration}
-                    setDuration={setDuration}
-                    onNext={() => setStep(4)}
-                    onBack={() => setStep(2)}
-                  />
-                )}
-                
-                {/* Step 4: Preview & Generate */}
-                {step === 4 && (
-                  <Step4Preview
-                    examType={examType}
-                    selectedTopics={selectedTopics}
-                    yearRange={yearRange}
-                    duration={duration}
-                    calculateTotals={calculateTotals}
-                    onSave={handleSaveTemplate}
-                    onGenerate={handleGenerateTest}
-                    onBack={() => setStep(3)}
-                    generating={generating}
-                  />
-                )}
-                
-              </CardContent>
-            </Card>
-          </div>
-          
-          {/* Sidebar - Saved Templates & Summary */}
-          <div className="space-y-6">
-            
-            {/* Saved Templates */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Save className="w-5 h-5" />
-                  Saved Templates
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {savedTemplates.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                    <p className="text-sm">No saved templates yet</p>
-                    <p className="text-xs mt-1">Save your test configurations for quick access</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {savedTemplates.map(template => (
-                      <TemplateCard
-                        key={template.template_id}
-                        template={template}
-                        onLoad={() => handleLoadTemplate(template)}
-                        onDelete={() => handleDeleteTemplate(template.template_id)}
-                      />
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-            
-            {/* Quick Stats (when in preview) */}
-            {step === 4 && selectedTopics.length > 0 && (
-              <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-md p-6 text-white">
-                <h3 className="text-lg font-bold mb-4">Test Summary</h3>
-                
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="opacity-90">Total Questions:</span>
-                    <span className="font-bold">{calculateTotals().questions}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="opacity-90">Total Marks:</span>
-                    <span className="font-bold">{calculateTotals().marks}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="opacity-90">Duration:</span>
-                    <span className="font-bold">{duration} mins</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="opacity-90">Avg per Question:</span>
-                    <span className="font-bold">
-                      {calculateTotals().questions > 0 
-                        ? Math.floor(duration / calculateTotals().questions) 
-                        : 0} mins
-                    </span>
-                  </div>
-                </div>
+  if (view === 'ready' && lastGenerated) {
+    return (
+      <div className="max-w-xl mx-auto p-6">
+        <Card className="border-0 shadow-lg">
+          <CardContent className="p-8 text-center space-y-4">
+            <div className="mx-auto bg-emerald-100 p-4 rounded-full w-fit">
+              <CheckCircle className="h-10 w-10 text-emerald-600" />
+            </div>
+            <h2 className="text-2xl font-bold text-slate-900">Test Ready!</h2>
+            <p className="text-slate-600">{lastGenerated.test_name}</p>
+            <div className="grid grid-cols-3 gap-3 py-3">
+              <div className="bg-slate-50 rounded p-3">
+                <div className="text-xs text-slate-500">Questions</div>
+                <div className="text-2xl font-bold">{lastGenerated.total_questions}</div>
+              </div>
+              <div className="bg-slate-50 rounded p-3">
+                <div className="text-xs text-slate-500">Marks</div>
+                <div className="text-2xl font-bold">{lastGenerated.total_marks}</div>
+              </div>
+              <div className="bg-slate-50 rounded p-3">
+                <div className="text-xs text-slate-500">Duration</div>
+                <div className="text-2xl font-bold">{lastGenerated.duration}m</div>
+              </div>
+            </div>
+            {lastGenerated.subject_breakdown && (
+              <div className="flex flex-wrap justify-center gap-2">
+                {Object.entries(lastGenerated.subject_breakdown).map(([s, n]) => n > 0 && (
+                  <Badge key={s} variant="outline">{s}: {n}</Badge>
+                ))}
               </div>
             )}
-          </div>
-          
-        </div>
+            <div className="flex gap-2 pt-2">
+              <Button variant="outline" className="flex-1" onClick={() => setView('home')}>Later</Button>
+              <Button className="flex-1 bg-indigo-600 hover:bg-indigo-700" onClick={() => startTest(lastGenerated.test_id)} data-testid="start-custom-test">
+                <PlayCircle className="h-4 w-4 mr-1" /> Start Now
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
-    </div>
-  );
-};
+    );
+  }
 
-// Step 1: Exam Type Selection
-const Step1ExamType = ({ examType, setExamType, onNext }) => {
-  const examTypes = [
-    { 
-      value: 'JEE_Main', 
-      title: 'JEE Main', 
-      desc: 'National level entrance exam',
-      icon: '📘',
-      color: 'from-blue-500 to-blue-600'
-    },
-    { 
-      value: 'JEE_Advanced', 
-      title: 'JEE Advanced', 
-      desc: 'IIT entrance examination',
-      icon: '🎓',
-      color: 'from-purple-500 to-purple-600'
-    },
-    { 
-      value: 'Mixed', 
-      title: 'Mixed Practice', 
-      desc: 'Questions from both exams',
-      icon: '🔀',
-      color: 'from-green-500 to-green-600'
-    }
-  ];
-
+  // Builder
   return (
-    <div className="text-center">
-      <h2 className="text-2xl font-bold text-gray-800 mb-3">Select Exam Type</h2>
-      <p className="text-gray-600 mb-8">Choose the exam pattern for your custom test</p>
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        {examTypes.map(type => (
-          <button
-            key={type.value}
-            onClick={() => setExamType(type.value)}
-            className={`p-6 rounded-xl border-2 transition transform hover:scale-105 ${
-              examType === type.value
-                ? `bg-gradient-to-br ${type.color} text-white border-transparent shadow-xl`
-                : 'bg-white border-gray-200 hover:border-gray-300'
-            }`}
-            data-testid={`exam-type-${type.value}`}
-          >
-            <div className="text-5xl mb-3">{type.icon}</div>
-            <h3 className="text-xl font-bold mb-2">{type.title}</h3>
-            <p className={`text-sm ${examType === type.value ? 'text-white/90' : 'text-gray-500'}`}>
-              {type.desc}
-            </p>
-          </button>
-        ))}
+    <div className="max-w-5xl mx-auto p-6 space-y-5" data-testid="custom-test-builder">
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="sm" onClick={() => setView('home')}>
+          <ChevronLeft className="h-4 w-4 mr-1" /> Back
+        </Button>
+        <h1 className="text-2xl font-bold text-slate-900">Build Custom Test</h1>
+        <Badge variant="outline" className="ml-2">Step {step} / 2</Badge>
       </div>
-      
-      <Button
-        onClick={onNext}
-        disabled={!examType}
-        className="px-8"
-        data-testid="continue-to-topics-btn"
-      >
-        Continue to Topic Selection
-        <ChevronRight className="w-5 h-5 ml-2" />
-      </Button>
-    </div>
-  );
-};
 
-// Step 2: Topic Selection
-const Step2TopicSelection = ({ 
-  syllabus, selectedTopics, setSelectedTopics, 
-  questionCounts, onNext, onBack 
-}) => {
-  const [expandedSubject, setExpandedSubject] = useState('Physics');
-  const [expandedChapter, setExpandedChapter] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
-
-  const handleTopicToggle = (subject, chapter, topic) => {
-    const existing = selectedTopics.find(
-      t => t.subject === subject && t.chapter === chapter && t.topic === topic
-    );
-    
-    if (existing) {
-      setSelectedTopics(selectedTopics.filter(t => t !== existing));
-    } else {
-      setSelectedTopics([
-        ...selectedTopics,
-        {
-          subject,
-          chapter,
-          topic,
-          questionCount: 5,
-          difficulty: 'Mixed'
-        }
-      ]);
-    }
-  };
-
-  const isTopicSelected = (subject, chapter, topic) => {
-    return selectedTopics.some(
-      t => t.subject === subject && t.chapter === chapter && t.topic === topic
-    );
-  };
-
-  const getAvailableCount = (subject, chapter, topic) => {
-    const key = `${subject}-${chapter}-${topic}`;
-    return questionCounts[key] || 0;
-  };
-
-  const subjects = ['Physics', 'Chemistry', 'Mathematics'];
-
-  const getAllChapters = (subject) => {
-    if (!syllabus || !syllabus[subject]) return [];
-    const class11 = syllabus[subject].Class11 || [];
-    const class12 = syllabus[subject].Class12 || [];
-    return [...class11, ...class12];
-  };
-
-  const filteredChapters = (subject) => {
-    return getAllChapters(subject).filter(chap => 
-      searchQuery === '' || 
-      chap.chapter.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      chap.topics.some(t => t && t.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
-  };
-
-  return (
-    <div>
-      <h2 className="text-2xl font-bold text-gray-800 mb-3">Select Topics</h2>
-      <p className="text-gray-600 mb-6">Choose topics across subjects for your custom test</p>
-      
-      {/* Search */}
-      <div className="relative mb-6">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-        <Input
-          type="text"
-          placeholder="Search chapters or topics..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-        />
-      </div>
-      
-      {/* Selected Topics Summary */}
-      {selectedTopics.length > 0 && (
-        <div className="bg-indigo-50 rounded-lg p-4 mb-6">
-          <div className="flex items-center justify-between mb-2">
-            <span className="font-medium text-indigo-900">
-              Selected: {selectedTopics.length} topics
-            </span>
-            <button
-              onClick={() => setSelectedTopics([])}
-              className="text-sm text-red-600 hover:text-red-700"
-            >
-              Clear All
-            </button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {selectedTopics.slice(0, 5).map((topic, index) => (
-              <Badge
-                key={index}
-                variant="secondary"
-                className="bg-white"
-              >
-                {topic.subject}: {topic.topic}
-                <button
-                  onClick={() => handleTopicToggle(topic.subject, topic.chapter, topic.topic)}
-                  className="ml-2 text-red-500 hover:text-red-700"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </Badge>
-            ))}
-            {selectedTopics.length > 5 && (
-              <Badge variant="secondary">+{selectedTopics.length - 5} more</Badge>
-            )}
-          </div>
-        </div>
+      {step === 1 && (
+        <Card className="border-0 shadow-sm">
+          <CardContent className="p-6 space-y-5">
+            <h2 className="font-semibold text-slate-700">Test Configuration</h2>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <Label>Exam Source</Label>
+                <Select value={examType} onValueChange={setExamType}>
+                  <SelectTrigger data-testid="exam-type-select"><SelectValue /></SelectTrigger>
+                  <SelectContent>{EXAM_TYPES.map((e) => <SelectItem key={e} value={e}>{e.replace('_', ' ')}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Difficulty</Label>
+                <Select value={difficulty} onValueChange={setDifficulty}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{DIFFICULTIES.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Year Range</Label>
+                <div className="flex gap-2 mt-1">
+                  <Input type="number" value={yearRange.start} onChange={(e) => setYearRange({ ...yearRange, start: Number(e.target.value) })} min={2000} max={CURRENT_YEAR} />
+                  <span className="self-center text-slate-400">to</span>
+                  <Input type="number" value={yearRange.end} onChange={(e) => setYearRange({ ...yearRange, end: Number(e.target.value) })} min={2000} max={CURRENT_YEAR} />
+                </div>
+              </div>
+              <div>
+                <Label>Duration (minutes)</Label>
+                <Input type="number" value={duration} onChange={(e) => setDuration(Math.max(10, Number(e.target.value) || 60))} data-testid="duration-input" />
+              </div>
+              <div>
+                <Label>Default Questions per Chapter</Label>
+                <Input type="number" min={1} max={30} value={perChapter} onChange={(e) => setPerChapter(Math.max(1, Math.min(30, Number(e.target.value) || 5)))} />
+              </div>
+            </div>
+            <div className="pt-4 flex justify-end">
+              <Button onClick={() => setStep(2)} className="bg-indigo-600 hover:bg-indigo-700" data-testid="builder-step-next">
+                Next: Pick Chapters <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
-      
-      {/* Subject Tabs */}
-      <div className="flex gap-2 mb-6 overflow-x-auto">
-        {subjects.map(subject => {
-          const colors = subjectColors[subject];
-          return (
-            <button
-              key={subject}
-              onClick={() => setExpandedSubject(subject)}
-              className={`px-6 py-3 rounded-lg font-medium transition flex-shrink-0 ${
-                expandedSubject === subject
-                  ? `bg-gradient-to-r ${colors.gradient} text-white`
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              {subject}
-            </button>
-          );
-        })}
-      </div>
-      
-      {/* Chapters & Topics */}
-      <div className="space-y-3 mb-6 max-h-[400px] overflow-y-auto">
-        {filteredChapters(expandedSubject).map((chapter, chIndex) => (
-          <div key={chIndex} className="border border-gray-200 rounded-lg overflow-hidden">
-            
-            {/* Chapter Header */}
-            <button
-              onClick={() => setExpandedChapter(expandedChapter === chapter.chapter ? null : chapter.chapter)}
-              className="w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 flex items-center justify-between"
-            >
-              <div className="flex items-center gap-3">
-                <span className="font-medium text-gray-800">{chapter.chapter}</span>
-                <Badge variant="secondary" className="text-xs">
-                  {chapter.questionCount} questions
-                </Badge>
-              </div>
-              <ChevronDown 
-                className={`w-5 h-5 text-gray-500 transition ${
-                  expandedChapter === chapter.chapter ? 'rotate-180' : ''
-                }`}
-              />
-            </button>
-            
-            {/* Topics */}
-            {expandedChapter === chapter.chapter && (
-              <div className="p-4 space-y-2">
-                {chapter.topics.filter(t => t).map((topic, tIndex) => {
-                  const selected = isTopicSelected(expandedSubject, chapter.chapter, topic);
-                  const available = getAvailableCount(expandedSubject, chapter.chapter, topic);
-                  
-                  return (
-                    <div
-                      key={tIndex}
-                      onClick={() => handleTopicToggle(expandedSubject, chapter.chapter, topic)}
-                      className={`flex items-center justify-between p-3 rounded-lg border-2 transition cursor-pointer ${
-                        selected
-                          ? 'border-indigo-500 bg-indigo-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
-                          selected ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300'
-                        }`}>
-                          {selected && <Check className="w-3 h-3 text-white" />}
-                        </div>
-                        <span className="text-gray-800">{topic}</span>
-                      </div>
-                      <Badge variant={available > 0 ? 'default' : 'destructive'} className="text-xs">
-                        {available} available
-                      </Badge>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            
-          </div>
-        ))}
-      </div>
-      
-      {/* Navigation */}
-      <div className="flex justify-between">
-        <Button variant="outline" onClick={onBack}>
-          <ChevronLeft className="w-5 h-5 mr-2" />
-          Back
-        </Button>
-        
-        <Button
-          onClick={onNext}
-          disabled={selectedTopics.length === 0}
-          data-testid="continue-to-config-btn"
-        >
-          Configure Test
-          <ChevronRight className="w-5 h-5 ml-2" />
-        </Button>
-      </div>
-    </div>
-  );
-};
 
-// Step 3: Configuration
-const Step3Configuration = ({ 
-  selectedTopics, setSelectedTopics, yearRange, setYearRange, 
-  duration, setDuration, onNext, onBack 
-}) => {
-  
-  const handleQuestionCountChange = (index, value) => {
-    const newTopics = [...selectedTopics];
-    newTopics[index].questionCount = Math.max(1, Math.min(50, parseInt(value) || 1));
-    setSelectedTopics(newTopics);
-  };
-
-  const handleDifficultyChange = (index, difficulty) => {
-    const newTopics = [...selectedTopics];
-    newTopics[index].difficulty = difficulty;
-    setSelectedTopics(newTopics);
-  };
-
-  const handleRemoveTopic = (index) => {
-    setSelectedTopics(selectedTopics.filter((_, i) => i !== index));
-  };
-
-  const totalQuestions = selectedTopics.reduce((sum, t) => sum + t.questionCount, 0);
-  const recommendedDuration = Math.ceil(totalQuestions * 3);
-
-  const years = Array.from({ length: 16 }, (_, i) => 2010 + i);
-
-  return (
-    <div>
-      <h2 className="text-2xl font-bold text-gray-800 mb-3">Configure Test Settings</h2>
-      <p className="text-gray-600 mb-6">Set question counts and test parameters</p>
-      
-      {/* Question Configuration Table */}
-      <div className="mb-8">
-        <h3 className="text-lg font-bold text-gray-800 mb-4">Question Distribution</h3>
-        
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-gray-50">
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Subject</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Topic</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Questions</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Difficulty</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Marks</th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {selectedTopics.map((topic, index) => {
-                const colors = subjectColors[topic.subject];
-                return (
-                  <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm">
-                      <Badge className={`${colors.bg} ${colors.text}`}>
-                        {topic.subject}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 text-sm font-medium text-gray-800">
-                      {topic.topic}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Input
-                        type="number"
-                        value={topic.questionCount}
-                        onChange={(e) => handleQuestionCountChange(index, e.target.value)}
-                        min="1"
-                        max="50"
-                        className="w-20"
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <select
-                        value={topic.difficulty}
-                        onChange={(e) => handleDifficultyChange(index, e.target.value)}
-                        className="px-3 py-2 border border-gray-300 rounded-lg focus:border-indigo-500 outline-none text-sm"
-                      >
-                        <option value="Mixed">Mixed</option>
-                        <option value="Easy">Easy</option>
-                        <option value="Medium">Medium</option>
-                        <option value="Hard">Hard</option>
-                      </select>
-                    </td>
-                    <td className="px-4 py-3 text-sm font-medium text-gray-800">
-                      {topic.questionCount * 4}
-                    </td>
-                    <td className="px-4 py-3">
-                      <button
-                        onClick={() => handleRemoveTopic(index)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      
-      {/* Year Range */}
-      <div className="mb-8">
-        <h3 className="text-lg font-bold text-gray-800 mb-4">Year Range</h3>
-        <p className="text-sm text-gray-600 mb-4">
-          Select the year span from which questions will be chosen
-        </p>
-        
-        <div className="flex items-center gap-4">
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-2">From Year</label>
-            <select
-              value={yearRange.start}
-              onChange={(e) => setYearRange({ ...yearRange, start: parseInt(e.target.value) })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-indigo-500 outline-none"
-            >
-              {years.map(year => (
-                <option key={year} value={year}>{year}</option>
-              ))}
-            </select>
-          </div>
-          
-          <span className="text-2xl text-gray-400 mt-8">→</span>
-          
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-2">To Year</label>
-            <select
-              value={yearRange.end}
-              onChange={(e) => setYearRange({ ...yearRange, end: parseInt(e.target.value) })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-indigo-500 outline-none"
-            >
-              {years.filter(year => year >= yearRange.start).map(year => (
-                <option key={year} value={year}>{year}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
-      
-      {/* Duration */}
-      <div className="mb-8">
-        <h3 className="text-lg font-bold text-gray-800 mb-4">Test Duration</h3>
-        
-        <div className="flex items-center gap-6">
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Duration (minutes)
-            </label>
-            <Input
-              type="number"
-              value={duration}
-              onChange={(e) => setDuration(Math.max(15, parseInt(e.target.value) || 15))}
-              min="15"
-              step="5"
-              className="text-lg font-medium"
-            />
-          </div>
-          
-          <div className="flex-1 bg-blue-50 rounded-lg p-4">
-            <p className="text-sm text-blue-900 mb-1">
-              ⏱️ Recommended Duration
-            </p>
-            <p className="text-2xl font-bold text-blue-600">
-              {recommendedDuration} minutes
-            </p>
-            <p className="text-xs text-blue-700 mt-1">
-              Based on 3 mins per question
-            </p>
-          </div>
-        </div>
-        
-        <div className="mt-4 flex items-center justify-between text-sm text-gray-600">
-          <span>Time per question: {totalQuestions > 0 ? Math.floor(duration / totalQuestions) : 0} minutes</span>
-          <span>Total Questions: {totalQuestions}</span>
-        </div>
-      </div>
-      
-      {/* Navigation */}
-      <div className="flex justify-between">
-        <Button variant="outline" onClick={onBack}>
-          <ChevronLeft className="w-5 h-5 mr-2" />
-          Back
-        </Button>
-        
-        <Button onClick={onNext} data-testid="preview-test-btn">
-          Preview Test
-          <ChevronRight className="w-5 h-5 ml-2" />
-        </Button>
-      </div>
-    </div>
-  );
-};
-
-// Step 4: Preview & Generate
-const Step4Preview = ({ 
-  examType, selectedTopics, yearRange, duration, 
-  calculateTotals, onSave, onGenerate, onBack, generating 
-}) => {
-  const totals = calculateTotals();
-  
-  const groupedBySubject = {
-    Physics: selectedTopics.filter(t => t.subject === 'Physics'),
-    Chemistry: selectedTopics.filter(t => t.subject === 'Chemistry'),
-    Mathematics: selectedTopics.filter(t => t.subject === 'Mathematics')
-  };
-
-  const examTypeLabels = {
-    'JEE_Main': 'JEE Main',
-    'JEE_Advanced': 'JEE Advanced',
-    'Mixed': 'Mixed Practice'
-  };
-
-  return (
-    <div>
-      <h2 className="text-2xl font-bold text-gray-800 mb-3">Test Preview</h2>
-      <p className="text-gray-600 mb-6">Review your test configuration before generating</p>
-      
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-white">
-          <p className="text-sm opacity-90 mb-1">Total Questions</p>
-          <p className="text-3xl font-bold">{totals.questions}</p>
-        </div>
-        
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-4 text-white">
-          <p className="text-sm opacity-90 mb-1">Total Marks</p>
-          <p className="text-3xl font-bold">{totals.marks}</p>
-        </div>
-        
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-4 text-white">
-          <p className="text-sm opacity-90 mb-1">Duration</p>
-          <p className="text-3xl font-bold">{duration}</p>
-          <p className="text-xs opacity-75">minutes</p>
-        </div>
-        
-        <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-4 text-white">
-          <p className="text-sm opacity-90 mb-1">Year Range</p>
-          <p className="text-xl font-bold">{yearRange.start} - {yearRange.end}</p>
-        </div>
-      </div>
-      
-      {/* Subject-wise Breakdown */}
-      <div className="mb-8">
-        <h3 className="text-lg font-bold text-gray-800 mb-4">Subject-wise Distribution</h3>
-        
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {['Physics', 'Chemistry', 'Mathematics'].map(subject => {
-            const colors = subjectColors[subject];
-            return (
-              <div key={subject} className={`bg-white border-2 ${colors.border} rounded-lg p-4`}>
-                <h4 className={`font-bold ${colors.text} mb-3`}>{subject}</h4>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Questions:</span>
-                    <span className="font-bold">{totals[subject].questions}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Marks:</span>
-                    <span className="font-bold">{totals[subject].marks}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Topics:</span>
-                    <span className="font-bold">{groupedBySubject[subject].length}</span>
-                  </div>
+      {step === 2 && (
+        <>
+          <Card className="border-0 shadow-sm">
+            <CardContent className="p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="font-semibold text-slate-700">Pick Chapters</h2>
+                <div className="text-sm text-slate-500">
+                  <span className="font-bold text-indigo-600">{Object.keys(selected).length}</span> chapters ·
+                  <span className="font-bold text-indigo-600 ml-1">{totalQuestions}</span> questions
                 </div>
               </div>
-            );
-          })}
-        </div>
-      </div>
-      
-      {/* Test Settings */}
-      <div className="bg-blue-50 rounded-lg p-6 mb-8">
-        <h3 className="text-lg font-bold text-gray-800 mb-3">Test Settings</h3>
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div>
-            <span className="text-gray-600">Exam Type:</span>
-            <span className="ml-2 font-medium text-gray-800">{examTypeLabels[examType]}</span>
-          </div>
-          <div>
-            <span className="text-gray-600">Negative Marking:</span>
-            <span className="ml-2 font-medium text-gray-800">Yes (-1 for wrong)</span>
-          </div>
-          <div>
-            <span className="text-gray-600">Question Order:</span>
-            <span className="ml-2 font-medium text-gray-800">Random</span>
-          </div>
-          <div>
-            <span className="text-gray-600">Solutions:</span>
-            <span className="ml-2 font-medium text-gray-800">Available after submission</span>
-          </div>
-        </div>
-      </div>
-      
-      {/* Action Buttons */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <Button variant="outline" onClick={onBack} className="sm:flex-none">
-          <ChevronLeft className="w-5 h-5 mr-2" />
-          Back
-        </Button>
-        
-        <Button
-          variant="outline"
-          onClick={onSave}
-          className="flex-1"
-        >
-          <Save className="w-5 h-5 mr-2" />
-          Save Template
-        </Button>
-        
-        <Button
-          onClick={onGenerate}
-          disabled={generating}
-          className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
-          data-testid="generate-test-btn"
-        >
-          {generating ? (
-            <>
-              <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-white mr-2" />
-              Generating...
-            </>
-          ) : (
-            <>
-              <Play className="w-5 h-5 mr-2" />
-              Generate & Start Test
-            </>
-          )}
-        </Button>
-      </div>
-    </div>
-  );
-};
 
-// Template Card Component
-const TemplateCard = ({ template, onLoad, onDelete }) => {
-  return (
-    <div className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition">
-      <div className="flex items-start justify-between mb-3">
-        <div>
-          <h4 className="font-bold text-gray-800 mb-1">{template.template_name}</h4>
-          <p className="text-xs text-gray-500">{template.exam_type}</p>
-        </div>
-        <button
-          onClick={onDelete}
-          className="text-red-500 hover:text-red-700"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
-      </div>
-      
-      <div className="space-y-1 text-sm mb-3">
-        <div className="flex justify-between text-gray-600">
-          <span>Questions:</span>
-          <span className="font-medium">{template.total_questions}</span>
-        </div>
-        <div className="flex justify-between text-gray-600">
-          <span>Duration:</span>
-          <span className="font-medium">{template.duration} mins</span>
-        </div>
-        <div className="flex justify-between text-gray-600">
-          <span>Topics:</span>
-          <span className="font-medium">{template.selected_topics?.length || 0}</span>
-        </div>
-      </div>
-      
-      <Button
-        onClick={onLoad}
-        className="w-full"
-        size="sm"
-      >
-        Load Template
-      </Button>
+              {!syllabus ? (
+                <div className="py-10 text-center text-slate-400"><Loader2 className="h-5 w-5 animate-spin mx-auto" /> Loading syllabus…</div>
+              ) : (
+                <div className="space-y-6">
+                  {SUBJECTS.map((subject) => {
+                    const chapters = [
+                      ...(syllabus[subject]?.Class11 || []),
+                      ...(syllabus[subject]?.Class12 || []),
+                    ].filter((c) => c.questionCount > 0);
+                    if (!chapters.length) return null;
+                    return (
+                      <div key={subject}>
+                        <h3 className="text-sm font-semibold text-slate-700 mb-2">{subject} ({chapters.length} chapters)</h3>
+                        <div className="grid md:grid-cols-2 gap-2">
+                          {chapters.map((ch) => {
+                            const key = `${subject}|${ch.chapter}`;
+                            const isOn = !!selected[key];
+                            return (
+                              <div
+                                key={key}
+                                className={`p-3 rounded-lg border-2 transition-all cursor-pointer ${isOn ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:border-indigo-300'}`}
+                                onClick={() => toggleChapter(subject, ch)}
+                                data-testid={`chapter-${subject}-${ch.chapter}`}
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="min-w-0">
+                                    <div className="text-sm font-medium text-slate-800 truncate">{ch.chapter}</div>
+                                    <div className="text-xs text-slate-400">{ch.questionCount} available</div>
+                                  </div>
+                                  {isOn ? (
+                                    <Input
+                                      type="number"
+                                      min={1}
+                                      max={30}
+                                      value={selected[key].questionCount}
+                                      onChange={(e) => updateChapterCount(key, e.target.value)}
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="w-16 h-8 text-center shrink-0"
+                                    />
+                                  ) : <span className="text-slate-300 text-xs">Add</span>}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <div className="flex items-center justify-between">
+            <Button variant="outline" onClick={() => setStep(1)}>
+              <ChevronLeft className="h-4 w-4 mr-1" /> Back
+            </Button>
+            <Button onClick={generateTest} disabled={generating || totalQuestions < 5} className="bg-indigo-600 hover:bg-indigo-700" data-testid="generate-test-btn">
+              {generating ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Generating…</> : <><Sparkles className="h-4 w-4 mr-1" /> Generate Test ({totalQuestions} Qs)</>}
+            </Button>
+          </div>
+        </>
+      )}
     </div>
   );
 };

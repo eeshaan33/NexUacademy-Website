@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from config.database import get_database
 from middleware.auth import get_current_teacher
 from services.push_service import notify_students_about_class
+from models.requests import ClassCreateRequest
 import uuid
 
 router = APIRouter(prefix="/teacher/classes", tags=["teacher-classes"])
@@ -18,39 +19,32 @@ async def get_teacher_classes(user=Depends(get_current_teacher)):
 
 
 @router.post("/create")
-async def create_class(request: Request, user=Depends(get_current_teacher)):
+async def create_class(payload: ClassCreateRequest, user=Depends(get_current_teacher)):
     db = get_database()
-    body = await request.json()
 
-    required = ["title", "subject", "meeting_link", "scheduled_date", "scheduled_time", "assigned_batches"]
-    for field in required:
-        if not body.get(field):
-            raise HTTPException(status_code=400, detail=f"Missing required field: {field}")
-
-    # Parse date and time
-    date_str = body["scheduled_date"]
-    time_str = body["scheduled_time"]
-    scheduled_dt = datetime.fromisoformat(f"{date_str}T{time_str}:00")
+    try:
+        scheduled_dt = datetime.fromisoformat(f"{payload.scheduled_date}T{payload.scheduled_time}:00")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid scheduled_date or scheduled_time format")
 
     class_id = f"class_{uuid.uuid4().hex[:12]}"
-    batches = body["assigned_batches"] if isinstance(body["assigned_batches"], list) else [body["assigned_batches"]]
 
     class_doc = {
         "class_id": class_id,
-        "title": body["title"],
-        "subject": body["subject"],
-        "chapter": body.get("chapter", ""),
-        "topic": body.get("topic", ""),
+        "title": payload.title,
+        "subject": payload.subject,
+        "chapter": payload.chapter,
+        "topic": payload.topic,
         "teacher_id": user["user_id"],
         "teacher_name": user["name"],
         "teacher_photo": user.get("profile_pic", ""),
-        "meeting_link": body["meeting_link"],
-        "meeting_platform": body.get("meeting_platform", "Zoom"),
+        "meeting_link": payload.meeting_link,
+        "meeting_platform": payload.meeting_platform,
         "scheduled_date_time": scheduled_dt.isoformat(),
-        "duration": int(body.get("duration", 60)),
-        "description": body.get("description", ""),
-        "prerequisites": body.get("prerequisites", ""),
-        "assigned_batches": batches,
+        "duration": payload.duration,
+        "description": payload.description,
+        "prerequisites": payload.prerequisites,
+        "assigned_batches": payload.assigned_batches,
         "recording_url": "",
         "notes_url": "",
         "slides_url": "",
@@ -62,7 +56,6 @@ async def create_class(request: Request, user=Depends(get_current_teacher)):
 
     await db.classes.insert_one(class_doc)
 
-    # Send notifications
     notified = await notify_students_about_class(class_doc)
 
     return {

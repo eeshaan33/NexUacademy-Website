@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { ScrollArea } from '../components/ui/scroll-area';
 import { 
   BookOpen, ChevronRight, Award, Target, ArrowLeft, Search, 
-  Calendar, CheckCircle, XCircle, List, Filter, X
+  Calendar, CheckCircle, XCircle, List, Filter, X, Bookmark, BookmarkCheck
 } from 'lucide-react';
 import api from '../utils/api';
 import { toast } from 'sonner';
@@ -44,6 +44,57 @@ const PYQSection = () => {
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const [yearFilter, setYearFilter] = useState('');
   const [showQuestionList, setShowQuestionList] = useState(false);
+
+  // Bookmark state
+  const [bookmarkedIds, setBookmarkedIds] = useState(new Set());
+  const [bookmarkBusy, setBookmarkBusy] = useState(false);
+
+  useEffect(() => {
+    const loadBookmarkedIds = async () => {
+      try {
+        const res = await api.get('/bookmarks/ids');
+        setBookmarkedIds(new Set(res.data.pyq_question_ids || []));
+      } catch { /* ignore */ }
+    };
+    loadBookmarkedIds();
+  }, []);
+
+  const toggleBookmark = async (question) => {
+    if (!question?.question_id || bookmarkBusy) return;
+    setBookmarkBusy(true);
+    const qid = question.question_id;
+    const isBookmarked = bookmarkedIds.has(qid);
+    try {
+      if (isBookmarked) {
+        await api.delete(`/bookmarks/by-question`, { params: { source: 'pyq', question_id: qid } });
+        const next = new Set(bookmarkedIds); next.delete(qid); setBookmarkedIds(next);
+        toast.success('Removed from bookmarks');
+      } else {
+        await api.post('/bookmarks/', {
+          source: 'pyq',
+          question_id: qid,
+          snapshot: {
+            question_text: question.questionText,
+            question_image_url: question.questionImageUrl,
+            question_type: question.questionType || 'MCQ_Single',
+            options: question.options || {},
+            correct_answer: question.correctAnswer,
+            subject: question.subject,
+            chapter: question.chapter,
+            topic: question.topic,
+            year: question.year,
+            difficulty: question.difficulty,
+          },
+        });
+        setBookmarkedIds(new Set(bookmarkedIds).add(qid));
+        toast.success('Saved to bookmarks');
+      }
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Failed to update bookmark');
+    } finally {
+      setBookmarkBusy(false);
+    }
+  };
   
   // Available years for filter
   const availableYears = useMemo(() => {
@@ -898,8 +949,8 @@ const PYQSection = () => {
 
           <Card className="shadow-card">
             <CardHeader>
-              <div className="flex justify-between items-start">
-                <div className="space-y-2">
+              <div className="flex justify-between items-start gap-3">
+                <div className="space-y-2 flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <Badge>Q{currentQ.questionNumber || currentQuestionIndex + 1}</Badge>
                     <Badge variant="outline" className="flex items-center gap-1">
@@ -912,6 +963,19 @@ const PYQSection = () => {
                     {currentQ.questionText}
                   </CardTitle>
                 </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => toggleBookmark(currentQ)}
+                  disabled={bookmarkBusy}
+                  data-testid="pyq-bookmark-btn"
+                  title={bookmarkedIds.has(currentQ.question_id) ? 'Remove bookmark' : 'Save to bookmarks'}
+                  className="shrink-0"
+                >
+                  {bookmarkedIds.has(currentQ.question_id)
+                    ? <BookmarkCheck className="h-5 w-5 text-indigo-600" />
+                    : <Bookmark className="h-5 w-5 text-slate-400" />}
+                </Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
