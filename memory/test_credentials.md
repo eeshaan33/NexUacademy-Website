@@ -16,6 +16,11 @@
 - Login URL: /login
 - Batch: JEE Mains 2027
 
-## Test Data (created for testing)
-- JEE Main test: test_id=ttest_55c6448044bf (Pattern: JEE_Main_Pattern, Batch: JEE Mains 2027, 2 questions, SUBMITTED by student, Score: 4/8)
-- JEE Advanced test: test_id=ttest_a430b6a6c893 (Pattern: JEE_Advanced_Pattern, Batch: JEE Mains 2027, 2 questions, SUBMITTED by student)
+## Known Test IDs
+- JEE Main test: ttest_55c6448044bf
+- JEE Advanced test: ttest_a430b6a6c893
+
+## Useful routes
+- /analytics — Student Analytics Dashboard (tabs: Activity/Heatmap/Leaderboard/Insights)
+- /bookmarks — Student Bookmarks
+- /teacher/tests/{test_id}/results — Teacher test results detail + CSV export

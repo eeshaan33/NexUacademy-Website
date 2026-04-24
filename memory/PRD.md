@@ -1,80 +1,69 @@
 # NexUacademy - Product Requirements Document
 
 ## Original Problem Statement
-Build a comprehensive JEE/NEET coaching platform with a Teacher Dashboard, Student Website, browser-based Push Notification system, and a professional marketing landing page. The platform serves students (learners), teachers (content creators, admin-managed), and admin (teacher account management).
+Build a comprehensive JEE/NEET coaching platform with a Teacher Dashboard, Student Website, browser-based Push Notification system, professional marketing landing page, and NTA-pattern JEE Main & Advanced test interfaces. The platform serves students, teachers (admin-managed), and admin.
 
 ## Tech Stack
-- **Frontend:** React 18 + Tailwind CSS + shadcn/ui + Framer Motion + react-katex
+- **Frontend:** React 18 + Tailwind CSS + shadcn/ui + Framer Motion + react-katex + recharts
 - **Backend:** Python/FastAPI
 - **Database:** MongoDB Atlas (DB: `nexuacademy`)
-- **Auth:** Cookie-based sessions (httpOnly), Emergent-managed Google OAuth
-- **Notifications:** Web Push (pywebpush), APScheduler for reminders
-- **Storage:** Emergent Object Storage (for question/option images)
-- **Math Rendering:** KaTeX (react-katex) for LaTeX formulas
+- **Auth:** Cookie-based sessions, Emergent-managed Google OAuth
+- **Notifications:** Web Push (pywebpush) + Email (Resend) + APScheduler
+- **Storage:** Emergent Object Storage
+- **Math Rendering:** KaTeX
 
 ## User Personas
 1. **Students** - Register, take tests (JEE Main/Advanced UI), view classes, track performance
-2. **Teachers** - Create tests/classes with batch assignment, view analytics (accounts created by admin only)
-3. **Admin** - Create teacher accounts, view contact inquiries (login: admin@nexuacademy.com / nexuacademy123)
+2. **Teachers** - Create tests/classes with batch assignment, view detailed analytics & per-test results (accounts created by admin only)
+3. **Admin** - Create teacher accounts, view contact inquiries
 
 ## Core Architecture
 ```
 /app
 ├── backend/ (FastAPI, port 8001)
-│   ├── routes/ (auth, admin, teacher_*, student_*, batch, notification, push, upload)
-│   ├── middleware/auth.py (session-based auth, role guards)
-│   ├── services/ (push, reminders, storage_service)
-│   └── config/ (database, batches)
+│   ├── routes/ (auth, admin, teacher_*, student_*, batch, notification, push, upload, student_analytics)
+│   ├── middleware/auth.py (cookie + bearer; role guards)
+│   ├── services/ (push_service, reminder_scheduler [unified], class_reminders, email_service, storage_service)
+│   └── config/ (database, batches, syllabus)
 └── frontend/ (React, port 3000)
     ├── pages/
-    │   ├── LandingPage.js (marketing page at /landing)
-    │   ├── Login.js, Signup.js, AdminPanel.js, Dashboard.js
-    │   ├── teacher/ (TeacherDashboard, ManageClasses, CreateTest, StudentAnalytics)
-    │   └── student/ (StudentClasses, AssignedTests, TakeTest, JEEMainInterface, JEEAdvancedInterface, TestResults)
-    ├── components/ (Layout, TeacherLayout, AuthCallback, NotificationBell, ProtectedRoute)
+    │   ├── LandingPage.js, Login.js, Signup.js, AdminPanel.js, Dashboard.js
+    │   ├── BookmarksPage.js
+    │   ├── teacher/ (TeacherDashboard, ManageClasses, CreateTest, StudentAnalytics, TestResultsDetail)
+    │   └── student/ (StudentClasses, AssignedTests, TakeTest, JEEMainInterface, JEEAdvancedInterface, TestResults, AnalyticsDashboard)
+    ├── components/ (Layout, TeacherLayout, AuthCallback, NotificationBell, ProtectedRoute, BatchManagerDialog)
     └── utils/ (api.js, pageTitle.js)
 ```
 
 ## What's Been Implemented
 
 ### Phase 1 - Core Platform (Completed)
-- [x] Full Teacher Dashboard (classes CRUD, test creation, student analytics)
+- [x] Teacher Dashboard (classes CRUD, test creation, student analytics)
 - [x] Student features (view classes, take tests, view results)
-- [x] Push notification system + test reminders
+- [x] Push notification system
 - [x] Batch management (5 predefined batches)
-- [x] Teacher notes visible only on incorrect/unattempted questions
+- [x] Teacher notes visible on incorrect/unattempted
 
 ### Phase 2 - Auth & Access (Completed)
-- [x] Role-based auto-redirect: Admin -> /admin, Teachers -> /teacher, Students -> /dashboard
-- [x] Admin login via main login page
-- [x] Admin Panel: Create teacher accounts + view contact inquiries
-- [x] Google OAuth with role-based redirect
+- [x] Role-based auto-redirect & Admin Panel with Logout
+- [x] Google OAuth + role-based redirect
 - [x] Signup restricted to students only
 
 ### Phase 3 - Landing Page & Contact (Completed)
-- [x] Full marketing landing page at /landing with Framer Motion animations
-- [x] Founder section, testimonials, courses, contact form
-- [x] Contact form saves to DB, viewable in admin panel
+- [x] Marketing landing page with Framer Motion animations, founder, testimonials, contact form
 
-### Phase 4 - NTA Pattern Test Interfaces (Completed - Apr 2026)
-- [x] **JEE Main Interface** - Orange-themed NTA UI with:
-  - Subject tabs, question palette, timer, candidate info
-  - MCQ Single/Multiple, Numerical Integer/Decimal question types
-  - Action buttons: SAVE & NEXT, SAVE & MARK FOR REVIEW, CLEAR RESPONSE, MARK FOR REVIEW & NEXT
-  - Auto-save every 30 seconds, auto-submit on time expiry
-  - Custom submit confirmation modal (no double window.confirm)
-- [x] **JEE Advanced Interface** - Blue/Indigo-themed UI with:
-  - Section-wise tabs (Physics - Sec A, Chemistry - Sec B, etc.)
-  - Question Navigator grouped by subject
-  - MCQ Multiple with "One or More Correct" badge
-  - All JEE Main features plus section navigation
-- [x] **SmartTestRouter** - Automatically routes students to correct interface based on test_pattern
-- [x] **KaTeX Math Rendering** - In questions, options, and results page
-- [x] **Emergent Object Storage** - Image uploads for questions and options
-- [x] **Test Results Page** - Fixed to handle new option format {text, imageUrl}, KaTeX rendering, Numerical answer display
-- [x] **Pattern Badges** - Orange/Blue badges on AssignedTests and teacher test list
-- [x] **Teacher Test Creator** - Pattern selection (JEE Main / JEE Advanced), question types, image upload, batch assignment
-- [x] **Batch Filtering** - Tests and classes correctly filtered by student's batch
+### Phase 4 - NTA-Pattern Test Interfaces (Completed)
+- [x] JEE Main (orange) & JEE Advanced (blue) interfaces with KaTeX + object storage images
+- [x] SmartTestRouter
+- [x] Test Results page handling `{text, imageUrl}` options + KaTeX
+- [x] Pattern badges on AssignedTests & teacher test list
+
+### Phase 5 - Engagement & Insights (Completed - Feb 2026)
+- [x] **Unified Reminder Scheduler** — 24h / 1h / 15m reminders for BOTH tests & classes, delivered via in-app + Web Push + Email (Resend). Idempotent via `sent_reminders` collection.
+- [x] **Student Analytics Dashboard** — Overview stats + 30-day activity chart + Chapter×Subject heatmap + Batch Leaderboard + Insights (best/worst test, weak chapters).
+- [x] **Teacher Test Results Detail** — Ranked per-student attempts table with search, per-question difficulty chart, aggregate stats (avg score/accuracy, highest, lowest), and one-click **CSV export**.
+- [x] **Custom Batch Management** — Teachers can create/delete their own batches via `BatchManagerDialog`; predefined batches remain. Merge-view in `/batches/`.
+- [x] **Real Bookmarks Page** — Search + remove your saved questions; empty state links back to PYQ.
 
 ## Test Credentials
 - Student: student@test.com / password123 (batch: JEE Mains 2027)
@@ -82,37 +71,37 @@ Build a comprehensive JEE/NEET coaching platform with a Teacher Dashboard, Stude
 - Admin: admin@nexuacademy.com / nexuacademy123
 
 ## Key API Endpoints
-- `POST /api/auth/login` - User login (returns role for redirect)
-- `POST /api/auth/register` - Student registration only
-- `POST /api/admin/create-teacher` - Create teacher (admin auth required)
-- `POST /api/teacher/tests/create` - Create test with pattern selection
-- `POST /api/teacher/tests/{id}/add-question` - Add question to test
-- `PUT /api/teacher/tests/{id}/publish` - Publish test and notify students
-- `GET /api/student/tests/assigned` - Batch-filtered assigned tests
-- `POST /api/student/tests/{id}/start` - Start test (returns test_pattern)
-- `PUT /api/student/tests/attempts/{id}/autosave` - Auto-save progress
-- `POST /api/student/tests/attempts/{id}/submit` - Submit test
-- `GET /api/student/tests/results/{id}` - Get enriched results
-- `GET /api/student/classes/my-classes` - Batch-filtered classes
-- `POST /api/upload/image` - Upload image to Emergent Object Storage
-- `GET /api/batches/` - List predefined batches
+### Analytics (Student)
+- `GET /api/student/analytics/overview` - stats + best/worst test + batch_rank
+- `GET /api/student/analytics/heatmap` - subject/chapter accuracy
+- `GET /api/student/analytics/activity` - 30 buckets (solved, correct)
+- `GET /api/student/analytics/leaderboard` - top 25 of batch
+
+### Teacher Results
+- `GET /api/teacher/tests/{id}/results` - enriched attempts, stats, question_stats
+- `GET /api/teacher/tests/{id}/results.csv` - CSV download (teacher-only)
+
+### Batches
+- `GET /api/batches/` - predefined + custom (merged)
+- `POST /api/batches/` - teacher creates custom batch (name, year)
+- `DELETE /api/batches/{id}` - teacher deletes own batch (predefined blocked)
+
+### Existing
+- `/api/auth/*`, `/api/admin/*`, `/api/teacher/{classes,tests,students}/*`, `/api/student/{classes,tests}/*`, `/api/upload/image`, `/api/push/*`, `/api/bookmarks/*`
 
 ## Prioritized Backlog
 
 ### P1
-- Class Reminder System (24h, 1h, 15min email/push notifications)
-- Detailed Student Analytics UI (graphs, heatmaps using recharts)
-- Teacher: Detailed test results per student + CSV export
+- Pydantic models refactor across all write endpoints (test create, class create, question add)
+- Student PYQ bookmarking flow (button on PYQ questions + from TestResults)
 
 ### P2
-- Phase 2 Batch Management (teachers create custom batches)
-- Student-facing "My Analytics" page
-- Bookmarks feature
-- Custom Test Builder (rebuild "My Tests")
-- Leaderboards
-- Study Plans
-- Video Lecture sections
+- Phase 2 "Manage Students" UI (admin assign batch in bulk)
+- Custom Test Builder rebuild (currently placeholder)
+- Video Lectures section
+- Study Plans (AI-powered recommendations via EMERGENT_LLM_KEY)
+- Profile editing
 
 ### Refactoring
-- Create Pydantic models for Test, Class, TestAttempt, Notification
-- Consider frontend state management (Zustand) for growing complexity
+- Consolidate two reminder services (`class_reminders.py` can be deleted; `reminder_scheduler.py` now covers both)
+- Break up `server.py` startup logic into `startup/` module (minor)
