@@ -1,0 +1,67 @@
+{
+  "summary": "Iteration 10 — validated 6 new features: Student Analytics, Teacher Results + CSV, Batch CRUD, Reminder scheduler, Bookmarks page, BatchManagerDialog. 14/14 backend tests pass. Frontend verified: /analytics, /bookmarks, /teacher/tests/:id/results with working CSV download. Regression on teacher+student login passes.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "TestResultsDetail",
+        "issue": "React hydration warnings: `<tr>` wrapped inside a `<span data-ve-dynamic>` inside `<tbody>` — invalid HTML nesting (warning only, not breaking). Caused by ve-dynamic instrumentation wrapping each row.",
+        "selector": "[data-testid^='attempt-row-']",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_new_features_iter10.py",
+    "/app/test_reports/pytest/iter10_results.xml"
+  ],
+  "action_items": [
+    "LOW: Fix HTML nesting warning in TestResultsDetail.js — the ve-dynamic `<span style='display:contents'>` wrapper is being injected between `<tbody>` and each `<tr>`. Browser auto-corrects but emits hydration errors. Move row mapping so the wrapper isn't used, or use a React fragment."
+  ],
+  "critical_code_review_comments": [
+    "student_analytics_routes.py, batch_routes.py, teacher_test_routes.py all use proper async/await + MongoDB ObjectId handling. No issues.",
+    "reminder_scheduler boots cleanly, log line 'Unified reminder scheduler started (tests + classes, 24h/1h/15m)' appears at each startup and no runtime exceptions for >60s window observed.",
+    "BatchCreateRequest requires `year` (2024-2035). Frontend BatchManagerDialog must send year; verify teacher UI form passes it."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_new_features_iter10.py (new)"
+  ],
+  "success_rate": {
+    "backend": "100% (14/14)",
+    "frontend": "95% (only hydration warning on TestResultsDetail)"
+  },
+  "test_credentials": {
+    "student": "student@test.com / password123",
+    "teacher": "teacher@test.com / password123",
+    "admin": "admin@nexuacademy.com / nexuacademy123"
+  },
+  "seed_data_creation": "A custom batch 'TEST_QA Batch 2027' is created and deleted during each test run. Test is idempotent.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Teacher lands on /teacher (not /dashboard). Results button is on /teacher/tests list. CSV download confirmed via Playwright expect_download. Analytics Leaderboard highlights logged-in user row with purple background (is_me flag working). The BatchManagerDialog lives inside the CreateTest form (click Create Test button) and the Schedule-New-Class modal on ManageClasses — it's not a top-level page button. Backend POST /api/batches/ requires {name, year}.",
+  "features_tested": {
+    "student_analytics_overview": "PASSED — overview returns total_tests=4, avg_accuracy, batch_rank=1, best/worst test with test_name",
+    "student_analytics_heatmap": "PASSED — returns subject/chapter/accuracy cells",
+    "student_analytics_activity_30_buckets": "PASSED — exactly 30 date buckets returned and chart rendered on UI",
+    "student_analytics_leaderboard_is_me": "PASSED — backend returns is_me=true for logged-in student; UI shows 'Test Student (you)' with highlight",
+    "teacher_test_results_enriched": "PASSED — stats{avg_score,avg_accuracy,highest,lowest}, question_stats[], rank in attempts",
+    "teacher_test_results_csv": "PASSED — text/csv attachment with Rank/Student/Email/Batch/Score/Accuracy header. File 'JEE_Advanced_Physics_Chemistry_Mock_results.csv' downloaded via UI Export CSV button.",
+    "csv_forbidden_for_student": "PASSED — student gets 401/403",
+    "batches_list_merges_predefined": "PASSED",
+    "batches_create_custom": "PASSED (requires name+year)",
+    "batches_delete_predefined_blocked": "PASSED — returns 400",
+    "batches_delete_custom": "PASSED",
+    "reminder_scheduler_startup": "PASSED — startup log present, no crashes observed during 30s+",
+    "frontend_analytics_page": "PASSED — /analytics loads with 0 console errors, all 4 tabs present, 30-day chart and Leaderboard with self-highlight render",
+    "frontend_bookmarks_page": "PASSED — /bookmarks loads, empty state 'No bookmarks yet' visible",
+    "frontend_teacher_results_page": "PASSED — Results button navigates to /teacher/tests/:id/results, shows attempts table + Export CSV",
+    "frontend_csv_download": "PASSED — browser download event fires with correct filename",
+    "regression_auth": "PASSED — both student and teacher login + /api/auth/me"
+  },
+  "rca_of_issue": "N/A - all new features work. Only a non-blocking React hydration warning on the teacher results table (ve-dynamic span wrapping tr rows)."
+}

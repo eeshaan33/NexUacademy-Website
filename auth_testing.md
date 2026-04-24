@@ -28,11 +28,11 @@ print('User ID: ' + userId);
 ## Step 2: Test Backend API
 ```bash
 # Test auth endpoint
-curl -X GET "https://jee-test-engine.preview.emergentagent.com/api/auth/me" \
+curl -X GET "https://adaptive-learning-38.preview.emergentagent.com/api/auth/me" \
   -H "Authorization: Bearer YOUR_SESSION_TOKEN"
 
 # Test protected endpoints
-curl -X GET "https://jee-test-engine.preview.emergentagent.com/api/questions" \
+curl -X GET "https://adaptive-learning-38.preview.emergentagent.com/api/questions" \
   -H "Authorization: Bearer YOUR_SESSION_TOKEN"
 ```
 
@@ -48,7 +48,7 @@ await page.context.add_cookies([{
     "secure": true,
     "sameSite": "None"
 }]);
-await page.goto("https://jee-test-engine.preview.emergentagent.com");
+await page.goto("https://adaptive-learning-38.preview.emergentagent.com");
 ```
 
 ## Quick Debug

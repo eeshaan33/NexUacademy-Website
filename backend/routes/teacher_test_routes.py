@@ -1,4 +1,7 @@
+import io
+import csv
 from fastapi import APIRouter, HTTPException, Request, Depends
+from fastapi.responses import StreamingResponse
 from datetime import datetime, timezone
 from config.database import get_database
 from middleware.auth import get_current_teacher
@@ -181,7 +184,122 @@ async def get_test_results(test_id: str, user=Depends(get_current_teacher)):
         {"test_id": test_id}, {"_id": 0}
     ).sort("total_score", -1).to_list(length=None)
 
-    return {"success": True, "test": test, "attempts": attempts, "total_attempts": len(attempts)}
+    # Enrich with per-student info (email, batch) + rank
+    student_ids = [a["student_id"] for a in attempts]
+    students = await db.users.find(
+        {"user_id": {"$in": student_ids}}, {"_id": 0, "user_id": 1, "email": 1, "batch_id": 1, "profile_pic": 1}
+    ).to_list(length=None)
+    smap = {s["user_id"]: s for s in students}
+
+    enriched = []
+    for i, a in enumerate(attempts, 1):
+        s = smap.get(a["student_id"], {})
+        enriched.append({
+            **a,
+            "rank": i,
+            "email": s.get("email"),
+            "batch_id": s.get("batch_id"),
+            "profile_pic": s.get("profile_pic"),
+        })
+
+    # Aggregate statistics
+    total = len(enriched)
+    avg_score = round(sum(a.get("total_score", 0) for a in enriched) / total, 2) if total else 0
+    avg_accuracy = round(sum(a.get("accuracy", 0) for a in enriched) / total, 2) if total else 0
+    high = max((a.get("total_score", 0) for a in enriched), default=0)
+    low = min((a.get("total_score", 0) for a in enriched), default=0)
+
+    # Per-question difficulty (how many got each question correct)
+    q_stats = {}
+    for q in test.get("questions", []):
+        q_stats[q["question_number"]] = {
+            "question_number": q["question_number"],
+            "question_text": q.get("question_text", "")[:140],
+            "subject": q.get("subject", ""),
+            "chapter": q.get("chapter", ""),
+            "correct": 0,
+            "incorrect": 0,
+            "skipped": 0,
+        }
+    for a in enriched:
+        for ans in a.get("answers", []):
+            row = q_stats.get(ans.get("question_number"))
+            if not row:
+                continue
+            sel = ans.get("selected_answer")
+            if sel in (None, "", []):
+                row["skipped"] += 1
+            elif ans.get("is_correct"):
+                row["correct"] += 1
+            else:
+                row["incorrect"] += 1
+
+    return {
+        "success": True,
+        "test": test,
+        "attempts": enriched,
+        "total_attempts": total,
+        "stats": {
+            "avg_score": avg_score,
+            "avg_accuracy": avg_accuracy,
+            "highest": high,
+            "lowest": low,
+        },
+        "question_stats": list(q_stats.values()),
+    }
+
+
+@router.get("/{test_id}/results.csv")
+async def download_test_results_csv(test_id: str, user=Depends(get_current_teacher)):
+    db = get_database()
+    test = await db.teacher_tests.find_one({"test_id": test_id, "created_by_id": user["user_id"]}, {"_id": 0})
+    if not test:
+        raise HTTPException(status_code=404, detail="Test not found")
+
+    attempts = await db.test_attempts.find(
+        {"test_id": test_id}, {"_id": 0}
+    ).sort("total_score", -1).to_list(length=None)
+
+    student_ids = [a["student_id"] for a in attempts]
+    students = await db.users.find(
+        {"user_id": {"$in": student_ids}}, {"_id": 0, "user_id": 1, "email": 1, "batch_id": 1}
+    ).to_list(length=None)
+    smap = {s["user_id"]: s for s in students}
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow([
+        "Rank", "Student Name", "Email", "Batch", "Score",
+        "Max Score", "Accuracy %", "Correct", "Incorrect",
+        "Unattempted", "Time Spent (sec)", "Submitted At", "Status",
+    ])
+    for i, a in enumerate(attempts, 1):
+        s = smap.get(a["student_id"], {})
+        writer.writerow([
+            i,
+            a.get("student_name", ""),
+            s.get("email", ""),
+            s.get("batch_id", ""),
+            a.get("total_score", 0),
+            a.get("max_score", 0),
+            a.get("accuracy", 0),
+            a.get("correct_answers", 0),
+            a.get("incorrect_answers", 0),
+            a.get("unattempted", 0),
+            a.get("time_spent", 0),
+            a.get("submitted_at", ""),
+            a.get("status", ""),
+        ])
+    buf.seek(0)
+
+    safe_name = "".join(c if c.isalnum() else "_" for c in test.get("test_name", "test"))[:60]
+    filename = f"{safe_name}_results.csv"
+
+    return StreamingResponse(
+        iter([buf.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get("/stats")

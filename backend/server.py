@@ -11,7 +11,7 @@ from pathlib import Path
 from routes import auth_routes, question_routes, test_routes, class_routes, bookmark_routes, analytics_routes, admin_routes, admission_routes
 from routes import test_template_routes, custom_test_routes
 from routes import teacher_class_routes, teacher_test_routes, teacher_student_routes
-from routes import student_class_routes, student_test_routes
+from routes import student_class_routes, student_test_routes, student_analytics_routes
 from routes import notification_routes, push_routes, batch_routes
 from routes import upload_routes
 
@@ -50,6 +50,7 @@ api_router.include_router(teacher_test_routes.router)
 api_router.include_router(teacher_student_routes.router)
 api_router.include_router(student_class_routes.router)
 api_router.include_router(student_test_routes.router)
+api_router.include_router(student_analytics_routes.router)
 api_router.include_router(notification_routes.router)
 api_router.include_router(push_routes.router)
 api_router.include_router(batch_routes.router)

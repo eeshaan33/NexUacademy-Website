@@ -5,10 +5,11 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { Plus, Trash2, ChevronRight, ChevronLeft, Eye, Send, Image as ImageIcon, X, Upload } from 'lucide-react';
+import { Plus, Trash2, ChevronRight, ChevronLeft, Eye, Send, Image as ImageIcon, X, Upload, BarChart3 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../utils/api';
 import { setPageTitle } from '../../utils/pageTitle';
+import BatchManagerDialog from '../../components/BatchManagerDialog';
 
 const SUBJECTS = ['Physics', 'Chemistry', 'Mathematics', 'All Subjects'];
 const DIFFICULTIES = ['Easy', 'Medium', 'Hard'];
@@ -139,6 +140,9 @@ const CreateTest = () => {
                 <div className="flex items-center gap-2">
                   <span className={`px-2 py-1 text-xs rounded ${t.status === 'scheduled' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{t.status}</span>
                   <span className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded">{t.test_pattern === 'JEE_Advanced_Pattern' ? 'JEE Adv' : 'JEE Main'} UI</span>
+                  <Button size="sm" variant="outline" data-testid={`view-results-${t.test_id}`} onClick={() => navigate(`/teacher/tests/${t.test_id}/results`)}>
+                    <BarChart3 className="h-3.5 w-3.5 mr-1" /> Results
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -192,7 +196,10 @@ const CreateTest = () => {
             <div><Label>Schedule Date & Time</Label><Input type="datetime-local" value={form.scheduled_date_time} onChange={e => setForm({ ...form, scheduled_date_time: e.target.value })} data-testid="schedule-input" /></div>
           </div>
           <div>
-            <Label>Assign to Batches *</Label>
+            <div className="flex items-center justify-between">
+              <Label>Assign to Batches *</Label>
+              <BatchManagerDialog batches={batches} onBatchesChanged={loadBatches} />
+            </div>
             <div className="flex flex-wrap gap-2 mt-2">
               {batches.map(b => (
                 <button key={b.id} type="button" onClick={() => toggleBatch(b.id)}

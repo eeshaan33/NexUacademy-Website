@@ -10,6 +10,7 @@ import { Plus, Trash2, Edit, Video, Calendar, Clock, ExternalLink } from 'lucide
 import { toast } from 'sonner';
 import api from '../../utils/api';
 import { setPageTitle } from '../../utils/pageTitle';
+import BatchManagerDialog from '../../components/BatchManagerDialog';
 
 const SUBJECTS = ['Physics', 'Chemistry', 'Mathematics', 'General'];
 const PLATFORMS = ['Zoom', 'Google Meet', 'Microsoft Teams'];
@@ -153,7 +154,10 @@ const ManageClasses = () => {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Assign to Batches *</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Assign to Batches *</Label>
+                  <BatchManagerDialog batches={batches} onBatchesChanged={loadBatches} />
+                </div>
                 <div className="grid grid-cols-2 gap-2 p-3 border rounded-lg bg-slate-50">
                   {batches.map((b) => (
                     <label key={b.id} className="flex items-center space-x-2 cursor-pointer">
