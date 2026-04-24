@@ -38,6 +38,10 @@ import JEEAdvancedInterface from "./pages/student/JEEAdvancedInterface";
 import AnalyticsDashboard from "./pages/student/AnalyticsDashboard";
 import CustomTestTaker from "./pages/student/CustomTestTaker";
 
+// Shared components
+import SuggestionBox from "./components/SuggestionBox";
+import PageViewTracker from "./components/PageViewTracker";
+
 function RoleBasedRedirect() {
   const { user, isAuthenticated, loading } = useAuth();
   if (loading) return null;
@@ -65,6 +69,7 @@ function AppRouter() {
   }
 
   return (
+    <>
     <Routes>
       {/* Public Routes */}
       <Route path="/landing" element={<LandingPage />} />
@@ -97,7 +102,10 @@ function AppRouter() {
       {/* Default redirect */}
       <Route path="/" element={<RoleBasedRedirect />} />
       <Route path="*" element={<RoleBasedRedirect />} />
-    </Routes>
+      </Routes>
+      <PageViewTracker />
+      <SuggestionBox />
+    </>
   );
 }
 

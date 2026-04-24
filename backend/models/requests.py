@@ -116,3 +116,99 @@ class ClassCreateRequest(BaseModel):
             return int(v)
         except (ValueError, TypeError):
             return 60
+
+
+# ---------- Analytics ----------
+
+class QuestionAttemptRequest(BaseModel):
+    question_id: str = Field(..., min_length=1)
+    selected_answer: str
+    is_correct: bool
+    time_taken: int = Field(0, ge=0)
+
+
+class PageViewRequest(BaseModel):
+    path: str = Field(..., min_length=1, max_length=200)
+    page: Optional[str] = None
+    referrer: Optional[str] = ""
+    device: Optional[Literal["mobile", "tablet", "desktop", "unknown"]] = "unknown"
+
+
+# ---------- Custom Test ----------
+
+class TopicConfig(BaseModel):
+    subject: Literal["Physics", "Chemistry", "Mathematics"]
+    chapter: str
+    topic: str
+    questionCount: int = Field(..., ge=1, le=50)
+    difficulty: Literal["Mixed", "Easy", "Medium", "Hard"] = "Mixed"
+
+
+class YearRange(BaseModel):
+    start: int = Field(..., ge=2000, le=2035)
+    end: int = Field(..., ge=2000, le=2035)
+
+
+class CustomTestCreateRequest(BaseModel):
+    examType: Literal["Mixed", "JEE_Main", "JEE_Advanced"]
+    selectedTopics: List[TopicConfig] = Field(..., min_length=1)
+    yearRange: YearRange
+    duration: int = Field(..., ge=5, le=600)
+    totalQuestions: int = Field(..., ge=1, le=300)
+    totalMarks: int = Field(..., ge=1)
+
+
+class CustomTestSubmissionRequest(BaseModel):
+    answers: Dict[str, Any] = Field(default_factory=dict)
+    timeSpent: int = Field(0, ge=0)
+
+
+class SaveProgressRequest(BaseModel):
+    answers: Dict[str, Any] = Field(default_factory=dict)
+    current_question: Optional[int] = None
+
+
+# ---------- Admin Question Import ----------
+
+class BulkQuestionImport(BaseModel):
+    exam_type: Literal["JEE_Main", "JEE_Advanced", "NEET"]
+    subject: Literal["Physics", "Chemistry", "Mathematics", "Biology"]
+    chapter: str = Field(..., min_length=1)
+    topic: str
+    year: int = Field(..., ge=2000, le=2035)
+    difficulty: Literal["Easy", "Medium", "Hard"] = "Medium"
+    question_text: str = Field(..., min_length=1)
+    question_image_url: Optional[str] = ""
+    options: Dict[str, str] = Field(..., description="Keys A/B/C/D")
+    correct_answer: Literal["A", "B", "C", "D"]
+    marks: int = 4
+    negative_marks: int = -1
+    solution_youtube_url: Optional[str] = ""
+    solution_timestamp: int = 0
+
+
+class BulkImportRequest(BaseModel):
+    questions: List[BulkQuestionImport] = Field(..., min_length=1, max_length=2000)
+    replace_existing: bool = False
+
+
+# ---------- Student Suggestions ----------
+
+class SuggestionCreateRequest(BaseModel):
+    suggestion_type: Literal[
+        "Feature Request", "Bug Report", "Course Content", "UI/UX", "General", "Other"
+    ] = "General"
+    subject: str = Field(..., min_length=1, max_length=200)
+    message: str = Field(..., min_length=1, max_length=2000)
+    category: Optional[str] = None
+    tags: List[str] = Field(default_factory=list)
+    screenshot: Optional[str] = None
+
+
+class SuggestionUpdateRequest(BaseModel):
+    status: Optional[Literal[
+        "New", "In Review", "Planned", "In Progress", "Completed", "Rejected"
+    ]] = None
+    priority: Optional[Literal["Low", "Medium", "High", "Urgent"]] = None
+    admin_notes: Optional[str] = None
+    is_read: Optional[bool] = None

@@ -8,7 +8,7 @@ import { Badge } from '../components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import {
   FileEdit, Sparkles, ChevronRight, ChevronLeft, PlayCircle, History,
-  CheckCircle, Loader2, Target,
+  CheckCircle, Loader2, Target, AlertCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../utils/api';
@@ -24,6 +24,7 @@ const MyTestsPage = () => {
   const [view, setView] = useState('home');
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState([]);
+  const [resumable, setResumable] = useState([]);
 
   const [step, setStep] = useState(1);
   const [examType, setExamType] = useState('JEE_Main');
@@ -44,6 +45,7 @@ const MyTestsPage = () => {
     try {
       const { data } = await api.get('/custom-tests/history/mine');
       setHistory(data.attempts || []);
+      setResumable(data.resumable || []);
     } catch { /* ignore */ }
     finally { setLoading(false); }
   };
@@ -119,6 +121,33 @@ const MyTestsPage = () => {
             <Sparkles className="h-4 w-4 mr-2" /> Build Custom Test
           </Button>
         </div>
+
+        {resumable.length > 0 && (
+          <Card className="border-0 shadow-sm bg-amber-50 border-l-4 border-l-amber-500" data-testid="resumable-section">
+            <CardContent className="p-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-amber-600" />
+                <h2 className="font-semibold text-slate-800">Resume Your Tests</h2>
+              </div>
+              <div className="space-y-2">
+                {resumable.map((r) => (
+                  <div key={r.test_id} className="bg-white rounded-lg p-3 flex items-center justify-between gap-3" data-testid={`resumable-${r.test_id}`}>
+                    <div className="min-w-0">
+                      <div className="font-medium text-slate-800 truncate">{r.test_name}</div>
+                      <div className="text-xs text-slate-500 mt-0.5">
+                        {r.answered_count} / {r.total_questions || '—'} answered ·
+                        {' '}<span className="text-amber-700 font-semibold">{Math.floor(r.remaining_seconds / 60)}m {r.remaining_seconds % 60}s left</span>
+                      </div>
+                    </div>
+                    <Button size="sm" className="bg-amber-600 hover:bg-amber-700" onClick={() => startTest(r.test_id)} data-testid={`resume-${r.test_id}`}>
+                      <PlayCircle className="h-4 w-4 mr-1" /> Resume
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="border-0 shadow-sm">
           <CardContent className="p-5">

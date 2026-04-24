@@ -6,14 +6,16 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Badge } from '../components/ui/badge';
-import { Shield, User, Mail, Lock, Plus, Users, MessageSquare, Eye, EyeOff, CheckCircle, Clock, LogOut } from 'lucide-react';
+import { Shield, User, Mail, Lock, Plus, Users, MessageSquare, Eye, EyeOff, CheckCircle, Clock, LogOut, BarChart3, Database } from 'lucide-react';
 import api from '../utils/api';
 import { toast } from 'sonner';
 import { setPageTitle } from '../utils/pageTitle';
+import AdminAnalyticsPane from '../components/AdminAnalyticsPane';
+import AdminPyqSeederPane from '../components/AdminPyqSeederPane';
 
 const AdminPanel = () => {
   const { user, isAuthenticated, loading, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState('teachers');
+  const [activeTab, setActiveTab] = useState('analytics');
   const [teacherForm, setTeacherForm] = useState({ name: '', email: '', password: '' });
   const [createLoading, setCreateLoading] = useState(false);
   const [teachers, setTeachers] = useState([]);
@@ -95,6 +97,8 @@ const AdminPanel = () => {
           </div>
           <div className="flex gap-2">
             {[
+              { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+              { id: 'pyq', label: 'PYQ Bank', icon: Database },
               { id: 'teachers', label: 'Teachers', icon: Users },
               { id: 'contacts', label: 'Inquiries', icon: MessageSquare, badge: contactStats.new }
             ].map(tab => (
@@ -113,6 +117,9 @@ const AdminPanel = () => {
             </Button>
           </div>
         </div>
+
+        {activeTab === 'analytics' && <AdminAnalyticsPane />}
+        {activeTab === 'pyq' && <AdminPyqSeederPane />}
 
         {activeTab === 'teachers' && (
           <>

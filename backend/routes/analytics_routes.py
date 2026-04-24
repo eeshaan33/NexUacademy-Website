@@ -1,28 +1,19 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Depends
 from config.database import get_database
 from datetime import datetime, timezone, timedelta
-from motor.motor_asyncio import AsyncIOMotorClient
 from collections import defaultdict
-import os
 from middleware.auth import get_current_user
+from models.requests import QuestionAttemptRequest, PageViewRequest
 from pydantic import BaseModel
 from typing import Optional
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
-class QuestionAttempt(BaseModel):
-    question_id: str
-    selected_answer: str
-    is_correct: bool
-    time_taken: Optional[int] = 0
 
 @router.post("/record-attempt")
-async def record_question_attempt(attempt: QuestionAttempt, request: Request):
-    """
-    Record a single question attempt for progress tracking.
-    """
+async def record_question_attempt(attempt: QuestionAttemptRequest, user=Depends(get_current_user)):
+    """Record a single question attempt for progress tracking."""
     db = get_database()
-    user = await get_current_user(request)
     
     # Get question details
     question = await db.questions.find_one(
@@ -66,6 +57,38 @@ async def record_question_attempt(attempt: QuestionAttempt, request: Request):
     
     return {"success": True, "message": "Attempt recorded"}
 
+
+@router.post("/pageview")
+async def record_pageview(payload: PageViewRequest, request: Request):
+    """Track a page visit. Auth optional — we still record anonymous visits."""
+    db = get_database()
+    user_id = None
+    try:
+        user = await get_current_user(request)
+        user_id = user.get("user_id")
+    except Exception:
+        pass
+
+    ua = (request.headers.get("user-agent") or "")[:300]
+    ip = request.client.host if request.client else None
+
+    # Unique visitor = (user_id if logged in else ip+ua hash)
+    import hashlib
+    visitor_id = user_id or hashlib.md5(f"{ip}-{ua}".encode()).hexdigest()
+
+    await db.page_visits.insert_one({
+        "path": payload.path,
+        "page": payload.page or payload.path,
+        "user_id": user_id,
+        "visitor_id": visitor_id,
+        "referrer": (payload.referrer or "")[:300],
+        "device": payload.device or "unknown",
+        "user_agent": ua,
+        "ip": ip,
+        "timestamp": datetime.now(timezone.utc),
+    })
+    return {"success": True}
+
 @router.get("/dashboard")
 async def get_dashboard_analytics(request: Request):
     """
@@ -76,7 +99,7 @@ async def get_dashboard_analytics(request: Request):
     try:
         user = await get_current_user(request)
         user_id = user["user_id"]
-    except:
+    except Exception:
         # Return empty stats for unauthenticated users
         return {
             "total_questions_solved": 0,

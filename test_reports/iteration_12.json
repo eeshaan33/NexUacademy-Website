@@ -1,0 +1,82 @@
+{
+  "summary": "Iteration 12 — validated all 5 new feature areas. Backend: 27/27 pytest tests pass covering /api/analytics/pageview (unauth insert), /api/admin/dashboard/overview|users|suggestions (403 for non-admin, Pydantic 422 for invalid status), student-suggestion CRUD + upvote toggle, /api/custom-tests start-session / save-progress / active-session / discard-session full resume flow (resumed=false fresh, resumed=true after save, remaining_seconds decrements, /history/mine returns {attempts, resumable} with answered_count), /api/custom-tests/.../submit consumes active session, /api/questions/stats, /seed-sample (admin 200, student 403), /bulk-import/csv (parses header row, returns inserted + errors, 403 non-admin), /bulk/all wipe guard (403 non-admin with confirm=WIPE), Pydantic 422 for record-attempt missing question_id and custom-test examType='FOO'. Frontend: /admin defaults to Analytics tab with stat cards (17 visits / 6 unique / 30 users / 1 new suggestion), Most Visited Pages bar chart, Daily Traffic, Device Breakdown donut, Batch Distribution, Student Suggestions panel, time-range dropdown + Export CSV button visible. PYQ Bank tab shows Total Questions (13,457), By Subject chart, Quick Seed (count=30) with Seed button, Bulk CSV Import with Download CSV template + paste textarea + Import CSV + Clear, Danger Zone with 'Delete ALL questions'. SuggestionBox floating button appears ONLY for student (confirmed not present for admin); modal opens with Type select defaulted to 'General', Subject + Message inputs, submit returns 200. PageViewTracker fires silent POSTs on every SPA route change (confirmed 4 hits across 2 navigations incl. re-renders). /my-tests Resume flow verified end-to-end: after seeding an active session via API, the yellow 'Resume Your Tests' card appears with '29m 36s left' and a Resume button; clicking Resume navigates to /my-tests/take/:testId and the taker shows a 'Resumed' badge + 'Resumed test — 29m left' toast + auto-save notice.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "DELETE /api/questions/bulk/all",
+        "issue": "Guard returns 422 instead of 400 when ?confirm is omitted. The endpoint uses FastAPI Query(...) which makes the param required at the framework level, so Pydantic rejects with 422 before the 400-raise path is reached. Guard still works (non-admins correctly get 403 when confirm=WIPE is passed; no accidental wipe possible). To match spec, change `confirm: str = Query(...)` to `confirm: str = Query('')` or `Optional[str] = None`."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "SuggestionBox dialog (and possibly other DialogContent usages)",
+        "issues": [
+          "React a11y warning: 'Missing Description or aria-describedby={undefined} for {DialogContent}' — add <DialogDescription> or aria-describedby for screen-reader support. Non-blocking."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter12_features.py",
+    "/app/test_reports/pytest/iter12_results.xml"
+  ],
+  "action_items": [
+    "(Optional / minor) Change DELETE /api/questions/bulk/all confirm param from Query(...) to Query('') so missing confirm returns 400 per spec instead of 422.",
+    "(Minor a11y) Add DialogDescription or aria-describedby to SuggestionBox DialogContent to silence accessibility warning."
+  ],
+  "critical_code_review_comments": [
+    "admin_dashboard_routes.py: all aggregations scope to `$match: {timestamp: {$gte: since}}` correctly; _require_admin helper is reused — good DRY. `_id:0` projection on suggestions list avoids MongoDB ObjectId serialization issues.",
+    "custom_test_routes.py: start-or-resume correctly returns remaining_seconds=duration*60 on fresh sessions and computes (expires_at - now) on resume. /history/mine separates attempts and resumable; submit consumes active session (verified via active-session returning active:false post-submit). _expire_orphan_sessions clean-up logic runs before peek/start.",
+    "student_suggestion_routes.py: upvote toggle is idempotent per user id — re-POST decrements back to 0; upvotes never go negative (max(0, ...)).",
+    "question_routes.py /bulk-import/csv: parses header row, validates each row against BulkQuestionImport, accumulates errors — matches spec. /stats returns aggregations per exam/subject/year/difficulty.",
+    "models/requests.py: SuggestionUpdateRequest enforces Literal status/priority enums (verified 422 on 'BOGUS'); CustomTestCreateRequest enforces Literal examType (verified 422 on 'FOO'); PageViewRequest requires path (verified 422 when missing)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter12_features.py (new — 27 tests)"
+  ],
+  "success_rate": {
+    "backend": "100% (27/27 pytest)",
+    "frontend": "100% of flows verified: admin analytics charts + cards + export/days-filter, PYQ seeder + CSV import + wipe UI, SuggestionBox student-only visibility + modal submit 200, PageViewTracker silent pageview POST on SPA nav (4 observed), /my-tests Resume card + taker Resumed badge + timer"
+  },
+  "test_credentials": {
+    "admin": "admin@nexuacademy.com / nexuacademy123",
+    "teacher": "teacher@test.com / password123",
+    "student": "student@test.com / password123"
+  },
+  "seed_data_creation": "Tests create TEST_-prefixed pageview, suggestions (auto-deleted by test_admin_delete_suggestion), custom tests, and ~5 sample questions via /seed-sample. CSV import inserts 1 valid row ('TEST_iter12 Q1'). Active session created during UI verification was discarded after use.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "New collections introduced: page_visits (populated by PageViewTracker), test_sessions (resume flow), student_suggestions. Admin endpoints under /api/admin/dashboard/* require role='admin' or return 403. Custom test resume flow: POST /start-session returns {resumed, session_id, remaining_seconds, answers, current_question}; save-progress accepts {answers, current_question?}; active-session returns {active, remaining_seconds, answered_count}; submit consumes the session. CSV import endpoint expects text/csv body with header row — FE paste textarea sends this way. Known minor: DELETE /api/questions/bulk/all without confirm returns 422 not 400 (Query(...) required-param behavior). SuggestionBox is conditionally rendered in App.js based on user.role === 'student'. data-testids present: tab-analytics, tab-pyq, admin-analytics-pane, days-filter, export-csv, sug-status-filter, suggestion-row-<id>, dialog-status, save-suggestion, pyq-seeder-pane, seed-count, seed-sample-btn, download-template, csv-input, csv-import-btn, wipe-all-btn, suggestion-box-btn, sug-type, sug-subject, sug-message, sug-submit.",
+  "features_tested": {
+    "analytics_pageview_unauth_insert": "PASSED",
+    "analytics_pageview_validation": "PASSED (422 on missing path)",
+    "analytics_record_attempt_missing_qid_422": "PASSED",
+    "admin_dashboard_overview_admin": "PASSED",
+    "admin_dashboard_overview_non_admin_403": "PASSED",
+    "admin_dashboard_users": "PASSED",
+    "admin_dashboard_suggestions_list": "PASSED",
+    "student_suggestion_create_list_upvote": "PASSED",
+    "admin_suggestion_update_pydantic_and_422": "PASSED",
+    "admin_suggestion_delete_and_404": "PASSED",
+    "questions_stats": "PASSED",
+    "questions_seed_sample_admin_and_403": "PASSED",
+    "questions_bulk_csv_import_admin_and_403": "PASSED",
+    "questions_wipe_guards": "PASSED (403 non-admin; 422 instead of 400 when confirm missing — minor deviation)",
+    "custom_test_generate_invalid_exam_type_422": "PASSED",
+    "custom_test_resume_full_flow": "PASSED (resumed=false fresh, saved answers persist, resumed=true, remaining_seconds decrements, history.resumable populated, discard ends session)",
+    "custom_test_submit_consumes_session": "PASSED",
+    "regression_auth_admin_teacher_student_login": "PASSED",
+    "frontend_admin_analytics_tab_default_charts": "PASSED",
+    "frontend_admin_pyq_bank_tab_components": "PASSED",
+    "frontend_suggestion_box_student_only": "PASSED",
+    "frontend_suggestion_box_modal_submit_200": "PASSED",
+    "frontend_pageview_tracker_silent_post": "PASSED (4 hits across 2 navs)",
+    "frontend_my_tests_resume_card_and_taker_resumed_badge": "PASSED"
+  },
+  "rca_of_issue": "N/A — the one minor deviation (DELETE /bulk/all returning 422 instead of 400 on missing confirm) is caused by `Query(...)` being a required parameter at the FastAPI framework level. The 400 raise path on line 320 of question_routes.py can only execute if the Query resolves to a non-WIPE value; a missing parameter short-circuits to 422 before reaching the handler. Guard still prevents accidental data loss."
+}

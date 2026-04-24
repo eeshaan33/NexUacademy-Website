@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
-import { Clock, ArrowLeft, Send, CheckCircle, XCircle, Minus, Target } from 'lucide-react';
+import { Clock, ArrowLeft, Send, CheckCircle, XCircle, Minus, Target, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../utils/api';
 import { setPageTitle } from '../../utils/pageTitle';
@@ -13,27 +13,48 @@ const CustomTestTaker = () => {
   const navigate = useNavigate();
   const [test, setTest] = useState(null);
   const [current, setCurrent] = useState(0);
-  const [answers, setAnswers] = useState({}); // {qNumber: "A"}
+  const [answers, setAnswers] = useState({});
   const [timeLeft, setTimeLeft] = useState(0);
-  const [startTs] = useState(Date.now());
   const [submitted, setSubmitted] = useState(null);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [resumed, setResumed] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState(null);
+  const saveTimerRef = useRef(null);
 
   useEffect(() => { setPageTitle('Custom Test'); }, []);
 
   useEffect(() => {
     (async () => {
       try {
-        const { data } = await api.get(`/custom-tests/${testId}`);
-        setTest(data);
-        setTimeLeft((data.duration || 60) * 60);
-      } catch { toast.error('Failed to load test'); navigate('/my-tests'); }
-      finally { setLoading(false); }
+        // Fetch test shell (no answers leaked)
+        const [testRes, sessionRes] = await Promise.all([
+          api.get(`/custom-tests/${testId}`),
+          api.post(`/custom-tests/${testId}/start-session`),
+        ]);
+        setTest(testRes.data);
+        const session = sessionRes.data;
+        setTimeLeft(session.remaining_seconds);
+        setAnswers(session.answers || {});
+        setResumed(!!session.resumed);
+        if (session.resumed) {
+          toast.info(`Resumed test — ${session.remaining_seconds >= 60 ? Math.floor(session.remaining_seconds / 60) + 'm' : session.remaining_seconds + 's'} left`);
+          // Jump to saved current_question
+          const idx = (testRes.data.questions || []).findIndex(
+            (q) => q.questionNumber === session.current_question
+          );
+          if (idx > 0) setCurrent(idx);
+        }
+      } catch {
+        toast.error('Failed to load test');
+        navigate('/my-tests');
+      } finally {
+        setLoading(false);
+      }
     })();
   }, [testId]); // eslint-disable-line
 
-  // Timer
+  // Tick down
   useEffect(() => {
     if (!test || submitted) return;
     if (timeLeft <= 0) { handleSubmit(true); return; }
@@ -41,19 +62,37 @@ const CustomTestTaker = () => {
     return () => clearInterval(id);
   }, [timeLeft, test, submitted]); // eslint-disable-line
 
-  const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+  // Auto-save every time answers change (debounced 1.5s)
+  useEffect(() => {
+    if (!test || submitted) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(saveProgress, 1500);
+    return () => clearTimeout(saveTimerRef.current);
+  }, [answers, current]); // eslint-disable-line
+
+  const saveProgress = async () => {
+    try {
+      const curQ = test?.questions?.[current]?.questionNumber || 1;
+      const { data } = await api.post(`/custom-tests/${testId}/save-progress`, {
+        answers,
+        current_question: curQ,
+      });
+      setLastSavedAt(data.saved_at);
+    } catch { /* silent */ }
+  };
+
+  const fmt = (s) => `${String(Math.floor(Math.max(0, s) / 60)).padStart(2, '0')}:${String(Math.max(0, s) % 60).padStart(2, '0')}`;
 
   const attempted = useMemo(() => Object.keys(answers).length, [answers]);
-
-  const handleSelect = (qNum, opt) => {
-    setAnswers((prev) => ({ ...prev, [qNum]: opt }));
-  };
+  const handleSelect = (qNum, opt) => setAnswers((prev) => ({ ...prev, [qNum]: opt }));
 
   const handleSubmit = async (auto = false) => {
     if (!auto && !window.confirm(`Submit test now? You attempted ${attempted} of ${test.questions.length}.`)) return;
     setBusy(true);
     try {
-      const timeSpent = Math.floor((Date.now() - startTs) / 1000);
+      // Save one final time before submit
+      await saveProgress();
+      const timeSpent = (test.duration * 60) - Math.max(0, timeLeft);
       const { data } = await api.post(`/custom-tests/${testId}/submit`, { answers, timeSpent });
       setSubmitted(data.results);
       toast.success('Test submitted!');
@@ -98,10 +137,14 @@ const CustomTestTaker = () => {
       <div className="bg-white shadow-sm sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
           <div className="min-w-0">
-            <div className="font-semibold text-slate-900 truncate">{test.test_name}</div>
-            <div className="text-xs text-slate-500">
-              <Target className="inline h-3 w-3 mr-1" />
+            <div className="font-semibold text-slate-900 truncate flex items-center gap-2">
+              {test.test_name}
+              {resumed && <Badge variant="outline" className="text-xs">Resumed</Badge>}
+            </div>
+            <div className="text-xs text-slate-500 flex items-center gap-2">
+              <Target className="inline h-3 w-3" />
               {attempted} / {test.questions.length} attempted
+              {lastSavedAt && <span className="inline-flex items-center gap-1"><Save className="h-3 w-3" />Saved</span>}
             </div>
           </div>
           <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-mono font-semibold ${timeLeft < 60 ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'}`}>
@@ -185,6 +228,7 @@ const CustomTestTaker = () => {
             <div className="text-xs text-slate-500 pt-2 border-t">
               <div className="flex items-center gap-2"><span className="inline-block w-3 h-3 rounded bg-emerald-500" />Answered</div>
               <div className="flex items-center gap-2 mt-1"><span className="inline-block w-3 h-3 rounded bg-slate-100 border" />Unattempted</div>
+              <div className="flex items-center gap-2 mt-1 text-slate-400">Progress auto-saves every few seconds. Leave anytime — your answers and remaining time are preserved.</div>
             </div>
           </CardContent>
         </Card>

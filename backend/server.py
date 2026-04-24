@@ -14,6 +14,7 @@ from routes import teacher_class_routes, teacher_test_routes, teacher_student_ro
 from routes import student_class_routes, student_test_routes, student_analytics_routes
 from routes import notification_routes, push_routes, batch_routes
 from routes import upload_routes
+from routes import admin_dashboard_routes, student_suggestion_routes
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -51,6 +52,8 @@ api_router.include_router(teacher_student_routes.router)
 api_router.include_router(student_class_routes.router)
 api_router.include_router(student_test_routes.router)
 api_router.include_router(student_analytics_routes.router)
+api_router.include_router(admin_dashboard_routes.router)
+api_router.include_router(student_suggestion_routes.router)
 api_router.include_router(notification_routes.router)
 api_router.include_router(push_routes.router)
 api_router.include_router(batch_routes.router)
