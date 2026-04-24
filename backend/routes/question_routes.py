@@ -5,7 +5,7 @@ import uuid
 import csv
 import io
 from models.question import QuestionCreate, Question
-from models.requests import BulkImportRequest, BulkQuestionImport
+from models.requests import BulkImportRequest, BulkQuestionImport, SingleQuestionCreate
 from middleware.auth import get_current_user, get_current_teacher
 from config.syllabus import JEE_SYLLABUS
 from config.database import get_database
@@ -241,6 +241,71 @@ async def bulk_import_csv(request: Request):
             "errors": errors[:50],
             "errors_count": len(errors),
             "total": await db.questions.count_documents({})}
+
+
+@router.post("/admin/create")
+async def admin_create_single(payload: SingleQuestionCreate, request: Request):
+    """Admin creates a single question (with optional image URL)."""
+    admin = await _require_admin(request)
+    db = get_database()
+
+    # Normalise image URL
+    img = _normalize_image_url(payload.question_image_url or "")
+
+    doc = payload.model_dump()
+    doc["question_image_url"] = img
+    doc["question_id"] = f"q_{uuid.uuid4().hex[:12]}"
+    doc["created_by"] = admin["user_id"]
+    doc["created_at"] = datetime.now(timezone.utc)
+    # Dual-field compatibility with legacy readers
+    doc["questionText"] = payload.question_text
+    doc["correctAnswer"] = payload.correct_answer
+    doc["questionType"] = "MCQ_Single"
+
+    await db.questions.insert_one(doc)
+    doc.pop("_id", None)
+    return {"success": True, "question": doc}
+
+
+@router.put("/admin/{question_id}/sample")
+async def toggle_is_sample(question_id: str, request: Request, is_sample: bool):
+    """Admin toggles whether a question appears on the public /sample-questions page."""
+    await _require_admin(request)
+    db = get_database()
+    res = await db.questions.update_one(
+        {"question_id": question_id},
+        {"$set": {"is_sample": is_sample}},
+    )
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Question not found")
+    return {"success": True, "question_id": question_id, "is_sample": is_sample}
+
+
+@router.get("/samples")
+async def public_samples(limit: int = Query(2, ge=1, le=6)):
+    """Public endpoint: return questions flagged `is_sample=true`.
+    Fallback: latest Chemistry questions with images if none are marked."""
+    db = get_database()
+
+    marked = await db.questions.find(
+        {"is_sample": True}, {"_id": 0, "correct_answer": 0, "correctAnswer": 0, "solution_text": 0}
+    ).sort("created_at", -1).limit(limit).to_list(length=limit)
+
+    if len(marked) >= limit:
+        return {"samples": marked, "source": "marked"}
+
+    # Fallback: top Chemistry questions with images
+    need = limit - len(marked)
+    fallback = await db.questions.find(
+        {
+            "subject": "Chemistry",
+            "question_image_url": {"$nin": ["", None]},
+            "question_id": {"$nin": [m["question_id"] for m in marked]},
+        },
+        {"_id": 0, "correct_answer": 0, "correctAnswer": 0, "solution_text": 0}
+    ).sort("created_at", -1).limit(need).to_list(length=need)
+
+    return {"samples": marked + fallback, "source": "mixed" if marked else "fallback"}
 
 
 @router.get("/admin/list")

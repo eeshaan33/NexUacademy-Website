@@ -7,7 +7,7 @@ import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { Database, Upload, Sparkles, Trash2, FileDown, CheckCircle, AlertTriangle, Loader2, ListFilter, Search, Image as ImageIcon } from 'lucide-react';
+import { Database, Upload, Sparkles, Trash2, FileDown, CheckCircle, AlertTriangle, Loader2, ListFilter, Search, Image as ImageIcon, Plus, Star } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../utils/api';
 
@@ -31,6 +31,19 @@ const AdminPyqSeederPane = () => {
   const [listLoading, setListLoading] = useState(false);
   const [preview, setPreview] = useState(null);
   const [deleting, setDeleting] = useState(null);
+
+  // Single-question creator
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    exam_type: 'JEE_Main', subject: 'Physics', chapter: '', topic: '',
+    year: new Date().getFullYear() - 1, difficulty: 'Medium',
+    question_text: '', question_image_url: '',
+    options: { A: '', B: '', C: '', D: '' },
+    correct_answer: 'A', marks: 4, negative_marks: -1,
+    solution_text: '', is_sample: false,
+  });
+  const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const loadStats = async () => {
     try {
@@ -69,6 +82,62 @@ const AdminPyqSeederPane = () => {
     } catch (e) {
       toast.error(e.response?.data?.detail || 'Delete failed');
     } finally { setDeleting(null); }
+  };
+
+  const handleSampleToggle = async (qid, next) => {
+    try {
+      await api.put(`/questions/admin/${qid}/sample`, null, { params: { is_sample: next } });
+      toast.success(next ? 'Marked as sample' : 'Unmarked as sample');
+      loadList();
+      if (preview?.question_id === qid) setPreview({ ...preview, is_sample: next });
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Failed to toggle sample');
+    }
+  };
+
+  const handleImageUpload = async (file) => {
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.type)) {
+      return toast.error('Only JPG/PNG/GIF/WebP allowed');
+    }
+    if (file.size > 5 * 1024 * 1024) return toast.error('Max 5 MB');
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch(`${BACKEND}/api/upload/image`, { method: 'POST', credentials: 'include', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Upload failed');
+      setCreateForm((prev) => ({ ...prev, question_image_url: data.url }));
+      toast.success('Image uploaded');
+    } catch (e) {
+      toast.error(e.message || 'Image upload failed');
+    } finally { setUploading(false); }
+  };
+
+  const handleCreateSingle = async () => {
+    // Basic validation on the client
+    const f = createForm;
+    if (!f.chapter.trim() || !f.question_text.trim()) return toast.error('Chapter and question text are required');
+    if (!['A', 'B', 'C', 'D'].every((k) => f.options[k]?.trim())) return toast.error('All four options are required');
+    setSaving(true);
+    try {
+      await api.post('/questions/admin/create', f);
+      toast.success(f.is_sample ? 'Question saved & marked as sample' : 'Question saved');
+      setCreateOpen(false);
+      setCreateForm({
+        exam_type: 'JEE_Main', subject: 'Physics', chapter: '', topic: '',
+        year: new Date().getFullYear() - 1, difficulty: 'Medium',
+        question_text: '', question_image_url: '',
+        options: { A: '', B: '', C: '', D: '' },
+        correct_answer: 'A', marks: 4, negative_marks: -1,
+        solution_text: '', is_sample: false,
+      });
+      loadStats(); loadList();
+    } catch (e) {
+      const d = e.response?.data?.detail;
+      toast.error(typeof d === 'string' ? d : 'Save failed (check fields)');
+    } finally { setSaving(false); }
   };
 
   const handleSeedSample = async () => {
@@ -220,7 +289,12 @@ const AdminPyqSeederPane = () => {
         <CardHeader className="pb-2">
           <CardTitle className="text-slate-200 text-sm flex items-center justify-between">
             <span className="flex items-center gap-2"><ListFilter className="h-4 w-4 text-indigo-400" /> Browse PYQ Bank</span>
-            <span className="text-xs text-slate-400 font-normal">{list.total?.toLocaleString()} questions · live sync with students</span>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-slate-400 font-normal">{list.total?.toLocaleString()} questions · live sync</span>
+              <Button size="sm" onClick={() => setCreateOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 h-7" data-testid="add-single-q-btn">
+                <Plus className="h-4 w-4 mr-1" /> New Question
+              </Button>
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -292,6 +366,16 @@ const AdminPyqSeederPane = () => {
                         <td className="py-2 px-2 text-slate-400 text-xs">{q.year}</td>
                         <td className="py-2 px-2 text-slate-400 text-xs">{q.difficulty}</td>
                         <td className="py-2 px-2 text-right space-x-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title={q.is_sample ? 'Unmark as sample' : 'Mark as sample (show on landing /sample-questions)'}
+                            onClick={() => handleSampleToggle(q.question_id, !q.is_sample)}
+                            data-testid={`pyq-sample-${q.question_id}`}
+                            className={`h-7 ${q.is_sample ? 'text-amber-400 hover:bg-amber-500/10' : 'text-slate-400 hover:bg-slate-700'}`}
+                          >
+                            <Star className={`h-3.5 w-3.5 ${q.is_sample ? 'fill-current' : ''}`} />
+                          </Button>
                           <Button variant="ghost" size="sm" onClick={() => setPreview(q)} className="text-indigo-300 hover:bg-indigo-500/10 h-7">View</Button>
                           <Button variant="ghost" size="sm" disabled={deleting === q.question_id} onClick={() => handleDelete(q.question_id)} className="text-red-400 hover:bg-red-500/10 h-7" data-testid={`pyq-delete-${q.question_id}`}>
                             {deleting === q.question_id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
@@ -344,12 +428,165 @@ const AdminPyqSeederPane = () => {
               </div>
               <div className="flex gap-2 pt-3 border-t">
                 <Button variant="outline" className="flex-1" onClick={() => setPreview(null)}>Close</Button>
+                <Button
+                  variant={preview.is_sample ? 'secondary' : 'outline'}
+                  onClick={() => handleSampleToggle(preview.question_id, !preview.is_sample)}
+                  data-testid="preview-sample-toggle"
+                >
+                  <Star className={`h-4 w-4 mr-1 ${preview.is_sample ? 'fill-amber-400 text-amber-400' : ''}`} />
+                  {preview.is_sample ? 'Unmark sample' : 'Mark as sample'}
+                </Button>
                 <Button className="bg-red-600 hover:bg-red-700 text-white" onClick={() => handleDelete(preview.question_id)} data-testid="preview-delete">
                   <Trash2 className="h-4 w-4 mr-1" /> Delete
                 </Button>
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Single-question creator */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create a new question</DialogTitle>
+            <DialogDescription>Saved questions appear in the PYQ bank immediately. Mark as sample to show on the landing /sample-questions page.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs">Exam</Label>
+                <Select value={createForm.exam_type} onValueChange={(v) => setCreateForm({ ...createForm, exam_type: v })}>
+                  <SelectTrigger data-testid="create-exam"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="JEE_Main">JEE Main</SelectItem>
+                    <SelectItem value="JEE_Advanced">JEE Advanced</SelectItem>
+                    <SelectItem value="NEET">NEET</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Subject</Label>
+                <Select value={createForm.subject} onValueChange={(v) => setCreateForm({ ...createForm, subject: v })}>
+                  <SelectTrigger data-testid="create-subject"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Physics">Physics</SelectItem>
+                    <SelectItem value="Chemistry">Chemistry</SelectItem>
+                    <SelectItem value="Mathematics">Mathematics</SelectItem>
+                    <SelectItem value="Biology">Biology</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs">Chapter *</Label>
+                <Input value={createForm.chapter} onChange={(e) => setCreateForm({ ...createForm, chapter: e.target.value })} placeholder="e.g. Solutions" data-testid="create-chapter" />
+              </div>
+              <div>
+                <Label className="text-xs">Topic</Label>
+                <Input value={createForm.topic} onChange={(e) => setCreateForm({ ...createForm, topic: e.target.value })} placeholder="e.g. Raoult's Law" />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <Label className="text-xs">Year</Label>
+                <Input type="number" value={createForm.year} onChange={(e) => setCreateForm({ ...createForm, year: Number(e.target.value) })} min={2000} max={2035} />
+              </div>
+              <div>
+                <Label className="text-xs">Difficulty</Label>
+                <Select value={createForm.difficulty} onValueChange={(v) => setCreateForm({ ...createForm, difficulty: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Easy">Easy</SelectItem>
+                    <SelectItem value="Medium">Medium</SelectItem>
+                    <SelectItem value="Hard">Hard</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Correct</Label>
+                <Select value={createForm.correct_answer} onValueChange={(v) => setCreateForm({ ...createForm, correct_answer: v })}>
+                  <SelectTrigger data-testid="create-correct"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {['A', 'B', 'C', 'D'].map((k) => <SelectItem key={k} value={k}>{k}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs">Question text *</Label>
+              <Textarea rows={3} value={createForm.question_text} onChange={(e) => setCreateForm({ ...createForm, question_text: e.target.value })} placeholder="Type question text (LaTeX like $x^2$ supported downstream)…" data-testid="create-qtext" />
+            </div>
+
+            <div>
+              <Label className="text-xs">Question image (optional)</Label>
+              <div className="flex gap-2 items-center">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleImageUpload(e.target.files?.[0])}
+                  disabled={uploading}
+                  className="text-xs flex-1"
+                  data-testid="create-image-upload"
+                />
+                {uploading && <Loader2 className="h-4 w-4 animate-spin text-slate-400" />}
+              </div>
+              {createForm.question_image_url && (
+                <div className="mt-2 flex items-center gap-2">
+                  <img
+                    src={createForm.question_image_url.startsWith('/') ? `${BACKEND}${createForm.question_image_url}` : createForm.question_image_url}
+                    alt="preview"
+                    className="h-20 rounded border"
+                  />
+                  <Button size="sm" variant="ghost" onClick={() => setCreateForm({ ...createForm, question_image_url: '' })}>Remove</Button>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              {['A', 'B', 'C', 'D'].map((k) => (
+                <div key={k}>
+                  <Label className="text-xs">Option {k} *</Label>
+                  <Input
+                    value={createForm.options[k]}
+                    onChange={(e) => setCreateForm({ ...createForm, options: { ...createForm.options, [k]: e.target.value } })}
+                    placeholder={`Option ${k}`}
+                    data-testid={`create-opt-${k}`}
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div>
+              <Label className="text-xs">Solution / explanation (optional)</Label>
+              <Textarea rows={2} value={createForm.solution_text} onChange={(e) => setCreateForm({ ...createForm, solution_text: e.target.value })} />
+            </div>
+
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={createForm.is_sample}
+                onChange={(e) => setCreateForm({ ...createForm, is_sample: e.target.checked })}
+                data-testid="create-is-sample"
+              />
+              <Star className={`h-4 w-4 ${createForm.is_sample ? 'fill-amber-400 text-amber-400' : 'text-slate-400'}`} />
+              Mark as sample (shows on public /sample-questions landing page)
+            </label>
+
+            <div className="flex gap-2 pt-3 border-t">
+              <Button variant="outline" className="flex-1" onClick={() => setCreateOpen(false)}>Cancel</Button>
+              <Button
+                className="flex-1 bg-indigo-600 hover:bg-indigo-700"
+                onClick={handleCreateSingle}
+                disabled={saving || uploading}
+                data-testid="create-save-btn"
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Plus className="h-4 w-4 mr-1" /> Save Question</>}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 

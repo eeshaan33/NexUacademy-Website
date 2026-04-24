@@ -1,8 +1,11 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { BookOpen, Award, Lock, ChevronRight, ArrowLeft } from 'lucide-react';
+import api from '../utils/api';
 
-const SAMPLE = [
+const BACKEND = process.env.REACT_APP_BACKEND_URL;
+
+const FALLBACK = [
   {
     id: 1,
     number: 34,
@@ -53,6 +56,34 @@ const diffColors = {
 
 const SampleQuestions = () => {
   const navigate = useNavigate();
+  const [questions, setQuestions] = useState(FALLBACK);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await api.get('/questions/samples', { params: { limit: 2 } });
+        const fetched = (data?.samples || []).map((q, i) => ({
+          id: q.question_id || i,
+          number: 100 + i + 1,
+          subject: q.subject,
+          chapter: q.chapter,
+          topic: q.topic,
+          difficulty: q.difficulty || 'Medium',
+          type: q.questionType === 'Multiple' ? 'Multiple Correct' : 'Single Correct',
+          year: q.year,
+          examType: q.exam_type?.replace('_', ' '),
+          imageUrl: q.question_image_url
+            ? (q.question_image_url.startsWith('/') ? `${BACKEND}${q.question_image_url}` : q.question_image_url)
+            : null,
+          questionText: q.question_text || q.questionText,
+          options: ['A', 'B', 'C', 'D'].map((k) => q.options?.[k] ? `(${k.toLowerCase()}) ${q.options[k]}` : null).filter(Boolean),
+        }));
+        if (fetched.length >= 2) setQuestions(fetched);
+        else if (fetched.length === 1) setQuestions([fetched[0], FALLBACK[0]]);
+      } catch { /* fall back to hardcoded */ }
+    })();
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50" data-testid="sample-questions-page">
       <div className="bg-gradient-to-r from-indigo-700 to-purple-700 text-white py-12 px-4">
@@ -79,7 +110,7 @@ const SampleQuestions = () => {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 py-10 space-y-6">
-        {SAMPLE.map((q) => (
+        {questions.map((q) => (
           <div key={q.id} className="bg-white rounded-2xl shadow-lg overflow-hidden" data-testid={`sample-q${q.number}`}>
             <div className="bg-gradient-to-r from-slate-50 to-indigo-50 p-5 border-b">
               <div className="flex flex-wrap items-center gap-2 mb-2">

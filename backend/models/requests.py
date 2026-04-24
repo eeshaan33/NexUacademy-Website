@@ -192,6 +192,26 @@ class BulkImportRequest(BaseModel):
     replace_existing: bool = False
 
 
+class SingleQuestionCreate(BaseModel):
+    """Admin create-one-question form."""
+    exam_type: Literal["JEE_Main", "JEE_Advanced", "NEET"]
+    subject: Literal["Physics", "Chemistry", "Mathematics", "Biology"]
+    chapter: str = Field(..., min_length=1, max_length=120)
+    topic: str = Field("", max_length=120)
+    year: int = Field(..., ge=2000, le=2035)
+    difficulty: Literal["Easy", "Medium", "Hard"] = "Medium"
+    question_text: str = Field(..., min_length=1)
+    question_image_url: Optional[str] = ""
+    options: Dict[str, str] = Field(..., description="Keys A/B/C/D")
+    correct_answer: Literal["A", "B", "C", "D"]
+    marks: int = 4
+    negative_marks: int = -1
+    solution_text: Optional[str] = ""
+    solution_youtube_url: Optional[str] = ""
+    solution_timestamp: int = 0
+    is_sample: bool = False
+
+
 # ---------- Student Suggestions ----------
 
 class SuggestionCreateRequest(BaseModel):
