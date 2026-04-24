@@ -90,6 +90,10 @@ Build a comprehensive JEE/NEET coaching platform with a Teacher Dashboard, Stude
 - [x] **Dynamic Sample Questions API** — `/sample-questions` page now fetches questions from `GET /api/questions/samples` (returns all questions with `is_sample=True`). Public route, no auth needed. Falls back to static content if no sample questions exist.
 - [x] **`is_sample` field on questions** — Added boolean property on `questions` collection; admin-controllable via both single-question creator and (future) bulk CSV flag.
 
+### Phase 10 - Deployment Readiness (Completed - Feb 2026)
+- [x] **N+1 Query Elimination** — `analytics_routes.get_subject_wise_performance`, `get_chapter_wise_performance`, `get_weak_topics`, and `test_routes.submit_test` now bulk-fetch all referenced questions in a single `$in` query and use an in-memory `question_map` for O(1) lookups. Prevents timeouts on large attempt datasets in production.
+- [x] **Deployment Health Check Passed** — All checks green: env files OK, no hardcoded URLs/secrets, CORS configured, supervisor valid, auth redirects use `window.location.origin`, queries optimized.
+
 ## Test Credentials
 - Student: student@test.com / password123 (batch: JEE Mains 2027)
 - Teacher: teacher@test.com / password123
