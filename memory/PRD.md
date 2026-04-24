@@ -85,6 +85,11 @@ Build a comprehensive JEE/NEET coaching platform with a Teacher Dashboard, Stude
 - [x] **Landing content refresh** — Replaced fake testimonials with REAL student data (Harshit AIR 916 IIT Guwahati, Tanishq Saxena AIR 341 IIT Kharagpur, Samyak Rai INCHO Qualifier IIT Hyderabad). Added `VideoTestimonials` (3 YouTube Shorts with modal player), `RealResults` (achievement cards + summary stats), `YouTubeSection` (channel embed + Subscribe CTA). Added YouTube icon to social links footer.
 - [x] **Sample Questions page** — New public `/sample-questions` route with 2 real JEE Advanced 2023 Chemistry questions (Dry Ice Sublimation, Raoult's Law) + locked-solution "Sign up for free" CTA.
 
+### Phase 9 - Single-Question Creator & Dynamic Samples (Completed - Feb 2026)
+- [x] **Admin Single-Question Creator** — In `AdminPanel → PYQ Bank` tab, new form to create one question at a time with all fields (exam, subject, chapter, year, difficulty, question text, 4 options, correct answer, explanation). Supports image upload via Emergent Object Storage (`/api/upload/image`) with preview. Includes an `is_sample` toggle to mark the question as a public sample.
+- [x] **Dynamic Sample Questions API** — `/sample-questions` page now fetches questions from `GET /api/questions/samples` (returns all questions with `is_sample=True`). Public route, no auth needed. Falls back to static content if no sample questions exist.
+- [x] **`is_sample` field on questions** — Added boolean property on `questions` collection; admin-controllable via both single-question creator and (future) bulk CSV flag.
+
 ## Test Credentials
 - Student: student@test.com / password123 (batch: JEE Mains 2027)
 - Teacher: teacher@test.com / password123
@@ -109,19 +114,22 @@ Build a comprehensive JEE/NEET coaching platform with a Teacher Dashboard, Stude
 ### Existing
 - `/api/auth/*`, `/api/admin/*`, `/api/teacher/{classes,tests,students}/*`, `/api/student/{classes,tests}/*`, `/api/upload/image`, `/api/push/*`, `/api/bookmarks/*`
 
+### Questions (Admin / Public)
+- `GET /api/questions/samples` - Public. Returns questions flagged `is_sample=True` for the `/sample-questions` landing page.
+- `POST /api/questions/single` - Admin-only. Creates a single question with optional image URL and `is_sample` flag.
+
 ## Prioritized Backlog
 
 ### P1
-- Extend Pydantic refactor to custom_test_routes, question_routes, analytics_routes
-- "Resume in-progress attempt" UX for custom tests
-- Admin "Seed PYQ bank" tool (currently questions collection is populated manually)
+- Phase 2 "Manage Students" UI (admin bulk-assign batch)
+- UI polish: mobile profile button, hamburger menu transparency, minor copy changes
 
 ### P2
-- Phase 2 "Manage Students" UI (admin bulk-assign batch)
 - Video Lectures section
 - Study Plans (AI-powered recommendations via EMERGENT_LLM_KEY)
 - Profile editing + avatar upload
 - Share/challenge features for Leaderboard gamification
+- Extend `is_sample` flag into bulk CSV importer
 
 ### Refactoring
 - Delete legacy `services/class_reminders.py` (superseded by unified `reminder_scheduler.py`)
