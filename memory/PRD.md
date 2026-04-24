@@ -65,6 +65,13 @@ Build a comprehensive JEE/NEET coaching platform with a Teacher Dashboard, Stude
 - [x] **Custom Batch Management** — Teachers can create/delete their own batches via `BatchManagerDialog`; predefined batches remain. Merge-view in `/batches/`.
 - [x] **Real Bookmarks Page** — Search + remove your saved questions; empty state links back to PYQ.
 
+### Phase 6 - Bookmarks, Pydantic & Custom Tests (Completed - Feb 2026)
+- [x] **PYQ Bookmark Toggle** — Bookmark/BookmarkCheck icon on PYQ question viewer; uses `/api/bookmarks/ids` for fast toggle state.
+- [x] **TestResults Bookmark Toggle** — Per-question bookmark on `/test-results/:attemptId` (for both correct & incorrect). Stores snapshot so bookmarks stay renderable.
+- [x] **Unified Bookmarks Backend** — `{source, question_id | (test_id+question_number), snapshot}` model. Endpoints: `POST /bookmarks/`, `DELETE /bookmarks/by-question`, `GET /bookmarks/ids`, `GET /bookmarks/`, `DELETE /bookmarks/{id}`.
+- [x] **Pydantic Request Validation** — New `models/requests.py` with `TestCreateRequest`, `QuestionAddRequest`, `TestUpdateRequest`, `ClassCreateRequest`. Invalid payloads now return 422 with field-level errors.
+- [x] **Custom Test Builder** — `/my-tests` full flow: Home (history) → Wizard (Step 1: exam/difficulty/years/duration, Step 2: chapter picker with per-chapter count) → Generate → Ready screen → `/my-tests/take/:testId` test taker with timer + palette → Submit → results screen.
+
 ## Test Credentials
 - Student: student@test.com / password123 (batch: JEE Mains 2027)
 - Teacher: teacher@test.com / password123
@@ -92,16 +99,18 @@ Build a comprehensive JEE/NEET coaching platform with a Teacher Dashboard, Stude
 ## Prioritized Backlog
 
 ### P1
-- Pydantic models refactor across all write endpoints (test create, class create, question add)
-- Student PYQ bookmarking flow (button on PYQ questions + from TestResults)
+- Extend Pydantic refactor to custom_test_routes, question_routes, analytics_routes
+- "Resume in-progress attempt" UX for custom tests
+- Admin "Seed PYQ bank" tool (currently questions collection is populated manually)
 
 ### P2
-- Phase 2 "Manage Students" UI (admin assign batch in bulk)
-- Custom Test Builder rebuild (currently placeholder)
+- Phase 2 "Manage Students" UI (admin bulk-assign batch)
 - Video Lectures section
 - Study Plans (AI-powered recommendations via EMERGENT_LLM_KEY)
-- Profile editing
+- Profile editing + avatar upload
+- Share/challenge features for Leaderboard gamification
 
 ### Refactoring
-- Consolidate two reminder services (`class_reminders.py` can be deleted; `reminder_scheduler.py` now covers both)
-- Break up `server.py` startup logic into `startup/` module (minor)
+- Delete legacy `services/class_reminders.py` (superseded by unified `reminder_scheduler.py`)
+- Consolidate `tests` vs `teacher_tests` collections (two code paths exist)
+- Break up `server.py` startup into `startup/` module
