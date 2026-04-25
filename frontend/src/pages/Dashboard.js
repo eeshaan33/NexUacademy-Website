@@ -14,7 +14,9 @@ import {
   Target,
   Trophy,
   TrendingUp,
-  Flame
+  Flame,
+  Play,
+  ExternalLink
 } from 'lucide-react';
 import api from '../utils/api';
 
@@ -22,6 +24,8 @@ const Dashboard = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [resumeTests, setResumeTests] = useState([]);
+  const [liveClasses, setLiveClasses] = useState([]);
 
   useEffect(() => {
     setPageTitle('Student Dashboard');
@@ -38,9 +42,28 @@ const Dashboard = () => {
         setLoading(false);
       }
     };
-
     fetchStats();
   }, []);
+
+  // Fetch in-progress tests + upcoming/live classes for resume widget
+  useEffect(() => {
+    if (user?.role !== 'student') return;
+    (async () => {
+      try {
+        const t = await api.get('/student/tests/assigned');
+        setResumeTests((t.data.tests || []).filter(x => x.attempt_status === 'in_progress'));
+      } catch {}
+      try {
+        const c = await api.get('/student/classes/my-classes');
+        const now = Date.now();
+        const upcoming = (c.data.classes || []).filter(cl => {
+          const t = new Date(cl.scheduled_date_time).getTime();
+          return t + (cl.duration || 60) * 60 * 1000 > now; // not yet ended
+        }).slice(0, 3);
+        setLiveClasses(upcoming);
+      } catch {}
+    })();
+  }, [user]);
 
   // Redirect teachers to teacher dashboard (after hooks)
   if (user?.role === 'teacher') {
@@ -116,6 +139,62 @@ const Dashboard = () => {
             You're making great progress in your JEE journey.
           </p>
         </div>
+
+        {/* Resume widget — surfaces in-progress tests & live classes after re-login */}
+        {(resumeTests.length > 0 || liveClasses.length > 0) && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4" data-testid="resume-widget">
+            {resumeTests.length > 0 && (
+              <Card className="border-0 shadow-card bg-amber-50 border-l-4 border-l-amber-500">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2 text-amber-900">
+                    <Play className="h-4 w-4" /> Resume Your Test
+                  </CardTitle>
+                  <CardDescription className="text-amber-700">
+                    You have {resumeTests.length} test{resumeTests.length > 1 ? 's' : ''} in progress. Pick up where you left off — your answers are auto-saved.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2 pt-0">
+                  {resumeTests.slice(0, 3).map(t => (
+                    <Link key={t.test_id} to="/assigned-tests" className="flex items-center justify-between p-3 bg-white rounded-lg hover:shadow-sm transition" data-testid={`resume-test-${t.test_id}`}>
+                      <div>
+                        <p className="font-semibold text-slate-900">{t.test_name}</p>
+                        <p className="text-xs text-slate-500">{t.subject} · {t.total_questions} Q · {t.duration} min</p>
+                      </div>
+                      <Button size="sm" className="bg-amber-500 hover:bg-amber-600">
+                        Continue <Play className="h-3 w-3 ml-1" />
+                      </Button>
+                    </Link>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+            {liveClasses.length > 0 && (
+              <Card className="border-0 shadow-card bg-indigo-50 border-l-4 border-l-indigo-500">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2 text-indigo-900">
+                    <Video className="h-4 w-4" /> Upcoming Classes
+                  </CardTitle>
+                  <CardDescription className="text-indigo-700">
+                    Classes scheduled for your batch. Click to join when live.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2 pt-0">
+                  {liveClasses.map(c => (
+                    <Link key={c.class_id} to="/classes" className="flex items-center justify-between p-3 bg-white rounded-lg hover:shadow-sm transition" data-testid={`upcoming-class-${c.class_id}`}>
+                      <div>
+                        <p className="font-semibold text-slate-900">{c.title}</p>
+                        <p className="text-xs text-slate-500">{c.subject} · {new Date(c.scheduled_date_time).toLocaleString()}</p>
+                      </div>
+                      <Button size="sm" variant="outline">
+                        View <ExternalLink className="h-3 w-3 ml-1" />
+                      </Button>
+                    </Link>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

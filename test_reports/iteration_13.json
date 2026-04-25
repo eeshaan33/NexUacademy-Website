@@ -1,0 +1,84 @@
+{
+  "summary": "Iteration 13 — Validated all 7 fixes for batch IDs, roll numbers, profile page, teacher class scheduling notifications, students-by-batch filter, in-app notifications, and admission flow with batch_code. Backend: 19/19 pytest tests pass on /api/batches/* (predefined codes JEEM2027/JEEM2028/JEEM2029/JEEA2027/JEEA2028 returned with code field; by-code lookup works incl. lowercase; admin can create batch with auto/custom alphanumeric code; non-alphanumeric and duplicate codes rejected with 400; predefined batches non-deletable; unauth POST 401/403), /api/admissions/submit with batch_code (200 creates user with NXU- roll_number + batch_id='JEE Mains 2027'; bad batch_code returns 400), /api/admissions/me (student returns full profile with batch+roll, teacher 403), /api/teacher/students (>0 total AND >0 filtered by 'JEE Mains 2027'), /api/teacher/classes/create (notifies students, response includes count, student receives in-app notification visible at /api/notifications, class appears in /api/student/classes/my-classes), /api/student/tests/assigned (200, list). Frontend: Landing /landing hero pill = '8+ Years Experience' (verified, no '7+ Years Experience' text remains in hero); /admin Batches tab shows all 5 predefined batches with codes + 'Create New Batch' card with name/year/optional Custom Batch ID inputs; student@test.com /profile shows full info (Test Student, NXU-26P7PABT, JEE Mains 2027, JEEM2027 join code), Personal Details + Contact + Academic & Account sections; Dashboard shows 'Upcoming Classes' card with the test class created during testing; bell icon shows 'New Class Scheduled - TEST_NotifyClass_…' notification; admission Step 1 form renders correctly. End-to-end class scheduling → notification flow verified.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "LandingPage stat card + founder bio",
+        "issue": "Hero pill correctly says '8+ Years Experience', but stat card still says '7+ Years Teaching' (LandingPage.js line 322) and founder section header still says '7+ Years Teaching Excellence' (line 632). Inconsistent — request was to switch from 7+ to 8+. Hero is fixed but other two strings missed.",
+        "selector": "text=7+ Years Teaching",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Admission Step 1",
+        "issues": [
+          "Date of Birth uses native browser <input type='date'> picker instead of shadcn Calendar component (pre-existing — not part of this iteration's changes)."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter13_batches.py",
+    "/app/test_reports/pytest/iter13_results.xml"
+  ],
+  "action_items": [
+    "Update LandingPage.js: change '7+ Years Teaching' (line 322 stat card) and '7+ Years Teaching Excellence' (line 632 founder section) to '8+' to be consistent with the hero pill that now says '8+ Years Experience'."
+  ],
+  "critical_code_review_comments": [
+    "batch_service.py: _PREDEFINED_CODE_MAP gives deterministic codes for predefined batches — good for stable links. _generate_code excludes O/I/0/1 to avoid confusion. _unique_code retries up to 20 times, then falls back to 10-char code (good).",
+    "admission_routes.py: submit_admission correctly resolves batch via find_batch_by_code first, then falls back to course_applying as legacy id; user document now stores batch_id, batch_code, roll_number — fixing the data-layer gap that caused all downstream failures (teacher filter, my-classes, push notifications). /admissions/me hides photo/id_proof/signature in projection (good — keeps payload small).",
+    "migrations.py backfill_student_batches_and_rolls runs on startup and is idempotent (only updates users missing batch_id / roll_number). Good — safe to leave on.",
+    "push_service.py: now ALWAYS creates an in-app notification regardless of whether push_subscription exists — this is the fix that makes the bell work for all students.",
+    "batch_routes.py POST /batches/ uppercases supplied codes and validates isalnum before insert; checks duplicate code and predefined-name collision. DELETE correctly rejects predefined ids and unassigns batch_id from users when a batch is removed (good cascade)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter13_batches.py (new — 19 tests)"
+  ],
+  "success_rate": {
+    "backend": "100% (19/19 pytest)",
+    "frontend": "All major flows verified: profile page renders full info incl roll number + batch code; admin Batches tab shows 5 predefined codes + Create UI; bell shows new-class notification; dashboard shows Upcoming Classes; landing hero shows 8+ Years Experience. Minor issue: 7+ still shown in stat card / founder bio."
+  },
+  "test_credentials": {
+    "admin": "admin@nexuacademy.com / nexuacademy123",
+    "teacher": "teacher@test.com / password123",
+    "student": "student@test.com / password123 (batch JEE Mains 2027, roll NXU-26P7PABT)"
+  },
+  "seed_data_creation": "Backend tests create TEST_Batch_<rand> custom batches (deleted in same test), TEST_Student_<rand> admission via /admissions/submit (user kept — uses unique uuid email so no collision), TEST_NotifyClass_<rand> teacher class (best-effort cleanup; one ‘TEST_NotifyClass_80aa91’ remained visible to student during UI verification — harmless test data).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "All 7 listed fixes work end-to-end. Predefined batch codes: JEEM2027/JEEM2028/JEEM2029/JEEA2027/JEEA2028. Roll number format: NXU-<YY><6 alphanumeric, no O/I/0/1>. Endpoints: GET /api/batches/, GET /api/batches/by-code/{code}, POST /api/batches/ (admin/teacher), DELETE /api/batches/{batch_id}, GET /api/admissions/me (student-only, returns user+admission+batch), POST /api/admissions/submit (now requires batch_code optionally; falls back to course_applying). Backend startup runs backfill_student_batches_and_rolls. Push/notify_students_about_class always creates in-app notifications now. Open thread for main agent: stat card + founder bio still say '7+ Years Teaching' on LandingPage.js while hero says '8+ Years Experience' — text inconsistency only.",
+  "features_tested": {
+    "batches_list_with_predefined_codes": "PASSED",
+    "batches_by_code_valid_and_404": "PASSED",
+    "batches_by_code_lowercase_normalization": "PASSED",
+    "batches_create_admin_auto_code": "PASSED",
+    "batches_create_admin_custom_alphanumeric_code": "PASSED",
+    "batches_create_rejects_non_alphanumeric": "PASSED",
+    "batches_create_rejects_duplicate_code": "PASSED",
+    "batches_predefined_cannot_delete": "PASSED",
+    "batches_create_unauth_403": "PASSED",
+    "admission_submit_with_valid_batch_code": "PASSED — user gets roll_number NXU-* + batch_id 'JEE Mains 2027'",
+    "admission_submit_invalid_batch_code_400": "PASSED",
+    "profile_admissions_me_student": "PASSED — returns batch_id + roll_number after backfill",
+    "profile_admissions_me_teacher_403": "PASSED",
+    "teacher_students_total_nonzero": "PASSED",
+    "teacher_students_filter_by_jee_mains_2027_nonzero": "PASSED",
+    "teacher_create_class_returns_notified_count": "PASSED",
+    "student_receives_in_app_notification": "PASSED",
+    "student_my_classes_includes_new_class": "PASSED",
+    "student_assigned_tests_endpoint": "PASSED",
+    "frontend_landing_hero_8_plus_years": "PASSED",
+    "frontend_admin_batches_tab_renders_5_predefined": "PASSED",
+    "frontend_profile_page_full_info_incl_roll_and_code": "PASSED",
+    "frontend_dashboard_upcoming_classes_card": "PASSED",
+    "frontend_bell_shows_new_class_notification": "PASSED",
+    "frontend_admission_step1_form_validation": "PASSED (blocks Next on missing required fields)"
+  },
+  "rca_of_issue": "Original main-agent fix correctly added user.batch_id write in /admissions/submit and a startup migration to backfill existing users — this fixes the root cause of teacher-batch-filter showing 0, my-classes/assigned-tests being empty, and notifications never reaching the bell. The push_service was also updated to ALWAYS insert an in-app notification (previously gated on push_subscription existence). Verified end-to-end: created class via teacher → student saw it in bell + /classes + dashboard upcoming. The only remaining miss is two stale '7+ Years Teaching' strings in LandingPage.js (lines 322, 632) — hero was updated but supporting copy was not."
+}

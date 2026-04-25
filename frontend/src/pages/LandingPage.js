@@ -177,7 +177,7 @@ export default function LandingPage() {
               </button>
             </motion.div>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 0.7 }} transition={{ delay: 1.2 }} className="text-sm flex flex-wrap gap-4">
-              <span>7+ Years Experience</span><span>|</span><span>1000+ Students</span><span>|</span><span>IIT Kharagpur Alumni</span>
+              <span>8+ Years Experience</span><span>|</span><span>1000+ Students</span><span>|</span><span>IIT Kharagpur Alumni</span>
             </motion.div>
           </div>
           <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.6, duration: 0.8 }}
@@ -191,7 +191,7 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto px-4 pb-16 relative z-10">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { icon: Users, num: 7, suffix: '+', label: 'Years Teaching' },
+              { icon: Users, num: 8, suffix: '+', label: 'Years Teaching' },
               { icon: GraduationCap, num: 1000, suffix: '+', label: 'Students Mentored' },
               { icon: Award, label: 'IIT KGP', text: 'IIT KGP', sublabel: 'Alumni' },
               { icon: Trophy, num: 95, suffix: '%', label: 'Success Rate' },
@@ -657,7 +657,7 @@ export default function LandingPage() {
                     <div>
                       <h4 className="font-bold mb-3 flex items-center gap-2" style={{ color: BRAND.navy }}><Beaker size={18} /> Chemistry Expertise</h4>
                       <div className="space-y-3">
-                        {[{ label: 'Organic Chemistry', pct: 100 }, { label: 'Physical Chemistry', pct: 100 }, { label: 'Inorganic Chemistry', pct: 100 }, { label: 'Thermodynamics', pct: 95 }, { label: 'Reaction Mechanisms', pct: 100 }].map(s => (
+                        {[{ label: 'Organic Chemistry', pct: 100 }, { label: 'Physical Chemistry', pct: 100 }, { label: 'Inorganic Chemistry', pct: 100 }, { label: 'Thermodynamics', pct: 100 }, { label: 'Reaction Mechanisms', pct: 100 }].map(s => (
                           <div key={s.label}>
                             <div className="flex justify-between text-sm mb-1"><span style={{ color: BRAND.textDark }}>{s.label}</span><span style={{ color: BRAND.navy }}>{s.pct}%</span></div>
                             <div className="h-2 rounded-full bg-gray-200"><div className="h-full rounded-full transition-all duration-1000" style={{ width: `${s.pct}%`, background: BRAND.navy }} /></div>

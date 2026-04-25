@@ -102,9 +102,11 @@ const Layout = ({ children }) => {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem>
-                    <User className="mr-2 h-4 w-4" />
-                    <span>Profile</span>
+                  <DropdownMenuItem asChild>
+                    <Link to="/profile" className="cursor-pointer" data-testid="profile-menu-item">
+                      <User className="mr-2 h-4 w-4" />
+                      <span>Profile</span>
+                    </Link>
                   </DropdownMenuItem>
                   {user?.role === 'teacher' && (
                     <>

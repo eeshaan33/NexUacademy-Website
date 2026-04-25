@@ -11,6 +11,7 @@ import bcrypt
 from middleware.auth import get_current_user
 from pydantic import BaseModel, EmailStr
 from services.email_service import send_admission_confirmation_email
+from services.batch_service import find_batch_by_code, generate_roll_number
 
 router = APIRouter(prefix="/admissions", tags=["admissions"])
 
@@ -28,6 +29,7 @@ class AdmissionForm(BaseModel):
     state: str
     pincode: str
     course_applying: str
+    batch_code: Optional[str] = None
     photo_base64: Optional[str] = None
     id_proof_base64: Optional[str] = None
     signature_base64: Optional[str] = None
@@ -44,13 +46,29 @@ async def submit_admission(form: AdmissionForm, request: Request, response: Resp
             status_code=400,
             detail="This email is already registered. Please login instead."
         )
-    
-    # Generate unique admission ID
+
+    # Resolve batch via code (preferred) or fallback to course_applying as legacy id
+    batch_doc = None
+    if form.batch_code:
+        batch_doc = await find_batch_by_code(form.batch_code)
+        if not batch_doc:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid batch ID. Please ask your teacher/admin for the correct join code."
+            )
+    if not batch_doc:
+        # Fallback: treat course_applying as a batch name/id
+        batch_doc = await db.batches.find_one({"id": form.course_applying}, {"_id": 0})
+    batch_id = batch_doc["id"] if batch_doc else form.course_applying
+
+    # Generate unique admission ID + roll number
     admission_id = f"ADM{datetime.now().strftime('%Y%m%d')}{uuid.uuid4().hex[:6].upper()}"
-    
+    roll_number = await generate_roll_number()
+
     # Create admission document
     admission_doc = {
         "admission_id": admission_id,
+        "roll_number": roll_number,
         "student_name": form.student_name,
         "father_name": form.father_name,
         "mother_name": form.mother_name,
@@ -63,6 +81,8 @@ async def submit_admission(form: AdmissionForm, request: Request, response: Resp
         "state": form.state,
         "pincode": form.pincode,
         "course_applying": form.course_applying,
+        "batch_code": (form.batch_code or "").upper() or None,
+        "batch_id": batch_id,
         "photo": form.photo_base64,
         "id_proof": form.id_proof_base64,
         "signature": form.signature_base64,
@@ -86,9 +106,22 @@ async def submit_admission(form: AdmissionForm, request: Request, response: Resp
         "password": hashed_password,
         "role": "student",
         "admission_id": admission_id,
-        "profile_pic": form.photo_base64[:100] if form.photo_base64 else None,  # Store reference only
+        "roll_number": roll_number,
+        "batch_id": batch_id,
+        "batch_code": (form.batch_code or "").upper() or None,
+        "course": form.course_applying,
+        "father_name": form.father_name,
+        "mother_name": form.mother_name,
+        "date_of_birth": form.date_of_birth,
+        "gender": form.gender,
+        "address": form.address,
+        "city": form.city,
+        "state": form.state,
+        "pincode": form.pincode,
+        "profile_pic": form.photo_base64,
         "phone_number": form.contact_number,
         "profile_complete": True,
+        "notifications_enabled": True,
         "created_at": datetime.now(timezone.utc),
         "last_login": datetime.now(timezone.utc)
     }
@@ -129,7 +162,9 @@ async def submit_admission(form: AdmissionForm, request: Request, response: Resp
         "email": form.email,
         "name": form.student_name,
         "role": "student",
-        "admission_id": admission_id
+        "admission_id": admission_id,
+        "roll_number": roll_number,
+        "batch_id": batch_id,
     }
     
     return {
@@ -139,6 +174,55 @@ async def submit_admission(form: AdmissionForm, request: Request, response: Resp
         "user": user_response,
         "email_status": email_result.get("status", "unknown")
     }
+
+@router.get("/me")
+async def get_my_admission(request: Request):
+    """Return the logged-in student's admission record + roll number for the Profile page."""
+    db = get_database()
+    user = await get_current_user(request)
+    if user.get("role") != "student":
+        raise HTTPException(status_code=403, detail="Only students have admission records")
+
+    admission = None
+    if user.get("admission_id"):
+        admission = await db.admissions.find_one(
+            {"admission_id": user["admission_id"]},
+            {"_id": 0, "photo": 0, "id_proof": 0, "signature": 0},
+        )
+
+    # Resolve batch info (name + code)
+    batch_info = None
+    if user.get("batch_id"):
+        batch_info = await db.batches.find_one({"id": user["batch_id"]}, {"_id": 0})
+
+    return {
+        "success": True,
+        "user": {
+            "user_id": user.get("user_id"),
+            "email": user.get("email"),
+            "name": user.get("name"),
+            "role": user.get("role"),
+            "roll_number": user.get("roll_number") or (admission or {}).get("roll_number"),
+            "admission_id": user.get("admission_id"),
+            "batch_id": user.get("batch_id"),
+            "batch_code": user.get("batch_code") or (batch_info or {}).get("code"),
+            "course": user.get("course") or (admission or {}).get("course_applying"),
+            "phone_number": user.get("phone_number"),
+            "father_name": user.get("father_name") or (admission or {}).get("father_name"),
+            "mother_name": user.get("mother_name") or (admission or {}).get("mother_name"),
+            "date_of_birth": user.get("date_of_birth") or (admission or {}).get("date_of_birth"),
+            "gender": user.get("gender") or (admission or {}).get("gender"),
+            "address": user.get("address") or (admission or {}).get("address"),
+            "city": user.get("city") or (admission or {}).get("city"),
+            "state": user.get("state") or (admission or {}).get("state"),
+            "pincode": user.get("pincode") or (admission or {}).get("pincode"),
+            "profile_pic": user.get("profile_pic"),
+            "created_at": user.get("created_at").isoformat() if hasattr(user.get("created_at"), "isoformat") else user.get("created_at"),
+        },
+        "admission": admission,
+        "batch": batch_info,
+    }
+
 
 @router.get("/list")
 async def list_admissions(request: Request, status: Optional[str] = None, limit: int = 50, skip: int = 0):

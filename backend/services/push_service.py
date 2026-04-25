@@ -31,11 +31,12 @@ async def send_push_notification(subscription_info: dict, payload: dict) -> bool
 async def notify_students_about_class(class_data: dict):
     db = get_database()
     batches = class_data.get("assigned_batches", [])
+    if not batches:
+        return 0
+    # ALL students in batch get an in-app notification (regardless of push_subscription)
     students = await db.users.find({
         "role": "student",
         "batch_id": {"$in": batches},
-        "notifications_enabled": True,
-        "push_subscription": {"$exists": True, "$ne": None},
     }).to_list(length=None)
 
     payload = {
@@ -44,14 +45,16 @@ async def notify_students_about_class(class_data: dict):
         "data": {"url": "/classes", "type": "class"},
     }
 
-    count = 0
+    push_count = 0
     for student in students:
+        # Only send web-push to those that have a subscription
         sub = student.get("push_subscription")
-        if sub:
+        if sub and student.get("notifications_enabled", True):
             ok = await send_push_notification(sub, payload)
             if ok:
-                count += 1
+                push_count += 1
         await db.notifications.insert_one({
+            "notification_id": f"notif_{__import__('uuid').uuid4().hex[:12]}",
             "user_id": student["user_id"],
             "type": "class",
             "title": "New Class Scheduled",
@@ -60,18 +63,19 @@ async def notify_students_about_class(class_data: dict):
             "is_read": False,
             "created_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
         })
-    logger.info(f"Notified {count} students (push) about class, {len(students)} in-app")
+    logger.info(f"Notified {push_count} students (push), {len(students)} in-app, about class {class_data.get('class_id')}")
     return len(students)
 
 
 async def notify_students_about_test(test_data: dict):
     db = get_database()
     batches = test_data.get("assigned_batches", [])
+    if not batches:
+        return 0
+    # ALL students in batch get an in-app notification
     students = await db.users.find({
         "role": "student",
         "batch_id": {"$in": batches},
-        "notifications_enabled": True,
-        "push_subscription": {"$exists": True, "$ne": None},
     }).to_list(length=None)
 
     payload = {
@@ -80,14 +84,15 @@ async def notify_students_about_test(test_data: dict):
         "data": {"url": "/assigned-tests", "type": "test"},
     }
 
-    count = 0
+    push_count = 0
     for student in students:
         sub = student.get("push_subscription")
-        if sub:
+        if sub and student.get("notifications_enabled", True):
             ok = await send_push_notification(sub, payload)
             if ok:
-                count += 1
+                push_count += 1
         await db.notifications.insert_one({
+            "notification_id": f"notif_{__import__('uuid').uuid4().hex[:12]}",
             "user_id": student["user_id"],
             "type": "test",
             "title": "New Test Assigned",
@@ -96,5 +101,5 @@ async def notify_students_about_test(test_data: dict):
             "is_read": False,
             "created_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
         })
-    logger.info(f"Notified {count} students (push) about test, {len(students)} in-app")
+    logger.info(f"Notified {push_count} students (push), {len(students)} in-app, about test {test_data.get('test_id')}")
     return len(students)

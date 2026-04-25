@@ -73,7 +73,7 @@ const StudentAnalytics = () => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Batches</SelectItem>
-            {batches.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+            {batches.map((b) => <SelectItem key={b.id} value={b.id}>{b.name} {b.code ? `(${b.code})` : ''}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
@@ -99,9 +99,14 @@ const StudentAnalytics = () => {
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-slate-900 truncate">{s.name}</p>
                     <p className="text-xs text-slate-400 truncate">{s.email}</p>
-                    {s.batch_id && (
-                      <span className="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full mt-1 inline-block">{s.batch_id}</span>
-                    )}
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {s.batch_id && (
+                        <span className="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full">{s.batch_id}</span>
+                      )}
+                      {s.roll_number && (
+                        <span className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full font-mono">{s.roll_number}</span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </CardContent>

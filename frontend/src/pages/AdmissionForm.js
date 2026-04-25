@@ -45,8 +45,10 @@ const AdmissionForm = ({ onComplete }) => {
     city: '',
     state: '',
     pincode: '',
-    course_applying: ''
+    course_applying: '',
+    batch_code: ''
   });
+  const [batchVerify, setBatchVerify] = useState({ status: 'idle', batch: null, error: '' });
   
   // File uploads
   const [photo, setPhoto] = useState(null);
@@ -230,8 +232,16 @@ const AdmissionForm = ({ onComplete }) => {
       }
     }
     if (stepNum === 2) {
-      if (!formData.address || !formData.city || !formData.state || !formData.pincode || !formData.course_applying) {
+      if (!formData.address || !formData.city || !formData.state || !formData.pincode) {
         toast.error('Please fill all required fields');
+        return false;
+      }
+      if (!formData.batch_code) {
+        toast.error('Please enter the Batch ID provided by your teacher/admin');
+        return false;
+      }
+      if (batchVerify.status !== 'ok') {
+        toast.error('Please verify your Batch ID first');
         return false;
       }
     }
@@ -617,20 +627,54 @@ const AdmissionForm = ({ onComplete }) => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="course_applying">Course Applying For *</Label>
-                  <select
-                    id="course_applying"
-                    name="course_applying"
-                    value={formData.course_applying}
-                    onChange={handleInputChange}
-                    className="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    data-testid="course-select"
-                  >
-                    <option value="">Select a course</option>
-                    {courses.map((course) => (
-                      <option key={course} value={course}>{course}</option>
-                    ))}
-                  </select>
+                  <Label htmlFor="batch_code">Batch ID *</Label>
+                  <p className="text-xs text-gray-500">Enter the alphanumeric Batch ID shared by your teacher/admin (e.g. JEEM2027)</p>
+                  <div className="flex gap-2">
+                    <Input
+                      id="batch_code"
+                      name="batch_code"
+                      value={formData.batch_code}
+                      onChange={(e) => {
+                        const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+                        setFormData(prev => ({ ...prev, batch_code: val }));
+                        setBatchVerify({ status: 'idle', batch: null, error: '' });
+                      }}
+                      placeholder="e.g. JEEM2027"
+                      className="font-mono uppercase tracking-wider"
+                      maxLength={16}
+                      data-testid="batch-code-input"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={!formData.batch_code || batchVerify.status === 'loading'}
+                      onClick={async () => {
+                        setBatchVerify({ status: 'loading', batch: null, error: '' });
+                        try {
+                          const res = await api.get(`/batches/by-code/${formData.batch_code}`);
+                          const b = res.data.batch;
+                          setBatchVerify({ status: 'ok', batch: b, error: '' });
+                          setFormData(prev => ({ ...prev, course_applying: b.id }));
+                          toast.success(`Batch verified: ${b.name}`);
+                        } catch (err) {
+                          setBatchVerify({ status: 'error', batch: null, error: 'Invalid Batch ID' });
+                          toast.error('Invalid Batch ID. Please double-check with your teacher.');
+                        }
+                      }}
+                      data-testid="batch-verify-btn"
+                    >
+                      {batchVerify.status === 'loading' ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Verify'}
+                    </Button>
+                  </div>
+                  {batchVerify.status === 'ok' && (
+                    <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 px-3 py-2 rounded">
+                      <CheckCircle className="h-4 w-4" />
+                      Joined: <span className="font-semibold">{batchVerify.batch.name}</span>
+                    </div>
+                  )}
+                  {batchVerify.status === 'error' && (
+                    <p className="text-sm text-red-600">{batchVerify.error}</p>
+                  )}
                 </div>
               </div>
             )}

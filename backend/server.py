@@ -84,6 +84,12 @@ async def startup_event():
     # Ensure admin user exists
     from routes.admin_routes import ensure_admin_user
     await ensure_admin_user()
+    # Seed batch codes + backfill existing students
+    try:
+        from services.migrations import backfill_student_batches_and_rolls
+        await backfill_student_batches_and_rolls()
+    except Exception as e:
+        logger.warning(f"Batch/roll backfill failed: {e}")
     # Initialize object storage
     try:
         from services.storage_service import init_storage

@@ -67,11 +67,11 @@ async def get_current_user(request: Request):
     return user_doc
 
 async def get_current_teacher(request: Request):
-    """Ensure current user is a teacher."""
+    """Ensure current user is a teacher or admin."""
     user = await get_current_user(request)
-    if user.get("role") != "teacher":
+    if user.get("role") not in ("teacher", "admin"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only teachers can access this resource"
+            detail="Only teachers or admins can access this resource"
         )
     return user

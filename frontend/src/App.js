@@ -20,6 +20,7 @@ import AdminPanel from "./pages/AdminPanel";
 import LandingPage from "./pages/LandingPage";
 import BookmarksPage from "./pages/BookmarksPage";
 import MyTestsPage from "./pages/MyTestsPage";
+import ProfilePage from "./pages/ProfilePage";
 
 // Teacher pages
 import TeacherDashboard from "./pages/teacher/TeacherDashboard";
@@ -95,6 +96,7 @@ function AppRouter() {
       <Route path="/classes" element={<ProtectedRoute><Layout><StudentClasses /></Layout></ProtectedRoute>} />
       <Route path="/analytics" element={<ProtectedRoute><Layout><AnalyticsDashboard /></Layout></ProtectedRoute>} />
       <Route path="/bookmarks" element={<ProtectedRoute><Layout><BookmarksPage /></Layout></ProtectedRoute>} />
+      <Route path="/profile" element={<ProtectedRoute><Layout><ProfilePage /></Layout></ProtectedRoute>} />
 
       {/* Test taking (no layout - fullscreen) */}
       <Route path="/take-test/:attemptId" element={<ProtectedRoute><SmartTestRouter /></ProtectedRoute>} />
