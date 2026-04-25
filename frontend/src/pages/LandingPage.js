@@ -218,7 +218,7 @@ export default function LandingPage() {
           </motion.div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
-              { icon: GraduationCap, title: 'IIT-Trained Faculty', desc: 'Learn from IIT Kharagpur Chemistry alumni with 7+ years of proven teaching experience at India\'s top coaching institutes' },
+              { icon: GraduationCap, title: 'IIT-Trained Faculty', desc: 'Learn from IIT Kharagpur Chemistry alumni with 8+ years of proven teaching experience at India\'s top coaching institutes' },
               { icon: BookOpen, title: 'Complete Curriculum', desc: 'Full syllabus coverage for JEE Mains, JEE Advanced, NEET & Olympiads with structured learning paths and regular assessments' },
               { icon: Monitor, title: 'Online Convenience', desc: 'Study anytime, anywhere with recorded lectures, live classes, doubt-clearing sessions, and 24/7 platform access' },
               { icon: Trophy, title: 'Track Record of Success', desc: 'Thousands of students successfully placed in IITs, NITs, AIIMS and top medical colleges across India' },
@@ -314,12 +314,12 @@ export default function LandingPage() {
             </blockquote>
             <p className="text-sm opacity-80 mb-8">&#8212; Nitin Saini</p>
             <p className="text-base opacity-85 leading-relaxed mb-8">
-              With a degree in Chemistry from IIT Kharagpur and over 7 years of teaching experience as HOD Chemistry at Vidyamandir Classes, Nitin Saini has mentored over 1,000 students to success in JEE, NEET, and Olympiad examinations.
+              With a degree in Chemistry from IIT Kharagpur and over 8 years of teaching experience as HOD Chemistry at Vidyamandir Classes, Nitin Saini has mentored over 1,000 students to success in JEE, NEET, and Olympiad examinations.
             </p>
             <div className="grid grid-cols-2 gap-4 mb-8">
               {[
                 { icon: GraduationCap, title: 'IIT Kharagpur Alumni', sub: 'Chemistry, 2013-2018' },
-                { icon: Briefcase, title: '7+ Years Teaching', sub: 'HOD at Vidyamandir Classes' },
+                { icon: Briefcase, title: '8+ Years Teaching', sub: 'HOD at Vidyamandir Classes' },
                 { icon: Beaker, title: 'Research Experience', sub: 'Sun Pharma & IIT KGP' },
                 { icon: Trophy, title: 'Award Winner', sub: 'SDM Bahadurgarh Recognition' },
               ].map((h, i) => (
@@ -390,7 +390,7 @@ export default function LandingPage() {
           <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-extrabold mb-4">Ready to Start Your Journey to Success?</motion.h2>
           <motion.p variants={fadeUp} className="text-xl opacity-85 mb-12">Join thousands of students achieving their dreams with NexUacademy's expert guidance</motion.p>
           <motion.div variants={fadeUp} className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12">
-            {[{ n: 1000, s: '+', l: 'Students' }, { n: 7, s: '+', l: 'Years' }, { n: 95, s: '%', l: 'Success Rate' }, { l: '24/7', text: '24/7', sublabel: 'Support' }].map((s, i) => (
+            {[{ n: 1000, s: '+', l: 'Students' }, { n: 8, s: '+', l: 'Years' }, { n: 95, s: '%', l: 'Success Rate' }, { l: '24/7', text: '24/7', sublabel: 'Support' }].map((s, i) => (
               <div key={i}>
                 <div className="text-4xl md:text-5xl font-bold">{s.text || <Counter end={s.n} suffix={s.s} />}</div>
                 <div className="text-sm opacity-70 mt-1">{s.sublabel || s.l}</div>
@@ -587,7 +587,7 @@ export default function LandingPage() {
                   <div className="space-y-8">
                     {[
                       { date: 'March 2026 - Present', icon: Rocket, title: 'Founder, NexUacademy', loc: 'India (Online)', desc: 'Founded NexUacademy to democratize quality JEE, NEET, and Olympiad coaching by making expert guidance accessible to every student.', badge: 'Current Venture', badgeColor: 'green' },
-                      { date: 'May 2018 - Present (7+ years)', icon: Users, title: 'HOD Chemistry, Vidyamandir Classes', loc: 'Dwarka, Delhi', desc: 'Leading the Chemistry department, developing innovative curriculum. Successfully guided 1,000+ students to secure ranks in IITs, NITs, AIIMS.', stats: '1000+ Students | 95% Success Rate' },
+                      { date: 'May 2018 - Present (8+ years)', icon: Users, title: 'HOD Chemistry, Vidyamandir Classes', loc: 'Dwarka, Delhi', desc: 'Leading the Chemistry department, developing innovative curriculum. Successfully guided 1,000+ students to secure ranks in IITs, NITs, AIIMS.', stats: '1000+ Students | 95% Success Rate' },
                       { date: 'May 2016 (3 months)', icon: Microscope, title: 'Summer Research Intern, Sun Pharma', loc: 'Gurgaon, Haryana', desc: 'Gained industry experience in pharmaceutical research and development, applying theoretical chemistry knowledge to real-world drug formulation.' },
                       { date: 'May 2015 (2 months)', icon: Beaker, title: 'Research Intern, IIT Kharagpur', loc: 'IIT Kharagpur', desc: 'Synthesis of Mono- and Disubstituted Divinyl Sulfones from Glycerol Derivatives under Professor Tanmaya Pathak.' },
                     ].map((n, i) => (
@@ -629,7 +629,7 @@ export default function LandingPage() {
                     {[
                       { icon: Trophy, title: 'Award from SDM Bahadurgarh', desc: 'Recognized for outstanding contribution to education sector and positive impact on student community.' },
                       { icon: GraduationCap, title: 'IIT Kharagpur Alumni', desc: 'Graduate of one of India\'s most prestigious institutes, consistently ranked among Asia\'s top engineering colleges.' },
-                      { icon: BookOpen, title: '7+ Years Teaching Excellence', desc: 'Consistent track record of producing top-ranked students in JEE and NEET examinations.' },
+                      { icon: BookOpen, title: '8+ Years Teaching Excellence', desc: 'Consistent track record of producing top-ranked students in JEE and NEET examinations.' },
                       { icon: Beaker, title: 'Research Contributions', desc: 'Advanced research in organic chemistry synthesis at IIT Kharagpur and industry research at Sun Pharma.' },
                       { icon: Star, title: 'Leadership at VMC', desc: 'HOD Chemistry - developed innovative curriculum and assessment methodologies.' },
                       { icon: Rocket, title: 'Founder, NexUacademy (2026)', desc: 'Founded NexUacademy to revolutionize online coaching for competitive examinations.' },

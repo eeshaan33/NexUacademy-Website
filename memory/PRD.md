@@ -94,6 +94,19 @@ Build a comprehensive JEE/NEET coaching platform with a Teacher Dashboard, Stude
 - [x] **N+1 Query Elimination** — `analytics_routes.get_subject_wise_performance`, `get_chapter_wise_performance`, `get_weak_topics`, and `test_routes.submit_test` now bulk-fetch all referenced questions in a single `$in` query and use an in-memory `question_map` for O(1) lookups. Prevents timeouts on large attempt datasets in production.
 - [x] **Deployment Health Check Passed** — All checks green: env files OK, no hardcoded URLs/secrets, CORS configured, supervisor valid, auth redirects use `window.location.origin`, queries optimized.
 
+### Phase 11 - Batch ID System, Profile Page & Connection Fixes (Completed - Feb 2026)
+- [x] **Centralized batch system with alphanumeric Batch IDs** — New `services/batch_service.py` + `batches` collection. Predefined batches auto-seeded with deterministic codes (`JEEM2027`, `JEEM2028`, `JEEM2029`, `JEEA2027`, `JEEA2028`). Custom batches get auto-generated 8-char alphanumeric codes (O/I/0/1 excluded for clarity) or admin-supplied codes.
+- [x] **Admin "Batches" tab in `/admin`** — Create/list/delete batches with copy-to-clipboard codes (`AdminBatchesPane.js`).
+- [x] **Admission form joins by Batch ID** — Step 2 now shows a Batch ID input + Verify button (calls `/api/batches/by-code/{code}`). Verified batch auto-fills the course; user document is created with `batch_id`, `batch_code`, and a unique `roll_number`.
+- [x] **Unique student roll numbers** — Format `NXU-<YY><6 alphanumeric>` (e.g. `NXU-26P7PABT`). Generated at admission time; backfilled on existing students at startup.
+- [x] **Connection fix: tests/classes now reach students** — Root cause was admission flow never wrote `user.batch_id`. Fixed in `submit_admission`. `services/migrations.py` runs at backend startup and idempotently backfills 19 existing students with `batch_id` (from `admissions.course_applying`) and roll numbers.
+- [x] **Connection fix: teacher Students filter** — "All batches" worked but per-batch filter returned 0 because no users had `batch_id`. Migration fixed it; teacher filter now returns the right students per batch.
+- [x] **Notification fix in `push_service`** — `notify_students_about_class` and `notify_students_about_test` now ALWAYS create in-app notifications for every student in the assigned batch (web push subscription is now optional, not required).
+- [x] **Profile page (`/profile`)** — New `ProfilePage.js` shows student avatar, name/email/role, copyable roll number + batch code, full personal/contact/academic details fetched from `GET /api/admissions/me`. Wired into avatar dropdown.
+- [x] **Resume widget on student dashboard** — When a student logs back in, the dashboard now surfaces yellow "Resume Your Test" cards for in-progress attempts and an "Upcoming Classes" card with quick links — no auto-submit.
+- [x] **`get_current_teacher` allows admins** — Admin can now create batches without a separate role-bypass.
+- [x] **Landing page consistency** — Hero pill, stat card, founder bio, mentor card, and timeline all updated to "8+ Years Teaching" (was "7+"). Founder Skills tab: Thermodynamics now 100%.
+
 ## Test Credentials
 - Student: student@test.com / password123 (batch: JEE Mains 2027)
 - Teacher: teacher@test.com / password123
@@ -121,6 +134,13 @@ Build a comprehensive JEE/NEET coaching platform with a Teacher Dashboard, Stude
 ### Questions (Admin / Public)
 - `GET /api/questions/samples` - Public. Returns questions flagged `is_sample=True` for the `/sample-questions` landing page.
 - `POST /api/questions/single` - Admin-only. Creates a single question with optional image URL and `is_sample` flag.
+
+### Batches (Phase 11)
+- `GET /api/batches/` - Public. Returns predefined + custom batches with `code` field.
+- `GET /api/batches/by-code/{code}` - Public. Verify a Batch ID (used by admission form). 404 on invalid.
+- `POST /api/batches/` - Teacher/Admin. Create a batch; auto-generates code if not supplied.
+- `DELETE /api/batches/{batch_id}` - Teacher/Admin. Predefined batches non-deletable; cascades `users.batch_id=null` for any students assigned.
+- `GET /api/admissions/me` - Student-only. Returns full profile (user + admission + batch) for the Profile page.
 
 ## Prioritized Backlog
 
