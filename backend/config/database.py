@@ -18,7 +18,8 @@ from supabase import create_client, Client
 logger = logging.getLogger(__name__)
 
 _POOL: Optional[asyncpg.Pool] = None
-_SUPABASE: Optional[Client] = None
+_SUPABASE_ADMIN: Optional[Client] = None
+_SUPABASE_ANON: Optional[Client] = None
 
 
 async def init_pool() -> asyncpg.Pool:
@@ -45,12 +46,19 @@ def get_pool() -> asyncpg.Pool:
 
 
 def get_supabase() -> Client:
-    global _SUPABASE
-    if _SUPABASE is None:
-        url = os.environ["SUPABASE_URL"]
-        key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
-        _SUPABASE = create_client(url, key)
-    return _SUPABASE
+    """Anonymous / session client — used for user auth (sign_in_with_password, get_user).
+    Returns a FRESH client each call so sign-in doesn't pollute a shared instance's headers."""
+    url = os.environ["SUPABASE_URL"]
+    key = os.environ["SUPABASE_ANON_KEY"]
+    return create_client(url, key)
+
+
+def get_supabase_admin() -> Client:
+    """Dedicated service-role client for admin operations (admin.create_user, storage, etc).
+    Each call returns a fresh client so login sessions cannot pollute its auth header."""
+    url = os.environ["SUPABASE_URL"]
+    key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+    return create_client(url, key)
 
 
 async def close_pool():

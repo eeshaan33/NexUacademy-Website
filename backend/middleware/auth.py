@@ -7,7 +7,7 @@ import jwt
 from fastapi import HTTPException, Request, status
 from jwt import PyJWKClient
 
-from config.database import get_pool, get_supabase
+from config.database import get_pool, get_supabase_admin
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ async def get_current_user(request: Request) -> dict:
     """Verify Supabase Auth JWT and return the merged profile dict.
     Adds convenience keys: `user_id`, `email`, `name`, `role`."""
     token = _read_token(request)
-    supabase = get_supabase()
+    supabase = get_supabase_admin()
     try:
         res = supabase.auth.get_user(token)
         u = res.user

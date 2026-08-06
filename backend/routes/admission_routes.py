@@ -8,7 +8,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, EmailStr
 
-from config.database import get_pool, get_supabase
+from config.database import get_pool, get_supabase, get_supabase_admin
 from middleware.auth import get_current_user
 
 router = APIRouter(prefix="/admissions", tags=["admissions"])
@@ -51,7 +51,7 @@ async def _unique_roll(conn) -> str:
 
 @router.post("/submit")
 async def submit_admission(form: AdmissionForm):
-    supabase = get_supabase()
+    admin_client = get_supabase_admin()
     pool = get_pool()
 
     # Verify batch code exists in DB (FK will fail otherwise)
@@ -64,9 +64,9 @@ async def submit_admission(form: AdmissionForm):
             raise HTTPException(status_code=400, detail=f"Batch '{code}' not recognised. Ask your teacher/admin for the correct Batch ID.")
         batch_id = row["id"]
 
-    # Create Supabase Auth user (email-confirmed)
+    # Create Supabase Auth user (email-confirmed) via service-role client
     try:
-        res = supabase.auth.admin.create_user({
+        res = admin_client.auth.admin.create_user({
             "email": form.email,
             "password": form.password,
             "email_confirm": True,
@@ -116,8 +116,9 @@ async def submit_admission(form: AdmissionForm):
             form.photo_base64, form.id_proof_base64, form.signature_base64,
         )
 
-    # Auto-login
-    session = supabase.auth.sign_in_with_password({"email": form.email, "password": form.password})
+    # Auto-login via a fresh anon client (each call returns a new client)
+    anon = get_supabase()
+    session = anon.auth.sign_in_with_password({"email": form.email, "password": form.password})
     return {
         "success": True,
         "message": "Admission submitted and account created",

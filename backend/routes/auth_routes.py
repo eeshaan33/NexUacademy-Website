@@ -13,7 +13,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, EmailStr, Field
 
-from config.database import get_pool, get_supabase
+from config.database import get_pool, get_supabase, get_supabase_admin
 from middleware.auth import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -54,7 +54,7 @@ async def login(payload: LoginRequest):
         "success": True,
         "access_token": res.session.access_token,
         "refresh_token": res.session.refresh_token,
-        "token": res.session.access_token,  # legacy client alias
+        "token": res.session.access_token,
         "expires_at": res.session.expires_at,
         "user": {
             "user_id": str(res.user.id),
@@ -69,13 +69,13 @@ async def login(payload: LoginRequest):
 
 @router.post("/signup")
 async def signup(payload: SignupRequest):
-    supabase = get_supabase()
+    admin_client = get_supabase_admin()
     metadata = {"name": payload.name, "role": payload.role}
     if payload.batch_code:
         metadata["batch_id"] = payload.batch_code.strip().upper()
 
     try:
-        res = supabase.auth.admin.create_user({
+        res = admin_client.auth.admin.create_user({
             "email": payload.email,
             "password": payload.password,
             "email_confirm": True,
@@ -88,7 +88,6 @@ async def signup(payload: SignupRequest):
         logger.exception("Signup failed")
         raise HTTPException(status_code=400, detail=f"Signup failed: {msg[:200]}")
 
-    # Update profile with extra fields (trigger created the base row)
     pool = get_pool()
     async with pool.acquire() as conn:
         await conn.execute(
@@ -99,8 +98,9 @@ async def signup(payload: SignupRequest):
             res.user.id, payload.name, payload.role, payload.phone_number,
         )
 
-    # Auto-login
-    session = supabase.auth.sign_in_with_password({"email": payload.email, "password": payload.password})
+    # Sign in via a fresh anon client for a valid session token
+    anon = get_supabase()
+    session = anon.auth.sign_in_with_password({"email": payload.email, "password": payload.password})
     return {
         "success": True,
         "access_token": session.session.access_token,

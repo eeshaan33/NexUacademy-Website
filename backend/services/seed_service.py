@@ -3,7 +3,7 @@ import logging
 import random
 import string
 
-from config.database import get_pool, get_supabase
+from config.database import get_pool, get_supabase_admin
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ def _roll() -> str:
 
 
 async def ensure_seed_users():
-    supabase = get_supabase()
+    supabase = get_supabase_admin()
     pool = get_pool()
 
     for s in SEEDS:

@@ -1,0 +1,45 @@
+{
+  "summary": "Supabase-migration retest of iteration 14's 3 critical fixes. All 37 tests in test_supabase_migration.py now PASS (100%, was 32/37). Confirmed: (1) POST /api/admissions/submit works AFTER a prior /api/auth/login — get_supabase() singleton bug is fixed via fresh-per-call anon + dedicated service-role client; (2) POST /api/upload/image returns a public https URL — bucket 'question-images' present and _ensure_bucket() idempotent; (3) POST /api/auth/signup succeeds back-to-back (3 signups in TestAdmissions/Auth flows post-login); (4) /api/auth/me returns 200 after login with no sign_out() polluting the client. Part 5 batch isolation now completes end-to-end: JEEM2027 student sees 1 class / 1 test / 1 announcement, NEX2028 student sees 0 of each. Bad batch code returns 400 with 'not recognised' on both /admissions/submit and /batches/by-code. Part 6 (question with option-image) saves options jsonb correctly and appears in /samples. All Zoom API-level flows (create/start/join/raise+lower-hand) pass. Frontend smoke: student login works, sidebar is correctly trimmed to Dashboard/My Classes/Live Classes.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "Zoom S2S OAuth (services/zoom_service.py)",
+        "issue": "Unchanged from iter14 — Zoom S2S app still missing scopes user:read:token, dashboard:read:list_meeting_participants:admin, meeting:delete:meeting:admin. Meeting create + SDK signature work; participants list is empty and delete-meeting silently fails. External Zoom app config change (not code)."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Student /dashboard Quick Navigation grid",
+        "issue": "Sidebar is correctly trimmed (Dashboard / My Classes / Live Classes) but the Dashboard body still renders 'Quick Navigation' cards linking to PYQ Section, My Tests, Assigned Tests, Analytics, Bookmarks — those routes are deferred and will 404 when clicked. Either remove these cards or gate them behind the same feature flag as the sidebar items.",
+        "affected_selectors": ["a[href*='/pyq']", "a[href*='/tests']", "a[href*='/analytics']", "a[href*='/bookmarks']"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_supabase_migration.py",
+    "/app/test_reports/pytest/iter15.xml"
+  ],
+  "action_items": [
+    "(minor) Remove or hide the deferred Quick-Nav cards on /dashboard (PYQ Section, My Tests, Assigned Tests, Analytics, Bookmarks) — they lead to 404 routes.",
+    "(external) Add Zoom S2S scopes user:read:token, dashboard:read:list_meeting_participants:admin, meeting:delete:meeting:admin in the Zoom App Marketplace to make teacher /participants and delete-meeting fully functional. Not blocking."
+  ],
+  "critical_code_review_comments": [
+    "get_supabase() / get_supabase_admin() split is clean — each call returns a fresh client so sign_in_with_password header mutation cannot leak. This is the right long-term fix.",
+    "upload_routes._ensure_bucket() is now best-effort and idempotent (ignores 'already exists') — good, but consider surfacing a startup log line so operators know whether the bucket was newly created or reused.",
+    "student_test_routes.submit() (unchanged carryover from iter14) still trusts client-supplied is_correct — a student can inflate score by posting is_correct:true for every answer. Server should verify against tests.questions.correct_answers.",
+    "notification_routes.list_notifications returns {notifications, unread_count} at top-level while every other endpoint wraps in {success: true, ...} — small consistency drift for the frontend."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (37/37)", "frontend": "smoke: login + trimmed sidebar OK; deferred cards still visible on dashboard body"},
+  "test_credentials": "Admin admin@nexuacademy.com/nexuacademy123; Teacher teacher@test.com/password123; Student student@test.com/password123 (batch JEEM2027)",
+  "seed_data_creation": "Test file creates ephemeral batches TEST<uuid> and admissions with TEST_<uuid>@example.com — all cleaned up in test teardown; a couple of NEX2028 admission users may persist across runs (used to prove isolation) but do not affect subsequent runs due to unique email per invocation.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "All 37 tests in /app/backend/tests/test_supabase_migration.py pass in ~92s. The 3 iter14 blockers (admission-after-login, upload bucket, signup regression) are resolved. Only remaining known issues are (a) Zoom S2S scopes — external config, and (b) dashboard body still shows deferred Quick-Nav cards even though the sidebar was trimmed. Safe to keep re-running the test file; idempotent.",
+  "rca of the issue": "iter14 root causes were addressed as follows: (1) singleton supabase client → replaced with per-call factories get_supabase() (anon) and get_supabase_admin() (service role) so sign_in header mutation cannot poison admin ops; (2) missing bucket 'question-images' → created manually + _ensure_bucket() safe-idempotent; (3) /auth/me 401 after sign_out() → sign_out() removed and each login uses a fresh anon client. Verified by full-suite pass including the previously-failing tests test_admission_creates_user_and_roll, test_admission_me, test_nex2028_student_isolation, test_upload_image_returns_public_url, test_nex_student_does_not_see."
+}
