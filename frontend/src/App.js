@@ -28,9 +28,11 @@ import ManageClasses from "./pages/teacher/ManageClasses";
 import CreateTest from "./pages/teacher/CreateTest";
 import StudentAnalytics from "./pages/teacher/StudentAnalytics";
 import TestResultsDetail from "./pages/teacher/TestResultsDetail";
+import TeacherLiveClasses from "./pages/teacher/LiveClasses";
 
 // Student pages
 import StudentClasses from "./pages/student/StudentClasses";
+import StudentLiveClasses from "./pages/student/LiveClasses";
 import AssignedTests from "./pages/student/AssignedTests";
 import TakeTest from "./pages/student/TakeTest";
 import TestResults from "./pages/student/TestResults";
@@ -86,6 +88,7 @@ function AppRouter() {
       <Route path="/teacher/tests" element={<ProtectedRoute><TeacherLayout><CreateTest /></TeacherLayout></ProtectedRoute>} />
       <Route path="/teacher/students" element={<ProtectedRoute><TeacherLayout><StudentAnalytics /></TeacherLayout></ProtectedRoute>} />
       <Route path="/teacher/tests/:testId/results" element={<ProtectedRoute><TeacherLayout><TestResultsDetail /></TeacherLayout></ProtectedRoute>} />
+      <Route path="/teacher/live-classes" element={<ProtectedRoute><TeacherLayout><TeacherLiveClasses /></TeacherLayout></ProtectedRoute>} />
 
       {/* Student Protected Routes */}
       <Route path="/dashboard" element={<ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute>} />
@@ -94,6 +97,7 @@ function AppRouter() {
       <Route path="/my-tests/take/:testId" element={<ProtectedRoute><CustomTestTaker /></ProtectedRoute>} />
       <Route path="/assigned-tests" element={<ProtectedRoute><Layout><AssignedTests /></Layout></ProtectedRoute>} />
       <Route path="/classes" element={<ProtectedRoute><Layout><StudentClasses /></Layout></ProtectedRoute>} />
+      <Route path="/live-classes" element={<ProtectedRoute><Layout><StudentLiveClasses /></Layout></ProtectedRoute>} />
       <Route path="/analytics" element={<ProtectedRoute><Layout><AnalyticsDashboard /></Layout></ProtectedRoute>} />
       <Route path="/bookmarks" element={<ProtectedRoute><Layout><BookmarksPage /></Layout></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Layout><ProfilePage /></Layout></ProtectedRoute>} />

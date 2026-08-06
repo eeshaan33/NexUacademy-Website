@@ -37,6 +37,7 @@ const Layout = ({ children }) => {
     { name: 'My Tests', href: '/my-tests', icon: FileEdit, testId: 'nav-my-tests' },
     { name: 'Assigned Tests', href: '/assigned-tests', icon: ClipboardList, testId: 'nav-assigned-tests' },
     { name: 'My Classes', href: '/classes', icon: Video, testId: 'nav-classes' },
+    { name: 'Live Classes', href: '/live-classes', icon: Video, testId: 'nav-live-classes' },
     { name: 'Analytics', href: '/analytics', icon: BarChart3, testId: 'nav-analytics' },
     { name: 'Bookmarks', href: '/bookmarks', icon: Bookmark, testId: 'nav-bookmarks' },
   ];

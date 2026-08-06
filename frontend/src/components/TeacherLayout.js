@@ -22,6 +22,7 @@ import {
   User,
   Menu,
   X,
+  Video,
 } from 'lucide-react';
 
 const TeacherLayout = ({ children }) => {
@@ -32,6 +33,7 @@ const TeacherLayout = ({ children }) => {
   const navigation = [
     { name: 'Dashboard', href: '/teacher', icon: LayoutDashboard, testId: 'teacher-nav-dashboard' },
     { name: 'Manage Classes', href: '/teacher/classes', icon: BookOpen, testId: 'teacher-nav-classes' },
+    { name: 'Live Classes', href: '/teacher/live-classes', icon: Video, testId: 'teacher-nav-live-classes' },
     { name: 'Create Tests', href: '/teacher/tests', icon: FileEdit, testId: 'teacher-nav-tests' },
     { name: 'View Students', href: '/teacher/students', icon: Users, testId: 'teacher-nav-students' },
   ];

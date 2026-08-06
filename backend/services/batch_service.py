@@ -33,6 +33,8 @@ _PREDEFINED_CODE_MAP = {
     "JEE Mains 2029": "JEEM2029",
     "JEE Advance 2027": "JEEA2027",
     "JEE Advance 2028": "JEEA2028",
+    "NEX2027": "NEX2027",
+    "NEX2028": "NEX2028",
 }
 
 
