@@ -67,35 +67,8 @@ const Dashboard = () => {
 
   const navigationCards = [
     {
-      title: 'PYQ Section',
-      description: 'Practice Previous Year Questions',
-      icon: BookOpen,
-      bgColor: 'bg-[#E0DFFB]',
-      textColor: 'text-purple-700',
-      link: '/pyq',
-      testId: 'pyq-card'
-    },
-    {
-      title: 'My Tests',
-      description: 'Create Custom Practice Tests',
-      icon: FileEdit,
-      bgColor: 'bg-[#E8F5E9]',
-      textColor: 'text-green-700',
-      link: '/my-tests',
-      testId: 'my-tests-card'
-    },
-    {
-      title: 'Assigned Tests',
-      description: 'View Tests Assigned by Teacher',
-      icon: ClipboardList,
-      bgColor: 'bg-[#FFF8DC]',
-      textColor: 'text-yellow-700',
-      link: '/assigned-tests',
-      testId: 'assigned-tests-card'
-    },
-    {
       title: 'My Classes',
-      description: 'Attend Live Classes',
+      description: 'Scheduled classes for your batch',
       icon: Video,
       bgColor: 'bg-[#FFE0E6]',
       textColor: 'text-pink-700',
@@ -103,22 +76,22 @@ const Dashboard = () => {
       testId: 'classes-card'
     },
     {
-      title: 'Analytics',
-      description: 'Track Your Performance',
-      icon: BarChart3,
+      title: 'Live Classes',
+      description: 'Join Zoom classes when they go live',
+      icon: Video,
       bgColor: 'bg-[#E3F2FD]',
       textColor: 'text-blue-700',
-      link: '/analytics',
-      testId: 'analytics-card'
+      link: '/live-classes',
+      testId: 'live-classes-card'
     },
     {
-      title: 'Bookmarks',
-      description: 'Review Saved Questions',
+      title: 'Profile',
+      description: 'Roll number, batch info & personal details',
       icon: Bookmark,
       bgColor: 'bg-[#F3E5F5]',
       textColor: 'text-purple-700',
-      link: '/bookmarks',
-      testId: 'bookmarks-card'
+      link: '/profile',
+      testId: 'profile-card'
     }
   ];
 
