@@ -13,7 +13,7 @@ import { setPageTitle } from '../utils/pageTitle';
 
 const Signup = () => {
   const navigate = useNavigate();
-  const { register, isAuthenticated, user } = useAuth();
+  const { register, isAuthenticated, user, loginWithGoogle } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -73,8 +73,10 @@ const Signup = () => {
     setLoading(true);
 
     try {
-      const { confirmPassword, ...registerData } = formData;
-      await register(registerData);
+      // Map old form field batch_id → batch_code for the new /auth/signup endpoint
+      const { confirmPassword, batch_id, ...rest } = formData;
+      const payload = { ...rest, batch_code: batch_id };
+      await register(payload);
       toast.success('Registration successful! Welcome to NexUacademy!');
       navigate('/dashboard', { replace: true });
     } catch (error) {
@@ -84,10 +86,7 @@ const Signup = () => {
     }
   };
 
-  const handleGoogleSignup = () => {
-    const redirectUrl = window.location.origin + '/dashboard';
-    window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
-  };
+  const handleGoogleSignup = () => { loginWithGoogle(); };
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">

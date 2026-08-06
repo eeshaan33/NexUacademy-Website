@@ -6,26 +6,41 @@ const AuthContext = createContext(null);
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
+const TOKEN_KEY = 'nx_access_token';
+const REFRESH_KEY = 'nx_refresh_token';
+
+export const getToken = () => localStorage.getItem(TOKEN_KEY);
+export const setTokens = (access, refresh) => {
+  if (access) localStorage.setItem(TOKEN_KEY, access);
+  if (refresh) localStorage.setItem(REFRESH_KEY, refresh);
+};
+export const clearTokens = () => {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(REFRESH_KEY);
+};
+
+const authHeader = () => {
+  const t = getToken();
+  return t ? { Authorization: `Bearer ${t}` } : {};
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const checkAuth = useCallback(async () => {
-    // CRITICAL: If returning from OAuth callback, skip the /me check.
-    // AuthCallback will exchange the session_id and establish the session first.
-    if (window.location.hash?.includes('session_id=')) {
+    const token = getToken();
+    if (!token) {
       setLoading(false);
       return;
     }
-
     try {
-      const response = await axios.get(`${API}/auth/me`, {
-        withCredentials: true
-      });
-      setUser(response.data);
+      const response = await axios.get(`${API}/auth/me`, { headers: authHeader() });
+      setUser(response.data.user);
       setIsAuthenticated(true);
-    } catch (error) {
+    } catch {
+      clearTokens();
       setUser(null);
       setIsAuthenticated(false);
     } finally {
@@ -33,35 +48,32 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
+  useEffect(() => { checkAuth(); }, [checkAuth]);
 
   const login = async (email, password) => {
-    const response = await axios.post(`${API}/auth/login`, {
-      email,
-      password
-    }, {
-      withCredentials: true
-    });
+    const response = await axios.post(`${API}/auth/login`, { email, password });
+    setTokens(response.data.access_token || response.data.token, response.data.refresh_token);
     setUser(response.data.user);
     setIsAuthenticated(true);
     return response.data;
   };
 
   const register = async (userData) => {
-    const response = await axios.post(`${API}/auth/register`, userData, {
-      withCredentials: true
-    });
+    const response = await axios.post(`${API}/auth/signup`, userData);
+    setTokens(response.data.access_token || response.data.token, response.data.refresh_token);
     setUser(response.data.user);
     setIsAuthenticated(true);
     return response.data;
   };
 
+  const loginWithGoogle = async () => {
+    const { data } = await axios.get(`${API}/auth/google/url`);
+    if (data.url) window.location.href = data.url;
+  };
+
   const logout = async () => {
-    await axios.post(`${API}/auth/logout`, {}, {
-      withCredentials: true
-    });
+    try { await axios.post(`${API}/auth/logout`, {}); } catch { /* ignore */ }
+    clearTokens();
     setUser(null);
     setIsAuthenticated(false);
   };
@@ -72,10 +84,11 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated,
     login,
     register,
+    loginWithGoogle,
     logout,
     setUser,
     setIsAuthenticated,
-    checkAuth
+    checkAuth,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -83,8 +96,6 @@ export const AuthProvider = ({ children }) => {
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within AuthProvider');
   return context;
 };

@@ -33,14 +33,9 @@ const Dashboard = () => {
 
   useEffect(() => {
     const fetchStats = async () => {
-      try {
-        const response = await api.get('/analytics/dashboard');
-        setStats(response.data);
-      } catch (error) {
-        console.error('Failed to fetch stats:', error);
-      } finally {
-        setLoading(false);
-      }
+      // Analytics endpoint is being ported to Supabase — stub with empty values
+      setStats(null);
+      setLoading(false);
     };
     fetchStats();
   }, []);

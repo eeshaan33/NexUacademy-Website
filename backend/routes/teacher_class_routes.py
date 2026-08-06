@@ -1,100 +1,99 @@
-from fastapi import APIRouter, HTTPException, Request, Depends
-from datetime import datetime, timezone
-from config.database import get_database
+"""Teacher-side classes CRUD (schedule + list + delete)."""
+from datetime import datetime
+from typing import List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
+
+from config.database import get_pool
 from middleware.auth import get_current_teacher
+from services.pg_utils import short_id, json_safe, now_iso
 from services.push_service import notify_students_about_class
-from models.requests import ClassCreateRequest
-import uuid
 
 router = APIRouter(prefix="/teacher/classes", tags=["teacher-classes"])
 
 
-@router.get("/")
-async def get_teacher_classes(user=Depends(get_current_teacher)):
-    db = get_database()
-    classes = await db.classes.find(
-        {"teacher_id": user["user_id"]}, {"_id": 0}
-    ).sort("scheduled_date_time", -1).to_list(length=None)
-    return {"success": True, "classes": classes}
+class ClassCreateRequest(BaseModel):
+    title: str
+    subject: str
+    chapter: Optional[str] = ""
+    topic: Optional[str] = ""
+    description: Optional[str] = ""
+    prerequisites: Optional[str] = ""
+    scheduled_date: str
+    scheduled_time: str
+    duration: int = Field(60, ge=15, le=480)
+    meeting_link: Optional[str] = ""
+    meeting_platform: Optional[str] = "Zoom"
+    assigned_batches: List[str]
 
 
 @router.post("/create")
 async def create_class(payload: ClassCreateRequest, user=Depends(get_current_teacher)):
-    db = get_database()
-
+    batches = [b.strip().upper() for b in payload.assigned_batches if b.strip()]
+    if not batches:
+        raise HTTPException(status_code=400, detail="At least one batch must be assigned")
     try:
         scheduled_dt = datetime.fromisoformat(f"{payload.scheduled_date}T{payload.scheduled_time}:00")
     except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid scheduled_date or scheduled_time format")
+        raise HTTPException(status_code=400, detail="Invalid date/time")
 
-    class_id = f"class_{uuid.uuid4().hex[:12]}"
+    class_id = short_id("class")
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """
+            INSERT INTO classes (class_id, title, subject, chapter, topic, teacher_id, teacher_name, teacher_photo,
+                meeting_link, meeting_platform, scheduled_date_time, duration, description, prerequisites,
+                assigned_batches, status)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,'upcoming')
+            RETURNING *
+            """,
+            class_id, payload.title, payload.subject, payload.chapter, payload.topic,
+            user["user_id"], user["name"], user.get("profile_pic"),
+            payload.meeting_link, payload.meeting_platform, scheduled_dt,
+            payload.duration, payload.description, payload.prerequisites, batches,
+        )
 
-    class_doc = {
-        "class_id": class_id,
-        "title": payload.title,
-        "subject": payload.subject,
-        "chapter": payload.chapter,
-        "topic": payload.topic,
-        "teacher_id": user["user_id"],
-        "teacher_name": user["name"],
-        "teacher_photo": user.get("profile_pic", ""),
-        "meeting_link": payload.meeting_link,
-        "meeting_platform": payload.meeting_platform,
-        "scheduled_date_time": scheduled_dt.isoformat(),
-        "duration": payload.duration,
-        "description": payload.description,
-        "prerequisites": payload.prerequisites,
-        "assigned_batches": payload.assigned_batches,
-        "recording_url": "",
-        "notes_url": "",
-        "slides_url": "",
-        "status": "upcoming",
-        "attendance": [],
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "updated_at": datetime.now(timezone.utc).isoformat(),
-    }
-
-    await db.classes.insert_one(class_doc)
-
-    notified = await notify_students_about_class(class_doc)
-
-    return {
-        "success": True,
-        "message": f"Class scheduled! {notified} students notified.",
-        "class": {k: v for k, v in class_doc.items() if k != "_id"},
-    }
+    # In-app notifications for batch students
+    try:
+        await notify_students_about_class(json_safe(row))
+    except Exception:
+        pass
+    return {"success": True, "class": json_safe(row), "message": "Class scheduled"}
 
 
-@router.put("/{class_id}")
-async def update_class(class_id: str, request: Request, user=Depends(get_current_teacher)):
-    db = get_database()
-    existing = await db.classes.find_one({"class_id": class_id, "teacher_id": user["user_id"]})
-    if not existing:
-        raise HTTPException(status_code=404, detail="Class not found")
-
-    body = await request.json()
-    body["updated_at"] = datetime.now(timezone.utc).isoformat()
-    body.pop("_id", None)
-    body.pop("class_id", None)
-
-    await db.classes.update_one({"class_id": class_id}, {"$set": body})
-    updated = await db.classes.find_one({"class_id": class_id}, {"_id": 0})
-    return {"success": True, "class": updated}
+@router.get("/my-classes")
+async def my_classes(user=Depends(get_current_teacher)):
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT * FROM classes WHERE teacher_id = $1 ORDER BY scheduled_date_time DESC",
+            user["user_id"],
+        )
+    return {"success": True, "classes": [json_safe(r) for r in rows]}
 
 
 @router.delete("/{class_id}")
 async def delete_class(class_id: str, user=Depends(get_current_teacher)):
-    db = get_database()
-    result = await db.classes.delete_one({"class_id": class_id, "teacher_id": user["user_id"]})
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Class not found")
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        cls = await conn.fetchrow("SELECT teacher_id FROM classes WHERE class_id = $1", class_id)
+        if not cls:
+            raise HTTPException(status_code=404, detail="Class not found")
+        if str(cls["teacher_id"]) != str(user["user_id"]) and user["role"] != "admin":
+            raise HTTPException(status_code=403, detail="Not the teacher of this class")
+        await conn.execute("DELETE FROM classes WHERE class_id = $1", class_id)
     return {"success": True, "message": "Class deleted"}
 
 
-@router.get("/stats")
-async def get_class_stats(user=Depends(get_current_teacher)):
-    db = get_database()
-    total = await db.classes.count_documents({"teacher_id": user["user_id"]})
-    upcoming = await db.classes.count_documents({"teacher_id": user["user_id"], "status": "upcoming"})
-    completed = await db.classes.count_documents({"teacher_id": user["user_id"], "status": "completed"})
-    return {"success": True, "total": total, "upcoming": upcoming, "completed": completed}
+@router.get("/stats/summary")
+async def stats(user=Depends(get_current_teacher)):
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        total = await conn.fetchval("SELECT count(*) FROM classes WHERE teacher_id = $1", user["user_id"])
+        upcoming = await conn.fetchval(
+            "SELECT count(*) FROM classes WHERE teacher_id = $1 AND scheduled_date_time > NOW()",
+            user["user_id"],
+        )
+    return {"total": total or 0, "upcoming": upcoming or 0, "completed": (total or 0) - (upcoming or 0)}

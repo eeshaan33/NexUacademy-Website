@@ -1,278 +1,147 @@
-from fastapi import APIRouter, HTTPException, status, Response, Depends, Request, Header
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel, EmailStr
-from datetime import datetime, timezone, timedelta
-import uuid
-import bcrypt
-import httpx
-from models.user import UserCreate, User
+"""Auth routes — thin wrapper over Supabase Auth.
+
+- POST /api/auth/login       → email+password → session
+- POST /api/auth/signup      → creates user (student by default) + profile row
+- POST /api/auth/logout      → invalidates session (client-driven)
+- GET  /api/auth/me          → current user + profile
+- POST /api/auth/google      → returns Supabase OAuth URL for the client to redirect to
+"""
+import os
+import logging
+from typing import Optional
+
+from fastapi import APIRouter, HTTPException, Request
+from pydantic import BaseModel, EmailStr, Field
+
+from config.database import get_pool, get_supabase
 from middleware.auth import get_current_user
-from config.database import get_database
 
-router = APIRouter(prefix="/auth", tags=["authentication"])
+router = APIRouter(prefix="/auth", tags=["auth"])
+logger = logging.getLogger(__name__)
 
-# Request/Response Models
+
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
 
-class SessionRequest(BaseModel):
-    session_id: str
 
-class LoginResponse(BaseModel):
-    user: User
-    message: str
+class SignupRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(..., min_length=6)
+    name: str
+    role: str = "student"
+    batch_code: Optional[str] = None
+    phone_number: Optional[str] = None
 
-@router.post("/register")
-async def register(user_data: UserCreate, response: Response):
-    """
-    Register new user with email and password.
-    """
-    db = get_database()
-    # Check if user already exists
-    existing_user = await db.users.find_one({"email": user_data.email})
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
-        )
-    
-    # Hash password
-    hashed_password = bcrypt.hashpw(user_data.password.encode('utf-8'), bcrypt.gensalt())
-    
-    # Create user document (Registration is for students only)
-    user_id = f"user_{uuid.uuid4().hex[:12]}"
-    user_doc = {
-        "user_id": user_id,
-        "email": user_data.email,
-        "name": user_data.name,
-        "role": "student",
-        "batch_id": user_data.batch_id,
-        "profile_pic": user_data.profile_pic,
-        "phone_number": user_data.phone_number,
-        "telegram_id": user_data.telegram_id,
-        "password": hashed_password.decode('utf-8'),
-        "created_at": datetime.now(timezone.utc),
-        "last_login": None
-    }
-    
-    await db.users.insert_one(user_doc)
-    
-    # Create session
-    session_token = f"session_{uuid.uuid4().hex}"
-    session_doc = {
-        "user_id": user_id,
-        "session_token": session_token,
-        "expires_at": datetime.now(timezone.utc) + timedelta(days=7),
-        "created_at": datetime.now(timezone.utc)
-    }
-    await db.user_sessions.insert_one(session_doc)
-    
-    # Set httpOnly cookie
-    response.set_cookie(
-        key="session_token",
-        value=session_token,
-        httponly=True,
-        secure=True,
-        samesite="none",
-        path="/",
-        max_age=7 * 24 * 60 * 60  # 7 days
-    )
-    
-    # Return user without password
-    user_doc.pop("password", None)
-    user_doc.pop("_id", None)
-    
-    return {
-        "user": user_doc,
-        "message": "Registration successful"
-    }
 
 @router.post("/login")
-async def login(login_data: LoginRequest, response: Response):
-    """
-    Login with email and password.
-    """
-    db = get_database()
-    # Find user
-    user_doc = await db.users.find_one({"email": login_data.email})
-    if not user_doc:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
-        )
-    
-    # Verify password
-    if not bcrypt.checkpw(login_data.password.encode('utf-8'), user_doc["password"].encode('utf-8')):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
-        )
-    
-    # Update last login
-    await db.users.update_one(
-        {"user_id": user_doc["user_id"]},
-        {"$set": {"last_login": datetime.now(timezone.utc)}}
-    )
-    
-    # Create session
-    session_token = f"session_{uuid.uuid4().hex}"
-    session_doc = {
-        "user_id": user_doc["user_id"],
-        "session_token": session_token,
-        "expires_at": datetime.now(timezone.utc) + timedelta(days=7),
-        "created_at": datetime.now(timezone.utc)
-    }
-    await db.user_sessions.insert_one(session_doc)
-    
-    # Set httpOnly cookie
-    response.set_cookie(
-        key="session_token",
-        value=session_token,
-        httponly=True,
-        secure=True,
-        samesite="none",
-        path="/",
-        max_age=7 * 24 * 60 * 60
-    )
-    
-    # Return user without password
-    user_doc.pop("password", None)
-    user_doc.pop("_id", None)
-    
+async def login(payload: LoginRequest):
+    supabase = get_supabase()
+    try:
+        res = supabase.auth.sign_in_with_password({"email": payload.email, "password": payload.password})
+    except Exception as e:
+        logger.info(f"Login failed for {payload.email}: {e}")
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    if not res.session:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        profile = await conn.fetchrow("SELECT * FROM profiles WHERE id = $1", res.user.id)
+
     return {
-        "user": user_doc,
-        "message": "Login successful"
+        "success": True,
+        "access_token": res.session.access_token,
+        "refresh_token": res.session.refresh_token,
+        "token": res.session.access_token,  # legacy client alias
+        "expires_at": res.session.expires_at,
+        "user": {
+            "user_id": str(res.user.id),
+            "email": res.user.email,
+            "name": (dict(profile) if profile else {}).get("name") or res.user.email,
+            "role": (dict(profile) if profile else {}).get("role", "student"),
+            "batch_id": (dict(profile) if profile else {}).get("batch_id"),
+            "profile_pic": (dict(profile) if profile else {}).get("profile_pic"),
+        },
     }
 
-@router.post("/google/session")
-async def google_session(request: Request, response: Response, x_session_id: str = Header(None)):
-    """
-    Exchange Google OAuth session_id for user data and create session.
-    REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
-    """
-    db = get_database()
-    if not x_session_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="X-Session-ID header required"
+
+@router.post("/signup")
+async def signup(payload: SignupRequest):
+    supabase = get_supabase()
+    metadata = {"name": payload.name, "role": payload.role}
+    if payload.batch_code:
+        metadata["batch_id"] = payload.batch_code.strip().upper()
+
+    try:
+        res = supabase.auth.admin.create_user({
+            "email": payload.email,
+            "password": payload.password,
+            "email_confirm": True,
+            "user_metadata": metadata,
+        })
+    except Exception as e:
+        msg = str(e)
+        if "already" in msg.lower() or "registered" in msg.lower():
+            raise HTTPException(status_code=400, detail="This email is already registered")
+        logger.exception("Signup failed")
+        raise HTTPException(status_code=400, detail=f"Signup failed: {msg[:200]}")
+
+    # Update profile with extra fields (trigger created the base row)
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            """
+            UPDATE profiles SET name = $2, role = $3, phone_number = $4
+            WHERE id = $1
+            """,
+            res.user.id, payload.name, payload.role, payload.phone_number,
         )
-    
-    # Call Emergent Auth API to get session data
-    async with httpx.AsyncClient() as http_client:
-        try:
-            auth_response = await http_client.get(
-                "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data",
-                headers={"X-Session-ID": x_session_id}
-            )
-            auth_response.raise_for_status()
-            session_data = auth_response.json()
-        except httpx.HTTPError as e:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Failed to verify session: {str(e)}"
-            )
-    
-    email = session_data.get("email")
-    name = session_data.get("name")
-    picture = session_data.get("picture")
-    emergent_session_token = session_data.get("session_token")
-    
-    if not email:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email not found in session data"
-        )
-    
-    # Check if user exists
-    user_doc = await db.users.find_one({"email": email})
-    
-    if user_doc:
-        # Update existing user
-        user_id = user_doc["user_id"]
-        await db.users.update_one(
-            {"user_id": user_id},
-            {
-                "$set": {
-                    "name": name,
-                    "profile_pic": picture,
-                    "last_login": datetime.now(timezone.utc)
-                }
-            }
-        )
-    else:
-        # Create new user (default to student role)
-        user_id = f"user_{uuid.uuid4().hex[:12]}"
-        user_doc = {
-            "user_id": user_id,
-            "email": email,
-            "name": name,
-            "role": "student",
-            "profile_pic": picture,
-            "batch_id": None,
-            "phone_number": None,
-            "telegram_id": None,
-            "created_at": datetime.now(timezone.utc),
-            "last_login": datetime.now(timezone.utc)
-        }
-        await db.users.insert_one(user_doc)
-    
-    # Create session with Emergent token
-    session_doc = {
-        "user_id": user_id,
-        "session_token": emergent_session_token,
-        "expires_at": datetime.now(timezone.utc) + timedelta(days=7),
-        "created_at": datetime.now(timezone.utc)
-    }
-    await db.user_sessions.insert_one(session_doc)
-    
-    # Set httpOnly cookie
-    response.set_cookie(
-        key="session_token",
-        value=emergent_session_token,
-        httponly=True,
-        secure=True,
-        samesite="none",
-        path="/",
-        max_age=7 * 24 * 60 * 60
-    )
-    
-    # Get fresh user data
-    user_result = await db.users.find_one(
-        {"user_id": user_id},
-        {"_id": 0, "password": 0}
-    )
-    
+
+    # Auto-login
+    session = supabase.auth.sign_in_with_password({"email": payload.email, "password": payload.password})
     return {
-        "user": user_result,
-        "message": "Google authentication successful"
+        "success": True,
+        "access_token": session.session.access_token,
+        "refresh_token": session.session.refresh_token,
+        "token": session.session.access_token,
+        "user": {
+            "user_id": str(res.user.id),
+            "email": res.user.email,
+            "name": payload.name,
+            "role": payload.role,
+        },
     }
+
 
 @router.get("/me")
-async def get_me(request: Request):
-    """
-    Get current user data from session.
-    """
+async def me(request: Request):
     user = await get_current_user(request)
-    return user
+    # Convert UUIDs / datetimes → strings for JSON
+    for k, v in list(user.items()):
+        if hasattr(v, "isoformat"):
+            user[k] = v.isoformat()
+        elif hasattr(v, "hex") and not isinstance(v, (bytes, bytearray)):
+            user[k] = str(v)
+    user.pop("push_subscription", None)
+    return {"success": True, "user": user}
+
 
 @router.post("/logout")
-async def logout(request: Request, response: Response):
-    """
-    Logout user by deleting session.
-    """
-    db = get_database()
-    session_token = request.cookies.get("session_token")
-    
-    if session_token:
-        await db.user_sessions.delete_one({"session_token": session_token})
-    
-    # Clear cookie
-    response.delete_cookie(
-        key="session_token",
-        path="/",
-        samesite="none",
-        secure=True
-    )
-    
-    return {"message": "Logout successful"}
+async def logout():
+    # Supabase sessions are stateless JWTs — client just discards the token.
+    return {"success": True}
+
+
+@router.get("/google/url")
+async def google_oauth_url():
+    """Return Supabase Google-OAuth authorize URL for the frontend to redirect to."""
+    base = os.environ["SUPABASE_URL"].rstrip("/")
+    site = os.environ.get("SITE_URL") or os.environ.get("REACT_APP_BACKEND_URL", "")
+    redirect_to = f"{site}/auth/callback" if site else ""
+    url = f"{base}/auth/v1/authorize?provider=google"
+    if redirect_to:
+        from urllib.parse import quote
+        url += f"&redirect_to={quote(redirect_to, safe='')}"
+    return {"success": True, "url": url}

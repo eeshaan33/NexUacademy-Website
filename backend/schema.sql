@@ -369,7 +369,10 @@ alter table public.bookmarks enable row level security;
 alter table public.student_suggestions enable row level security;
 
 -- Allow authenticated users to read their own profile and batches (public read)
-create policy if not exists "batches_public_read" on public.batches for select using (true);
-create policy if not exists "profiles_self_read" on public.profiles for select using (auth.uid() = id);
-create policy if not exists "profiles_self_update" on public.profiles for update using (auth.uid() = id);
+drop policy if exists "batches_public_read" on public.batches;
+create policy "batches_public_read" on public.batches for select using (true);
+drop policy if exists "profiles_self_read" on public.profiles;
+create policy "profiles_self_read" on public.profiles for select using (auth.uid() = id);
+drop policy if exists "profiles_self_update" on public.profiles;
+create policy "profiles_self_update" on public.profiles for update using (auth.uid() = id);
 -- Service role bypasses RLS automatically, so backend has full access.

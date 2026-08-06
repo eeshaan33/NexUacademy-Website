@@ -1,19 +1,19 @@
-from fastapi import APIRouter, Request, UploadFile, File, Form, HTTPException, Response
-from fastapi.responses import StreamingResponse
-from config.database import get_database
-from datetime import datetime, timezone, timedelta
+"""Admission form submission — creates Supabase Auth user + profile + admissions row."""
+import logging
+import random
+import string
+from datetime import datetime, timezone
 from typing import Optional
-import uuid
-import base64
-import io
-import json
-import bcrypt
-from middleware.auth import get_current_user
+
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, EmailStr
-from services.email_service import send_admission_confirmation_email
-from services.batch_service import find_batch_by_code, generate_roll_number
+
+from config.database import get_pool, get_supabase
+from middleware.auth import get_current_user
 
 router = APIRouter(prefix="/admissions", tags=["admissions"])
+logger = logging.getLogger(__name__)
+
 
 class AdmissionForm(BaseModel):
     student_name: str
@@ -23,7 +23,7 @@ class AdmissionForm(BaseModel):
     gender: str
     contact_number: str
     email: EmailStr
-    password: str  # Added password field
+    password: str
     address: str
     city: str
     state: str
@@ -34,320 +34,136 @@ class AdmissionForm(BaseModel):
     id_proof_base64: Optional[str] = None
     signature_base64: Optional[str] = None
 
+
+def _admission_id() -> str:
+    return f"ADM{datetime.now().strftime('%Y%m%d')}{''.join(random.choices(string.hexdigits.upper(), k=6))}"
+
+
+async def _unique_roll(conn) -> str:
+    yy = datetime.now(timezone.utc).strftime("%y")
+    alphabet = "".join(c for c in string.ascii_uppercase + string.digits if c not in "OI01")
+    for _ in range(20):
+        roll = f"NXU-{yy}{''.join(random.choices(alphabet, k=6))}"
+        if not await conn.fetchval("SELECT 1 FROM profiles WHERE roll_number = $1", roll):
+            return roll
+    return f"NXU-{yy}{''.join(random.choices(alphabet, k=10))}"
+
+
 @router.post("/submit")
-async def submit_admission(form: AdmissionForm, request: Request, response: Response):
-    """Submit admission form with all details, create user account, and auto-login"""
-    db = get_database()
-    
-    # Check if email already registered
-    existing_user = await db.users.find_one({"email": form.email})
-    if existing_user:
-        raise HTTPException(
-            status_code=400,
-            detail="This email is already registered. Please login instead."
+async def submit_admission(form: AdmissionForm):
+    supabase = get_supabase()
+    pool = get_pool()
+
+    # Verify batch code exists in DB (FK will fail otherwise)
+    batch_id = None
+    if form.batch_code:
+        code = form.batch_code.strip().upper()
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow("SELECT id FROM batches WHERE code = $1", code)
+        if not row:
+            raise HTTPException(status_code=400, detail=f"Batch '{code}' not recognised. Ask your teacher/admin for the correct Batch ID.")
+        batch_id = row["id"]
+
+    # Create Supabase Auth user (email-confirmed)
+    try:
+        res = supabase.auth.admin.create_user({
+            "email": form.email,
+            "password": form.password,
+            "email_confirm": True,
+            "user_metadata": {"name": form.student_name, "role": "student",
+                              "batch_id": batch_id or ""},
+        })
+    except Exception as e:
+        msg = str(e)
+        if "already" in msg.lower():
+            raise HTTPException(status_code=400, detail="This email is already registered. Please login.")
+        logger.exception("admission create_user failed")
+        raise HTTPException(status_code=400, detail=f"Signup failed: {msg[:200]}")
+
+    user_id = res.user.id
+    admission_id = _admission_id()
+
+    async with pool.acquire() as conn:
+        roll = await _unique_roll(conn)
+        # Update profile row (trigger created skeleton)
+        await conn.execute(
+            """
+            UPDATE profiles SET
+                name = $2, role = 'student',
+                batch_id = $3, course = $4, roll_number = $5, admission_id = $6,
+                father_name = $7, mother_name = $8, date_of_birth = $9, gender = $10,
+                address = $11, city = $12, state = $13, pincode = $14,
+                phone_number = $15, profile_pic = $16, profile_complete = true
+            WHERE id = $1
+            """,
+            user_id, form.student_name, batch_id, form.course_applying, roll, admission_id,
+            form.father_name, form.mother_name, form.date_of_birth, form.gender,
+            form.address, form.city, form.state, form.pincode,
+            form.contact_number, form.photo_base64,
+        )
+        await conn.execute(
+            """
+            INSERT INTO admissions (admission_id, user_id, roll_number, student_name,
+                father_name, mother_name, date_of_birth, gender,
+                contact_number, email, address, city, state, pincode,
+                course_applying, batch_code, batch_id, photo, id_proof, signature, status)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,'pending')
+            """,
+            admission_id, user_id, roll, form.student_name,
+            form.father_name, form.mother_name, form.date_of_birth, form.gender,
+            form.contact_number, form.email, form.address, form.city, form.state, form.pincode,
+            form.course_applying, (form.batch_code or "").upper() or None, batch_id,
+            form.photo_base64, form.id_proof_base64, form.signature_base64,
         )
 
-    # Resolve batch via code (preferred) or fallback to course_applying as legacy id
-    batch_doc = None
-    if form.batch_code:
-        batch_doc = await find_batch_by_code(form.batch_code)
-        if not batch_doc:
-            raise HTTPException(
-                status_code=400,
-                detail="Invalid batch ID. Please ask your teacher/admin for the correct join code."
-            )
-    if not batch_doc:
-        # Fallback: treat course_applying as a batch name/id
-        batch_doc = await db.batches.find_one({"id": form.course_applying}, {"_id": 0})
-    batch_id = batch_doc["id"] if batch_doc else form.course_applying
-
-    # Generate unique admission ID + roll number
-    admission_id = f"ADM{datetime.now().strftime('%Y%m%d')}{uuid.uuid4().hex[:6].upper()}"
-    roll_number = await generate_roll_number()
-
-    # Create admission document
-    admission_doc = {
-        "admission_id": admission_id,
-        "roll_number": roll_number,
-        "student_name": form.student_name,
-        "father_name": form.father_name,
-        "mother_name": form.mother_name,
-        "date_of_birth": form.date_of_birth,
-        "gender": form.gender,
-        "contact_number": form.contact_number,
-        "email": form.email,
-        "address": form.address,
-        "city": form.city,
-        "state": form.state,
-        "pincode": form.pincode,
-        "course_applying": form.course_applying,
-        "batch_code": (form.batch_code or "").upper() or None,
-        "batch_id": batch_id,
-        "photo": form.photo_base64,
-        "id_proof": form.id_proof_base64,
-        "signature": form.signature_base64,
-        "status": "pending",
-        "submitted_at": datetime.now(timezone.utc),
-        "reviewed_at": None,
-        "reviewed_by": None,
-        "remarks": None
-    }
-    
-    await db.admissions.insert_one(admission_doc)
-    
-    # Create user account with the password from form
-    hashed_password = bcrypt.hashpw(form.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-    user_id = f"user_{uuid.uuid4().hex[:12]}"
-    
-    user_doc = {
-        "user_id": user_id,
-        "email": form.email,
-        "name": form.student_name,
-        "password": hashed_password,
-        "role": "student",
-        "admission_id": admission_id,
-        "roll_number": roll_number,
-        "batch_id": batch_id,
-        "batch_code": (form.batch_code or "").upper() or None,
-        "course": form.course_applying,
-        "father_name": form.father_name,
-        "mother_name": form.mother_name,
-        "date_of_birth": form.date_of_birth,
-        "gender": form.gender,
-        "address": form.address,
-        "city": form.city,
-        "state": form.state,
-        "pincode": form.pincode,
-        "profile_pic": form.photo_base64,
-        "phone_number": form.contact_number,
-        "profile_complete": True,
-        "notifications_enabled": True,
-        "created_at": datetime.now(timezone.utc),
-        "last_login": datetime.now(timezone.utc)
-    }
-    await db.users.insert_one(user_doc)
-    
-    # Create session for auto-login
-    session_token = f"session_{uuid.uuid4().hex}"
-    session_doc = {
-        "user_id": user_id,
-        "session_token": session_token,
-        "expires_at": datetime.now(timezone.utc) + timedelta(days=7),
-        "created_at": datetime.now(timezone.utc)
-    }
-    await db.user_sessions.insert_one(session_doc)
-    
-    # Set httpOnly cookie for auto-login
-    response.set_cookie(
-        key="session_token",
-        value=session_token,
-        httponly=True,
-        secure=True,
-        samesite="none",
-        path="/",
-        max_age=7 * 24 * 60 * 60  # 7 days
-    )
-    
-    # Send confirmation email (async, don't block response)
-    email_result = await send_admission_confirmation_email(
-        student_name=form.student_name,
-        email=form.email,
-        admission_id=admission_id,
-        course=form.course_applying
-    )
-    
-    # Return user data for frontend (without password)
-    user_response = {
-        "user_id": user_id,
-        "email": form.email,
-        "name": form.student_name,
-        "role": "student",
-        "admission_id": admission_id,
-        "roll_number": roll_number,
-        "batch_id": batch_id,
-    }
-    
+    # Auto-login
+    session = supabase.auth.sign_in_with_password({"email": form.email, "password": form.password})
     return {
         "success": True,
+        "message": "Admission submitted and account created",
         "admission_id": admission_id,
-        "message": "Admission form submitted successfully! You are now logged in.",
-        "user": user_response,
-        "email_status": email_result.get("status", "unknown")
+        "access_token": session.session.access_token,
+        "refresh_token": session.session.refresh_token,
+        "token": session.session.access_token,
+        "user": {
+            "user_id": str(user_id),
+            "email": form.email,
+            "name": form.student_name,
+            "role": "student",
+            "admission_id": admission_id,
+            "roll_number": roll,
+            "batch_id": batch_id,
+        },
     }
+
 
 @router.get("/me")
 async def get_my_admission(request: Request):
-    """Return the logged-in student's admission record + roll number for the Profile page."""
-    db = get_database()
     user = await get_current_user(request)
     if user.get("role") != "student":
         raise HTTPException(status_code=403, detail="Only students have admission records")
 
-    admission = None
-    if user.get("admission_id"):
-        admission = await db.admissions.find_one(
-            {"admission_id": user["admission_id"]},
-            {"_id": 0, "photo": 0, "id_proof": 0, "signature": 0},
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        admission = await conn.fetchrow(
+            "SELECT * FROM admissions WHERE user_id = $1 ORDER BY submitted_at DESC LIMIT 1",
+            user["user_id"],
         )
+        batch = None
+        if user.get("batch_id"):
+            batch = await conn.fetchrow("SELECT * FROM batches WHERE id = $1", user["batch_id"])
 
-    # Resolve batch info (name + code)
-    batch_info = None
-    if user.get("batch_id"):
-        batch_info = await db.batches.find_one({"id": user["batch_id"]}, {"_id": 0})
+    def _dt(v):
+        return v.isoformat() if hasattr(v, "isoformat") else v
+
+    admission_d = None
+    if admission:
+        admission_d = {k: _dt(v) for k, v in dict(admission).items()
+                       if k not in ("photo", "id_proof", "signature")}
 
     return {
         "success": True,
-        "user": {
-            "user_id": user.get("user_id"),
-            "email": user.get("email"),
-            "name": user.get("name"),
-            "role": user.get("role"),
-            "roll_number": user.get("roll_number") or (admission or {}).get("roll_number"),
-            "admission_id": user.get("admission_id"),
-            "batch_id": user.get("batch_id"),
-            "batch_code": user.get("batch_code") or (batch_info or {}).get("code"),
-            "course": user.get("course") or (admission or {}).get("course_applying"),
-            "phone_number": user.get("phone_number"),
-            "father_name": user.get("father_name") or (admission or {}).get("father_name"),
-            "mother_name": user.get("mother_name") or (admission or {}).get("mother_name"),
-            "date_of_birth": user.get("date_of_birth") or (admission or {}).get("date_of_birth"),
-            "gender": user.get("gender") or (admission or {}).get("gender"),
-            "address": user.get("address") or (admission or {}).get("address"),
-            "city": user.get("city") or (admission or {}).get("city"),
-            "state": user.get("state") or (admission or {}).get("state"),
-            "pincode": user.get("pincode") or (admission or {}).get("pincode"),
-            "profile_pic": user.get("profile_pic"),
-            "created_at": user.get("created_at").isoformat() if hasattr(user.get("created_at"), "isoformat") else user.get("created_at"),
-        },
-        "admission": admission,
-        "batch": batch_info,
-    }
-
-
-@router.get("/list")
-async def list_admissions(request: Request, status: Optional[str] = None, limit: int = 50, skip: int = 0):
-    """Get list of all admissions (admin only)"""
-    db = get_database()
-    
-    try:
-        user = await get_current_user(request)
-        if user.get("role") != "teacher" and user.get("role") != "admin":
-            raise HTTPException(status_code=403, detail="Admin access required")
-    except:
-        pass  # Allow public access for now
-    
-    query = {}
-    if status:
-        query["status"] = status
-    
-    admissions = await db.admissions.find(
-        query,
-        {"_id": 0, "photo": 0, "id_proof": 0, "signature": 0}  # Exclude large base64 fields
-    ).sort("submitted_at", -1).skip(skip).limit(limit).to_list(length=limit)
-    
-    total = await db.admissions.count_documents(query)
-    
-    return {
-        "admissions": admissions,
-        "total": total,
-        "page": skip // limit + 1,
-        "pages": (total + limit - 1) // limit
-    }
-
-@router.get("/detail/{admission_id}")
-async def get_admission_detail(admission_id: str, request: Request):
-    """Get full admission details including documents"""
-    db = get_database()
-    
-    admission = await db.admissions.find_one(
-        {"admission_id": admission_id},
-        {"_id": 0}
-    )
-    
-    if not admission:
-        raise HTTPException(status_code=404, detail="Admission not found")
-    
-    return admission
-
-@router.put("/update-status/{admission_id}")
-async def update_admission_status(admission_id: str, status: str, remarks: Optional[str] = None, request: Request = None):
-    """Update admission status (admin only)"""
-    db = get_database()
-    
-    result = await db.admissions.update_one(
-        {"admission_id": admission_id},
-        {
-            "$set": {
-                "status": status,
-                "remarks": remarks,
-                "reviewed_at": datetime.now(timezone.utc)
-            }
-        }
-    )
-    
-    if result.modified_count == 0:
-        raise HTTPException(status_code=404, detail="Admission not found")
-    
-    return {"success": True, "message": f"Status updated to {status}"}
-
-@router.get("/export/excel")
-async def export_admissions_excel(request: Request):
-    """Export all admissions to Excel format"""
-    db = get_database()
-    
-    admissions = await db.admissions.find(
-        {},
-        {"_id": 0, "photo": 0, "id_proof": 0, "signature": 0}
-    ).sort("submitted_at", -1).to_list(length=1000)
-    
-    # Create CSV content
-    import csv
-    output = io.StringIO()
-    
-    if admissions:
-        fieldnames = ["admission_id", "student_name", "father_name", "mother_name", 
-                     "date_of_birth", "gender", "contact_number", "email", 
-                     "address", "city", "state", "pincode", "course_applying", 
-                     "status", "submitted_at", "remarks"]
-        
-        writer = csv.DictWriter(output, fieldnames=fieldnames)
-        writer.writeheader()
-        
-        for admission in admissions:
-            row = {k: admission.get(k, "") for k in fieldnames}
-            if row.get("submitted_at"):
-                row["submitted_at"] = str(row["submitted_at"])[:19]
-            writer.writerow(row)
-    
-    output.seek(0)
-    
-    return StreamingResponse(
-        io.BytesIO(output.getvalue().encode()),
-        media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=admissions.csv"}
-    )
-
-@router.get("/stats")
-async def get_admission_stats(request: Request):
-    """Get admission statistics"""
-    db = get_database()
-    
-    total = await db.admissions.count_documents({})
-    pending = await db.admissions.count_documents({"status": "pending"})
-    approved = await db.admissions.count_documents({"status": "approved"})
-    rejected = await db.admissions.count_documents({"status": "rejected"})
-    
-    # By course
-    pipeline = [
-        {"$group": {"_id": "$course_applying", "count": {"$sum": 1}}},
-        {"$sort": {"count": -1}}
-    ]
-    by_course = await db.admissions.aggregate(pipeline).to_list(length=20)
-    
-    return {
-        "total": total,
-        "pending": pending,
-        "approved": approved,
-        "rejected": rejected,
-        "by_course": by_course
+        "user": {**{k: _dt(v) for k, v in user.items()}, "user_id": str(user["user_id"])},
+        "admission": admission_d,
+        "batch": {**dict(batch), "created_at": _dt(batch["created_at"])} if batch else None,
     }

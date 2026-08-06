@@ -11,7 +11,7 @@ import { setPageTitle } from '../utils/pageTitle';
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login, isAuthenticated, user } = useAuth();
+  const { login, loginWithGoogle, isAuthenticated, user } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -62,10 +62,7 @@ const Login = () => {
     }
   };
 
-  const handleGoogleLogin = () => {
-    const redirectUrl = window.location.origin + '/dashboard';
-    window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
-  };
+  const handleGoogleLogin = () => { loginWithGoogle(); };
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">

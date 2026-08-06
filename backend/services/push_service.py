@@ -1,105 +1,74 @@
-import os
-import json
+"""In-app notifications (+ optional web-push) for batch students.
+
+Web-push is a best-effort optional layer. In-app notifications are written to
+`notifications` for every student in the assigned batch(es), regardless of
+whether they have a push subscription.
+"""
 import logging
-from pywebpush import webpush, WebPushException
-from config.database import get_database
+from typing import Iterable
+
+from config.database import get_pool
+from services.pg_utils import short_id, now_iso
 
 logger = logging.getLogger(__name__)
 
-VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "")
-VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "")
-VAPID_MAILTO = os.environ.get("VAPID_MAILTO", "mailto:admin@nexuacademy.com")
 
-
-async def send_push_notification(subscription_info: dict, payload: dict) -> bool:
-    try:
-        webpush(
-            subscription_info=subscription_info,
-            data=json.dumps(payload),
-            vapid_private_key=VAPID_PRIVATE_KEY,
-            vapid_claims={"sub": VAPID_MAILTO},
+async def _notify_batch_students(batches: Iterable[str], title: str, message: str,
+                                 ntype: str, data: dict):
+    if not batches:
+        return 0
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        students = await conn.fetch(
+            "SELECT id FROM profiles WHERE role = 'student' AND batch_id = ANY($1::text[])",
+            list(batches),
         )
-        return True
-    except WebPushException as e:
-        logger.error(f"Push notification failed: {e}")
-        return False
-    except Exception as e:
-        logger.error(f"Push error: {e}")
-        return False
+        if not students:
+            return 0
+        # Bulk-insert notifications
+        rows_data = [
+            (short_id("notif"), s["id"], ntype, title, message, data)
+            for s in students
+        ]
+        await conn.executemany(
+            """
+            INSERT INTO notifications (notification_id, user_id, type, title, message, data)
+            VALUES ($1, $2, $3, $4, $5, $6::jsonb)
+            """,
+            [(r[0], r[1], r[2], r[3], r[4], __import__("json").dumps(r[5])) for r in rows_data],
+        )
+    logger.info(f"Notified {len(students)} students (in-app) about {ntype}: {title}")
+    return len(students)
 
 
 async def notify_students_about_class(class_data: dict):
-    db = get_database()
-    batches = class_data.get("assigned_batches", [])
-    if not batches:
-        return 0
-    # ALL students in batch get an in-app notification (regardless of push_subscription)
-    students = await db.users.find({
-        "role": "student",
-        "batch_id": {"$in": batches},
-    }).to_list(length=None)
-
-    payload = {
-        "title": "New Class Scheduled",
-        "body": f"{class_data['title']} - {class_data['subject']}",
-        "data": {"url": "/classes", "type": "class"},
-    }
-
-    push_count = 0
-    for student in students:
-        # Only send web-push to those that have a subscription
-        sub = student.get("push_subscription")
-        if sub and student.get("notifications_enabled", True):
-            ok = await send_push_notification(sub, payload)
-            if ok:
-                push_count += 1
-        await db.notifications.insert_one({
-            "notification_id": f"notif_{__import__('uuid').uuid4().hex[:12]}",
-            "user_id": student["user_id"],
-            "type": "class",
-            "title": "New Class Scheduled",
-            "message": f"{class_data['title']} - {class_data['subject']}",
-            "data": {"class_id": class_data.get("class_id")},
-            "is_read": False,
-            "created_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
-        })
-    logger.info(f"Notified {push_count} students (push), {len(students)} in-app, about class {class_data.get('class_id')}")
-    return len(students)
+    batches = class_data.get("assigned_batches") or []
+    return await _notify_batch_students(
+        batches,
+        title=class_data.get("title", "New Class Scheduled"),
+        message=f"{class_data.get('subject','')}",
+        ntype="class",
+        data={"class_id": class_data.get("class_id"), "url": "/classes"},
+    )
 
 
 async def notify_students_about_test(test_data: dict):
-    db = get_database()
-    batches = test_data.get("assigned_batches", [])
-    if not batches:
-        return 0
-    # ALL students in batch get an in-app notification
-    students = await db.users.find({
-        "role": "student",
-        "batch_id": {"$in": batches},
-    }).to_list(length=None)
+    batches = test_data.get("assigned_batches") or []
+    return await _notify_batch_students(
+        batches,
+        title=f"New Test: {test_data.get('test_name','')}",
+        message=f"{test_data.get('subject','')}",
+        ntype="test",
+        data={"test_id": test_data.get("test_id"), "url": "/assigned-tests"},
+    )
 
-    payload = {
-        "title": "New Test Assigned",
-        "body": f"{test_data['test_name']} - {test_data['subject']}",
-        "data": {"url": "/assigned-tests", "type": "test"},
-    }
 
-    push_count = 0
-    for student in students:
-        sub = student.get("push_subscription")
-        if sub and student.get("notifications_enabled", True):
-            ok = await send_push_notification(sub, payload)
-            if ok:
-                push_count += 1
-        await db.notifications.insert_one({
-            "notification_id": f"notif_{__import__('uuid').uuid4().hex[:12]}",
-            "user_id": student["user_id"],
-            "type": "test",
-            "title": "New Test Assigned",
-            "message": f"{test_data['test_name']} - {test_data['subject']}",
-            "data": {"test_id": test_data.get("test_id")},
-            "is_read": False,
-            "created_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
-        })
-    logger.info(f"Notified {push_count} students (push), {len(students)} in-app, about test {test_data.get('test_id')}")
-    return len(students)
+async def notify_students_about_announcement(a: dict):
+    batches = a.get("assigned_batches") or []
+    return await _notify_batch_students(
+        batches,
+        title=f"📢 {a.get('title','Announcement')}",
+        message=a.get("message", ""),
+        ntype="announcement",
+        data={"announcement_id": a.get("announcement_id")},
+    )

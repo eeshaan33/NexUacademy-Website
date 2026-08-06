@@ -1,0 +1,63 @@
+{
+  "summary": "E2E backend test of Supabase migration: 32/37 passed (86%). Auth (all 3 roles + /me + /google/url), Batches (public list, by-code, admin CRUD, predefined protection), Classes + Tests + batch-isolation on JEEM2027 side, Live-Class Zoom create/start/join + raise-hand flow, Announcements (create + JEEM student sees + delete), Notifications (unread + mark read), Questions with option-images (Part 6), and question-samples all work. Frontend loads: /landing, /login, /signup, /admission, /auth/callback all render with proper titles; student login succeeds and lands on /dashboard; /profile shows roll_number (NXU-...). Three real backend bugs found — admission signup, image upload bucket, and Zoom S2S scopes. Because admission is broken, the NEX2028 isolation test and the NEX2028 negative-announcement test could not fully complete (but the JEEM positive side is confirmed).",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/admissions/submit",
+        "issue": "Returns 400 'Signup failed: User not allowed' (Supabase 403 on POST /auth/v1/admin/users). Root cause: get_supabase() returns a singleton client. The successful call to supabase.auth.sign_in_with_password() inside /api/auth/login mutates the shared client's Authorization header to the user's JWT. All subsequent supabase.auth.admin.* calls (create_user in admission_routes and auth_routes signup) then send the user's JWT instead of the SERVICE_ROLE key, so Supabase Auth Admin API returns 403. Startup seed works because it runs before any login. FIX OPTIONS: (a) use a dedicated service-role client for admin ops (e.g. get_admin_supabase()), (b) after every sign_in_with_password call sign_out() to reset headers, or (c) call POST /auth/v1/admin/users directly with httpx using SUPABASE_SERVICE_ROLE_KEY. Option (a) is cleanest.",
+        "priority": "CRITICAL"
+      },
+      {
+        "endpoint": "POST /api/upload/image",
+        "issue": "500 'Bucket not found'. The bucket 'question-images' does not exist in Supabase Storage, and _ensure_bucket() cannot auto-create it because supabase-py's create_bucket signature is different — logs show: 'ensure_bucket failed: {statusCode:400, error:Error, message:body/name must be string}'. Fix: use supabase.storage.create_bucket(id=BUCKET, options={'public': True}) with keyword args, or create the bucket manually in Supabase dashboard (recommended).",
+        "priority": "CRITICAL"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "Zoom S2S OAuth (services/zoom_service.py)",
+        "issue": "The Zoom Server-to-Server OAuth app is missing scopes. Logs: 'Invalid access token, does not contain scopes:[user:read:token, user:read:token:admin]' when fetching host ZAK (start_url would still work), 'dashboard:read:list_meeting_participants:admin' → participants list is always empty for teacher, and 'meeting:delete:meeting:admin, meeting:delete:meeting' → delete-meeting call silently fails (caught). Meeting create + SDK signature generation both work fine. Fix requires adding those scopes in the Zoom App Marketplace (not code)."
+      },
+      {
+        "endpoint": "POST /api/auth/signup",
+        "issue": "Will hit the same 'User not allowed' bug as admissions once any login has been performed — same root cause (shared supabase client)."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Student navigation on /dashboard", "issue": "Sidebar still contains links to PYQ Section, Analytics, Bookmarks — these routes are deferred/removed per this migration scope and will 404 when clicked. Either hide the sidebar items or reintroduce the pages later.", "affected_selectors": ["nav a[href*='pyq']","nav a[href*='analytics']","nav a[href*='bookmarks']"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_supabase_migration.py",
+    "/app/test_reports/pytest/iter14.xml"
+  ],
+  "action_items": [
+    "FIX (critical): Split get_supabase() into two clients — one anon+session for user auth, one service-role-only for admin.* operations. Root fix for admission-signup 403 and future /api/auth/signup regressions.",
+    "FIX (critical): Manually create Supabase Storage bucket 'question-images' (public) in the Supabase Dashboard, OR fix _ensure_bucket() to use the correct supabase-py 2.x signature: supabase.storage.create_bucket(BUCKET, options={'public': True}).",
+    "FIX (config): Add scopes to Zoom S2S OAuth app: user:read:token, dashboard:read:list_meeting_participants:admin, meeting:delete:meeting:admin. Without these the teacher /participants endpoint returns an empty Zoom list (raise-hand DB list still works) and delete-meeting silently fails.",
+    "Consider hiding deferred sidebar items (PYQ, Analytics, Bookmarks) from Dashboard until routes are re-implemented.",
+    "After admission fix, re-run test_admission_creates_user_and_roll, test_admission_me, test_nex2028_student_isolation and test_nex_student_does_not_see (announcements) to complete full isolation coverage."
+  ],
+  "critical_code_review_comments": [
+    "config/database.py get_supabase() returns a single lazily-constructed Client. supabase-py mutates this client's default auth headers on sign_in_with_password, breaking admin.* calls. This is the direct cause of the admission 403.",
+    "routes/admission_routes.py wraps the Supabase error as a generic 'Signup failed: <msg>' — that swallows the fact that it's actually a permission problem. Consider surfacing 500 for anything other than the 'already registered' branch so the RCA is obvious in prod.",
+    "routes/upload_routes.py _ensure_bucket() catches all exceptions with just a warning — a missing bucket then causes every upload to fail with a confusing 500. Prefer failing loudly at startup or fixing the create call.",
+    "services/seed_service.py updates every seed user's password on every startup — noisy but idempotent; consider gating behind an env flag for prod.",
+    "notification_routes.py list_notifications returns {notifications, unread_count} at top-level (no 'success') while every other endpoint uses {'success': True, ...} — small consistency drift for the frontend.",
+    "student_test_routes.py submit() computes correct/incorrect purely from client-supplied 'is_correct' — a student can trivially post is_correct:true for every answer to inflate their score. Server should verify against the tests.questions correct_answers list."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_supabase_migration.py"
+  ],
+  "success_rate": {"backend": "86% (32/37 passed, 1 skipped due to blocker)", "frontend": "smoke-only: pages load, student login+profile OK"},
+  "test_credentials": "Admin admin@nexuacademy.com/nexuacademy123; Teacher teacher@test.com/password123; Student student@test.com/password123 (batch JEEM2027) — all seeded on startup",
+  "seed_data_creation": "Test file creates ephemeral admissions with email TEST_<uuid>@example.com and batches TEST<uuid>. Admission creation currently fails so no leftover users; batches are deleted at end of test.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Test file: /app/backend/tests/test_supabase_migration.py, run with `pytest /app/backend/tests/test_supabase_migration.py -v`. After main agent fixes the get_supabase() singleton issue and creates the question-images bucket, re-run — expect 36/37 passing (the Zoom participants scope one is external config and won't fully pass without the Zoom app update). All tests are idempotent and safe to re-run.",
+  "rca of the issue": "1) ADMISSION 403: supabase-py Client is a singleton; sign_in_with_password mutates its auth header to the newly-signed-in user's JWT; subsequent auth.admin.create_user is sent with that user JWT (no admin scope) → 403. Reproducible by (a) restart backend (b) hit /api/auth/login (any user) (c) hit /api/admissions/submit → always 403 thereafter. 2) UPLOAD 500: bucket 'question-images' never existed in Supabase Storage; _ensure_bucket's auto-create call passes the bucket name positionally to a supabase-py signature that now expects it as a keyword+options-dict, so bucket creation silently no-ops and every upload 404s. 3) ZOOM SCOPES: Zoom S2S app was built with only meeting:write/read scopes; participants/dashboard and delete endpoints require additional admin scopes not granted."
+}

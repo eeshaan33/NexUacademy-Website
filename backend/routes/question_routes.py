@@ -1,489 +1,90 @@
-from fastapi import APIRouter, HTTPException, status, Query, Request, Depends
-from typing import List, Optional
-from datetime import datetime, timezone
-import uuid
-import csv
-import io
-from models.question import QuestionCreate, Question
-from models.requests import BulkImportRequest, BulkQuestionImport, SingleQuestionCreate
-from middleware.auth import get_current_user, get_current_teacher
-from config.syllabus import JEE_SYLLABUS
-from config.database import get_database
+"""Question bank endpoints: samples (public), single-question creator (admin), option images (Part 6)."""
+import json
+from typing import Optional, Any, Dict
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
+
+from config.database import get_pool
+from middleware.auth import get_current_teacher
+from services.pg_utils import short_id, json_safe
 
 router = APIRouter(prefix="/questions", tags=["questions"])
 
 
-async def _require_admin(request: Request):
-    user = await get_current_user(request)
-    if user.get("role") != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
-    return user
+class OptionData(BaseModel):
+    text: Optional[str] = ""
+    imageUrl: Optional[str] = ""
 
 
-@router.post("/", response_model=Question)
-async def create_question(question_data: QuestionCreate, request: Request):
-    """Create a new question (teacher only)."""
-    db = get_database()
-    user = await get_current_teacher(request)
-    question_id = f"q_{uuid.uuid4().hex[:12]}"
-    question_doc = question_data.model_dump()
-    question_doc.update({
-        "question_id": question_id,
-        "created_by": user["user_id"],
-        "created_at": datetime.now(timezone.utc),
-    })
-    await db.questions.insert_one(question_doc)
-    question_doc.pop("_id", None)
-    return question_doc
-
-
-@router.get("/")
-async def get_questions(
-    exam_type: Optional[str] = Query(None),
-    subject: Optional[str] = Query(None),
-    chapter: Optional[str] = Query(None),
-    topic: Optional[str] = Query(None),
-    year: Optional[int] = Query(None),
-    difficulty: Optional[str] = Query(None),
-    page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=500),
-):
-    """Get questions with filters."""
-    db = get_database()
-    filter_query = {}
-    for k, v in (("exam_type", exam_type), ("subject", subject), ("chapter", chapter),
-                 ("topic", topic), ("year", year), ("difficulty", difficulty)):
-        if v:
-            filter_query[k] = v
-
-    total = await db.questions.count_documents(filter_query)
-    skip = (page - 1) * limit
-    questions = await db.questions.find(filter_query, {"_id": 0}).skip(skip).limit(limit).to_list(length=limit)
-    return {"questions": questions, "total": total, "page": page, "pages": (total + limit - 1) // limit}
-
-
-@router.get("/syllabus")
-async def get_syllabus():
-    return JEE_SYLLABUS
-
-
-@router.get("/syllabus/{subject}")
-async def get_subject_syllabus(subject: str):
-    if subject not in JEE_SYLLABUS:
-        raise HTTPException(status_code=404, detail="Subject not found")
-    return {subject: JEE_SYLLABUS[subject]}
-
-
-@router.get("/chapters/{subject}")
-async def get_chapters(subject: str, class_level: Optional[str] = Query(None)):
-    if subject not in JEE_SYLLABUS:
-        raise HTTPException(status_code=404, detail="Subject not found")
-    if class_level:
-        if class_level not in ["Class11", "Class12"]:
-            raise HTTPException(status_code=400, detail="class_level must be Class11 or Class12")
-        return {class_level: JEE_SYLLABUS[subject][class_level]}
-    return JEE_SYLLABUS[subject]
-
-
-@router.get("/stats")
-async def question_stats():
-    """Admin overview of PYQ bank: total, by exam, by subject, by year."""
-    db = get_database()
-    total = await db.questions.count_documents({})
-
-    async def _agg(field):
-        return await db.questions.aggregate([
-            {"$group": {"_id": f"${field}", "count": {"$sum": 1}}},
-            {"$sort": {"count": -1}},
-        ]).to_list(length=100)
-
-    return {
-        "total": total,
-        "by_exam": await _agg("exam_type"),
-        "by_subject": await _agg("subject"),
-        "by_year": await _agg("year"),
-        "by_difficulty": await _agg("difficulty"),
-    }
-
-
-@router.post("/bulk-import")
-async def bulk_import(payload: BulkImportRequest, request: Request):
-    """Admin-only: import many questions at once."""
-    admin = await _require_admin(request)
-    db = get_database()
-
-    if payload.replace_existing:
-        await db.questions.delete_many({})
-
-    inserted, skipped = 0, 0
-    for q in payload.questions:
-        doc = q.model_dump()
-        doc["question_id"] = f"q_{uuid.uuid4().hex[:12]}"
-        doc["created_by"] = admin["user_id"]
-        doc["created_at"] = datetime.now(timezone.utc)
-        # Store in both shapes for compatibility with existing readers
-        doc["question_text"] = q.question_text
-        doc["questionText"] = q.question_text
-        doc["questionType"] = "MCQ_Single"
-        doc["correctAnswer"] = q.correct_answer
-        try:
-            await db.questions.insert_one(doc)
-            inserted += 1
-        except Exception:
-            skipped += 1
-
-    return {"success": True, "inserted": inserted, "skipped": skipped,
-            "total": await db.questions.count_documents({})}
-
-
-def _normalize_image_url(url: str) -> str:
-    """Normalise image URLs — strip whitespace, accept relative /uploads paths,
-    reject anything that isn't an http(s) URL or a /uploads path."""
-    url = (url or "").strip()
-    if not url:
-        return ""
-    if url.startswith(("http://", "https://", "/uploads/")):
-        return url
-    # Accept bare filenames and prefix with /uploads/
-    if "/" not in url and "." in url:
-        return f"/uploads/{url}"
-    # Anything else — drop
-    return ""
-
-
-@router.post("/bulk-import/csv")
-async def bulk_import_csv(request: Request):
-    """Admin-only: parse pasted CSV body and import.
-
-    Features:
-      * Accepts optional `question_image_url` column (normalised to /uploads/... or http(s))
-      * Detects duplicates inside the CSV and already in the DB (exam_type + subject + question_text)
-      * Returns inserted, duplicates_skipped, and per-row errors
-    """
-    admin = await _require_admin(request)
-    db = get_database()
-
-    body = (await request.body()).decode("utf-8", errors="ignore")
-    if not body.strip():
-        raise HTTPException(status_code=400, detail="Empty CSV")
-
-    try:
-        reader = csv.DictReader(io.StringIO(body))
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"CSV parse error: {e}")
-
-    inserted, errors, dup_skipped = 0, [], []
-    seen_in_batch = set()
-
-    for idx, row in enumerate(reader, start=2):
-        try:
-            qtext = row["question_text"].strip()
-            subj = row["subject"].strip()
-            exam = row["exam_type"].strip()
-
-            key = (exam.lower(), subj.lower(), qtext.lower()[:200])
-
-            # Duplicate within CSV?
-            if key in seen_in_batch:
-                dup_skipped.append({"row": idx, "reason": "duplicate within CSV"})
-                continue
-            seen_in_batch.add(key)
-
-            # Duplicate already in DB?
-            existing = await db.questions.find_one({
-                "exam_type": exam,
-                "subject": subj,
-                "question_text": qtext,
-            })
-            if existing:
-                dup_skipped.append({"row": idx, "reason": "duplicate of existing question",
-                                    "existing_question_id": existing.get("question_id")})
-                continue
-
-            q_dict = {
-                "exam_type": exam,
-                "subject": subj,
-                "chapter": row["chapter"].strip(),
-                "topic": row.get("topic", "").strip(),
-                "year": int(row["year"]),
-                "difficulty": row.get("difficulty", "Medium").strip() or "Medium",
-                "question_text": qtext,
-                "question_image_url": _normalize_image_url(row.get("question_image_url", "")),
-                "options": {
-                    "A": row["option_a"].strip(),
-                    "B": row["option_b"].strip(),
-                    "C": row["option_c"].strip(),
-                    "D": row["option_d"].strip(),
-                },
-                "correct_answer": row["correct_answer"].strip().upper(),
-                "marks": int(row.get("marks") or 4),
-                "negative_marks": int(row.get("negative_marks") or -1),
-                "solution_youtube_url": row.get("solution_youtube_url", ""),
-                "solution_timestamp": int(row.get("solution_timestamp") or 0),
-            }
-            validated = BulkQuestionImport(**q_dict)
-            doc = validated.model_dump()
-            doc["question_id"] = f"q_{uuid.uuid4().hex[:12]}"
-            doc["created_by"] = admin["user_id"]
-            doc["created_at"] = datetime.now(timezone.utc)
-            doc["question_text"] = validated.question_text
-            doc["questionText"] = validated.question_text
-            doc["questionType"] = "MCQ_Single"
-            doc["correctAnswer"] = validated.correct_answer
-            await db.questions.insert_one(doc)
-            inserted += 1
-        except Exception as e:
-            errors.append({"row": idx, "error": str(e)[:200]})
-
-    return {"success": True, "inserted": inserted,
-            "duplicates_skipped": dup_skipped[:100],
-            "duplicates_skipped_count": len(dup_skipped),
-            "errors": errors[:50],
-            "errors_count": len(errors),
-            "total": await db.questions.count_documents({})}
-
-
-@router.post("/admin/create")
-async def admin_create_single(payload: SingleQuestionCreate, request: Request):
-    """Admin creates a single question (with optional image URL)."""
-    admin = await _require_admin(request)
-    db = get_database()
-
-    # Normalise image URL
-    img = _normalize_image_url(payload.question_image_url or "")
-
-    doc = payload.model_dump()
-    doc["question_image_url"] = img
-    doc["question_id"] = f"q_{uuid.uuid4().hex[:12]}"
-    doc["created_by"] = admin["user_id"]
-    doc["created_at"] = datetime.now(timezone.utc)
-    # Dual-field compatibility with legacy readers
-    doc["questionText"] = payload.question_text
-    doc["correctAnswer"] = payload.correct_answer
-    doc["questionType"] = "MCQ_Single"
-
-    await db.questions.insert_one(doc)
-    doc.pop("_id", None)
-    return {"success": True, "question": doc}
-
-
-@router.put("/admin/{question_id}/sample")
-async def toggle_is_sample(question_id: str, request: Request, is_sample: bool):
-    """Admin toggles whether a question appears on the public /sample-questions page."""
-    await _require_admin(request)
-    db = get_database()
-    res = await db.questions.update_one(
-        {"question_id": question_id},
-        {"$set": {"is_sample": is_sample}},
-    )
-    if res.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Question not found")
-    return {"success": True, "question_id": question_id, "is_sample": is_sample}
+class SingleQuestionCreate(BaseModel):
+    exam_type: str = "JEE Main"
+    subject: str
+    chapter: Optional[str] = ""
+    topic: Optional[str] = ""
+    year: Optional[int] = None
+    difficulty: Optional[str] = "medium"
+    question_text: str
+    question_image_url: Optional[str] = ""
+    question_type: Optional[str] = "MCQ_Single"
+    # options: {"A":{"text":"..","imageUrl":".."}, "B":..., "C":..., "D":...}
+    options: Dict[str, OptionData]
+    correct_answers: list[str] = Field(default_factory=list)
+    marks: int = 4
+    negative_marks: int = -1
+    explanation: Optional[str] = ""
+    is_sample: bool = False
 
 
 @router.get("/samples")
-async def public_samples(limit: int = Query(2, ge=1, le=6)):
-    """Public endpoint: return questions flagged `is_sample=true`.
-    Fallback: latest Chemistry questions with images if none are marked."""
-    db = get_database()
-
-    marked = await db.questions.find(
-        {"is_sample": True}, {"_id": 0, "correct_answer": 0, "correctAnswer": 0, "solution_text": 0}
-    ).sort("created_at", -1).limit(limit).to_list(length=limit)
-
-    if len(marked) >= limit:
-        return {"samples": marked, "source": "marked"}
-
-    # Fallback: top Chemistry questions with images
-    need = limit - len(marked)
-    fallback = await db.questions.find(
-        {
-            "subject": "Chemistry",
-            "question_image_url": {"$nin": ["", None]},
-            "question_id": {"$nin": [m["question_id"] for m in marked]},
-        },
-        {"_id": 0, "correct_answer": 0, "correctAnswer": 0, "solution_text": 0}
-    ).sort("created_at", -1).limit(need).to_list(length=need)
-
-    return {"samples": marked + fallback, "source": "mixed" if marked else "fallback"}
+async def list_samples():
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT * FROM questions WHERE is_sample = true ORDER BY created_at DESC LIMIT 20"
+        )
+    return {"success": True, "questions": [json_safe(r) for r in rows]}
 
 
-@router.get("/admin/list")
-async def admin_list_questions(
-    request: Request,
-    exam_type: Optional[str] = Query(None),
-    subject: Optional[str] = Query(None),
-    chapter: Optional[str] = Query(None),
-    year: Optional[int] = Query(None),
-    difficulty: Optional[str] = Query(None),
-    q: Optional[str] = Query(None),
-    page: int = Query(1, ge=1),
-    limit: int = Query(30, ge=1, le=200),
-):
-    """Admin-only: search + paginate the entire PYQ bank with richer metadata."""
-    await _require_admin(request)
-    db = get_database()
-
-    f = {}
-    for k, v in (("exam_type", exam_type), ("subject", subject), ("chapter", chapter),
-                 ("year", year), ("difficulty", difficulty)):
-        if v:
-            f[k] = v
-    if q:
-        f["$or"] = [
-            {"question_text": {"$regex": q, "$options": "i"}},
-            {"chapter": {"$regex": q, "$options": "i"}},
-            {"topic": {"$regex": q, "$options": "i"}},
-        ]
-
-    total = await db.questions.count_documents(f)
-    skip = (page - 1) * limit
-    rows = await db.questions.find(f, {"_id": 0}).sort("created_at", -1).skip(skip).limit(limit).to_list(length=limit)
-    return {"total": total, "page": page, "limit": limit,
-            "pages": (total + limit - 1) // limit,
-            "questions": rows}
+@router.post("/single")
+async def create_single(payload: SingleQuestionCreate, user=Depends(get_current_teacher)):
+    q_id = short_id("q")
+    options_json = {k: v.dict() for k, v in payload.options.items()}
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """
+            INSERT INTO questions (question_id, exam_type, subject, chapter, topic, year, difficulty,
+                question_text, question_image_url, question_type, options, correct_answers,
+                marks, negative_marks, explanation, is_sample, created_by)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13,$14,$15,$16,$17)
+            RETURNING *
+            """,
+            q_id, payload.exam_type, payload.subject, payload.chapter, payload.topic,
+            payload.year, payload.difficulty, payload.question_text, payload.question_image_url,
+            payload.question_type, json.dumps(options_json), payload.correct_answers,
+            payload.marks, payload.negative_marks, payload.explanation, payload.is_sample, user["name"],
+        )
+    return {"success": True, "question": json_safe(row)}
 
 
-@router.delete("/admin/{question_id}")
-async def admin_delete_question(question_id: str, request: Request):
-    """Admin-only: delete any question. Auto-invalidates it from active tests.
-
-    Students fetching the PYQ bank always read live from db.questions, so no cache flush needed —
-    delete is immediately reflected on the student side.
-    """
-    await _require_admin(request)
-    db = get_database()
-    res = await db.questions.delete_one({"question_id": question_id})
-    if res.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Question not found")
-    # Also remove from any in-progress tests (best-effort cleanup)
-    await db.tests.update_many(
-        {"questions.question_id": question_id},
-        {"$pull": {"questions": {"question_id": question_id}}},
-    )
-    return {"success": True, "deleted": question_id}
-
-
-@router.post("/seed-sample")
-async def seed_sample_pack(request: Request, count: int = Query(30, ge=5, le=200)):
-    """Admin convenience — seed a small sample pack covering core chapters
-    so the PYQ section and custom tests have immediate content."""
-    admin = await _require_admin(request)
-    db = get_database()
-
-    samples = [
-        # Physics
-        ("JEE_Main", "Physics", "Kinematics", "1D motion", 2022, "Medium",
-         "A particle moves with constant acceleration. If it covers 40 m in the 4th second, what is the acceleration (starting from rest)?",
-         {"A": "4 m/s²", "B": "8 m/s²", "C": "10 m/s²", "D": "16 m/s²"}, "C"),
-        ("JEE_Main", "Physics", "Thermodynamics", "First law", 2021, "Easy",
-         "Which process has ΔU = 0 for an ideal gas?",
-         {"A": "Adiabatic", "B": "Isobaric", "C": "Isochoric", "D": "Isothermal"}, "D"),
-        ("JEE_Main", "Physics", "Optics", "Ray optics", 2020, "Hard",
-         "A convex lens of focal length 20 cm forms a real image at 30 cm. The object distance is:",
-         {"A": "12 cm", "B": "60 cm", "C": "50 cm", "D": "30 cm"}, "B"),
-        ("JEE_Advanced", "Physics", "Electrostatics", "Coulomb's law", 2023, "Hard",
-         "Two point charges +q and -q separated by 2a. Field at midpoint on the perpendicular bisector of distance d is:",
-         {"A": "zero", "B": "kq/d²", "C": "2kq/d²", "D": "2kqa/(d²+a²)^(3/2)"}, "D"),
-        ("JEE_Main", "Physics", "Gravitation", "Orbital mechanics", 2022, "Medium",
-         "Escape velocity from Earth's surface is:",
-         {"A": "7.9 km/s", "B": "11.2 km/s", "C": "9.8 km/s", "D": "15 km/s"}, "B"),
-        # Chemistry
-        ("JEE_Main", "Chemistry", "Chemical Bonding", "Hybridization", 2022, "Easy",
-         "Hybridization of carbon in CO2 is:",
-         {"A": "sp", "B": "sp²", "C": "sp³", "D": "dsp²"}, "A"),
-        ("JEE_Main", "Chemistry", "Thermodynamics", "Entropy", 2021, "Medium",
-         "ΔS for the reaction N2 + 3H2 → 2NH3 is:",
-         {"A": "Positive", "B": "Negative", "C": "Zero", "D": "Cannot be determined"}, "B"),
-        ("JEE_Advanced", "Chemistry", "Organic Chemistry", "Aromaticity", 2023, "Hard",
-         "Which of the following is NOT aromatic?",
-         {"A": "Benzene", "B": "Cyclopentadienyl anion", "C": "Cyclooctatetraene", "D": "Pyridine"}, "C"),
-        ("JEE_Main", "Chemistry", "States of Matter", "Gas laws", 2020, "Easy",
-         "At constant T, PV is constant — this is:",
-         {"A": "Charles law", "B": "Boyle's law", "C": "Avogadro's law", "D": "Gay-Lussac's law"}, "B"),
-        ("JEE_Main", "Chemistry", "Equilibrium", "Le Chatelier", 2022, "Medium",
-         "Increasing pressure on N2+3H2↔2NH3 shifts equilibrium:",
-         {"A": "Left", "B": "Right", "C": "No change", "D": "Depends on T"}, "B"),
-        # Mathematics
-        ("JEE_Main", "Mathematics", "Trigonometric Functions", "Identities", 2022, "Easy",
-         "sin²θ + cos²θ equals:",
-         {"A": "0", "B": "1", "C": "2", "D": "sin 2θ"}, "B"),
-        ("JEE_Main", "Mathematics", "Complex Numbers", "Modulus", 2021, "Medium",
-         "|3 + 4i| =",
-         {"A": "5", "B": "7", "C": "25", "D": "1"}, "A"),
-        ("JEE_Advanced", "Mathematics", "Calculus", "Limits", 2023, "Hard",
-         "lim(x→0) sin(x)/x =",
-         {"A": "0", "B": "1", "C": "∞", "D": "Does not exist"}, "B"),
-        ("JEE_Main", "Mathematics", "Conic Sections", "Parabola", 2020, "Medium",
-         "Focus of the parabola y² = 8x is:",
-         {"A": "(2, 0)", "B": "(-2, 0)", "C": "(0, 2)", "D": "(0, -2)"}, "A"),
-        ("JEE_Main", "Mathematics", "Probability", "Independent events", 2022, "Easy",
-         "Probability of getting heads in 2 coin tosses:",
-         {"A": "1/4", "B": "1/2", "C": "3/4", "D": "1"}, "C"),
-    ]
-
-    # Repeat to reach count
-    inserted = 0
-    now = datetime.now(timezone.utc)
-    for i in range(count):
-        s = samples[i % len(samples)]
-        exam_type, subject, chapter, topic, year, difficulty, qtext, options, correct = s
-        # Add variance: slightly permute year
-        adj_year = min(2024, max(2015, year + (i // len(samples))))
-        doc = {
-            "question_id": f"q_seed_{uuid.uuid4().hex[:10]}",
-            "exam_type": exam_type,
-            "subject": subject,
-            "chapter": chapter,
-            "topic": topic,
-            "year": adj_year,
-            "difficulty": difficulty,
-            "question_text": qtext,
-            "questionText": qtext,
-            "question_image_url": "",
-            "options": options,
-            "correct_answer": correct,
-            "correctAnswer": correct,
-            "questionType": "MCQ_Single",
-            "marks": 4,
-            "negative_marks": -1,
-            "solution_youtube_url": "",
-            "solution_timestamp": 0,
-            "created_by": admin["user_id"],
-            "created_at": now,
-        }
-        await db.questions.insert_one(doc)
-        inserted += 1
-
-    return {"success": True, "inserted": inserted,
-            "total": await db.questions.count_documents({})}
-
-
-@router.get("/{question_id}")
-async def get_question(question_id: str):
-    db = get_database()
-    q = await db.questions.find_one({"question_id": question_id}, {"_id": 0})
-    if not q:
-        raise HTTPException(status_code=404, detail="Question not found")
-    return q
+@router.get("/")
+async def list_questions(subject: Optional[str] = None, chapter: Optional[str] = None,
+                         user=Depends(get_current_teacher)):
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        if subject and chapter:
+            rows = await conn.fetch("SELECT * FROM questions WHERE subject = $1 AND chapter = $2 ORDER BY created_at DESC LIMIT 200",
+                                    subject, chapter)
+        elif subject:
+            rows = await conn.fetch("SELECT * FROM questions WHERE subject = $1 ORDER BY created_at DESC LIMIT 200", subject)
+        else:
+            rows = await conn.fetch("SELECT * FROM questions ORDER BY created_at DESC LIMIT 200")
+    return {"success": True, "questions": [json_safe(r) for r in rows]}
 
 
 @router.delete("/{question_id}")
-async def delete_question(question_id: str, request: Request):
-    db = get_database()
-    await get_current_teacher(request)
-    res = await db.questions.delete_one({"question_id": question_id})
-    if res.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Question not found")
-    return {"message": "Question deleted successfully"}
-
-
-@router.delete("/bulk/all")
-async def delete_all_questions(request: Request, confirm: str = Query("")):
-    """Admin-only: wipe entire PYQ bank. Require ?confirm=WIPE to proceed."""
-    await _require_admin(request)
-    if confirm != "WIPE":
-        raise HTTPException(status_code=400, detail="Pass ?confirm=WIPE to confirm destructive delete")
-    db = get_database()
-    res = await db.questions.delete_many({})
-    return {"success": True, "deleted": res.deleted_count}
+async def delete_question(question_id: str, user=Depends(get_current_teacher)):
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute("DELETE FROM questions WHERE question_id = $1", question_id)
+    return {"success": True}
