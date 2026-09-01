@@ -13,6 +13,7 @@ import api from '../utils/api';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { setTokens } from '../context/AuthContext';
 import { setPageTitle } from '../utils/pageTitle';
 
 const AdmissionForm = ({ onComplete }) => {
@@ -335,7 +336,14 @@ const AdmissionForm = ({ onComplete }) => {
       if (response.data.success) {
         setAdmissionId(response.data.admission_id);
         setIsSuccess(true);
-        
+
+        // Persist the Supabase session tokens returned by /admissions/submit so
+        // subsequent authenticated calls (e.g. /payments/create-order on the
+        // fee-structure page) have a Bearer token to attach.
+        const access = response.data.access_token || response.data.token;
+        const refresh = response.data.refresh_token;
+        if (access) setTokens(access, refresh);
+
         // Auto-login: Set user in auth context
         if (response.data.user) {
           setUser(response.data.user);
