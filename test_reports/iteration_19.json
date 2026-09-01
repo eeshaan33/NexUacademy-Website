@@ -1,0 +1,34 @@
+{
+  "summary": "Iteration 19 — Time Guard testing. Created /app/backend/tests/test_time_guard.py with 5 targeted tests using asyncpg to backdate started_at directly on Supabase Postgres. CRITICAL: The time-guard feature described in the review request has NOT been implemented in backend/routes/student_test_routes.py. The submit() function contains NO reference to SUBMIT_GRACE_SECONDS, NO comparison of (now - started_at) vs test.duration, and NO auto-close to status='expired'. Result: 3/5 pass (happy path, inside-grace path, idempotency) — all regressions preserved — but the 2 tests that specifically validate the new behavior FAIL because the backend still returns 200 with normal scoring for attempts backdated 20 min on a 15-min test and 990 s on a 15-min test. Regression suite for iter18 scoring still passes. Iter17 Zoom & iter16 Razorpay were not re-run this iteration (nothing changed there and iter18 already re-verified them 50/50).",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/student/tests/attempts/{id}/submit", "issue": "Time-guard NOT implemented. Attempts backdated 20 min on a 15-min-duration test still return 200 and get scored normally. Expected: HTTP 400 with detail containing 'expired' + row.status flipped to 'expired' with submitted_at set. Source of truth /app/backend/routes/student_test_routes.py has no SUBMIT_GRACE_SECONDS constant, no duration comparison, no status='expired' write path. Feature claim in review request does not match code.", "priority": "CRITICAL"}
+    ],
+    "minor": []
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_time_guard.py",
+    "/app/test_reports/pytest/iter19_results.xml"
+  ],
+  "action_items": [
+    "Implement the time-guard in student_test_routes.submit(): fetch test.duration (minutes) along with test.questions; compute cutoff = a['started_at'] + duration*60 + 60 (grace); if datetime.now(tz=UTC) > cutoff AND a['status']=='in_progress', UPDATE test_attempts SET status='expired', submitted_at=NOW() WHERE attempt_id=$1 and raise HTTPException(400, 'Test time expired'). Ensure the check happens BEFORE the score_attempt call and BEFORE the status=='submitted' idempotency short-circuit still returns 200 for already-submitted (submitted!=expired).",
+    "Decide status transition rules: if attempt is already status='expired', subsequent submit must still return 400 with the same detail (verify with test_expired_submit_rejected_with_400 follow-up assertion — currently doubly-blocked because the first call succeeds so the second call also passes as idempotent 200).",
+    "Autosave endpoint currently returns 200 skipped only when status!='in_progress' — that already covers 'expired' correctly (verified in test). Leave alone as per spec.",
+    "Optional: return the guard-related fields in the 400 body ({detail, expired_at, cutoff_at}) so the client UI can render a friendly 'time up' page instead of a generic error."
+  ],
+  "critical_code_review_comments": [
+    "student_test_routes.submit still has NO time-guard — confirmed by grep for 'SUBMIT_GRACE|expired|duration' returning empty. Main agent's file-of-reference note is inaccurate.",
+    "When implementing the guard, ensure the auto-close UPDATE and the HTTPException happen in the same connection/transaction so a crashed handler cannot leave a stale in_progress row.",
+    "Tests min-duration constraint in teacher/tests/create is 15 min (pydantic ge=15). If product wants shorter durations for practice/quick-check tests, relax this — but note the guard-cutoff math must still hold (currently duration*60 s + 60 s grace is fine for 15+).",
+    "Consider a periodic sweeper job that flips long-abandoned in_progress attempts to 'expired' server-side (not just on submit) so analytics/dashboards don't show ghost attempts."
+  ],
+  "updated_files": ["/app/backend/tests/test_time_guard.py"],
+  "success_rate": {"backend": "60% (3/5 iter19 time-guard tests). Regression iter18 scoring path still intact (happy + idempotency pass). The 2 failures are the two guard-behavior tests — the feature is genuinely missing.", "frontend": "not tested (backend only)"},
+  "test_credentials": "teacher@test.com/password123, student@test.com/password123 (JEEM2027) — from /app/memory/test_credentials.md",
+  "seed_data_creation": "Each test creates a TEST_timeguard_* test row and deletes it in-fixture teardown. asyncpg direct UPDATE to test_attempts.started_at (no schema changes).",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Reusable file: /app/backend/tests/test_time_guard.py. All backdating uses asyncpg via DATABASE_URL loaded through python-dotenv. Note: teacher/tests/create enforces duration ge=15 min, so all short-duration scenarios must be simulated by backdating started_at rather than using duration=1. Cutoff math used in tests: cutoff = started_at + duration_minutes*60 + 60. Expired scenario uses backdate=1200s on 15-min test; inside-grace uses 930s; outside-grace uses 990s. After main agent implements the guard, re-run: pytest /app/backend/tests/test_time_guard.py -v --junitxml=/app/test_reports/pytest/iter19_results.xml — all 5 should pass.",
+  "rca of the issue": "The submit() handler at /app/backend/routes/student_test_routes.py:130-183 has no expiration logic. It only checks (a) attempt exists, (b) student_id matches, (c) idempotent short-circuit on status=='submitted'. It then jumps straight into score_attempt and writes status='submitted'. Reproduction: POST /api/student/tests/{id}/start → asyncpg UPDATE test_attempts SET started_at = NOW() - '20 minutes'::interval → POST /api/student/tests/attempts/{id}/submit → observed 200 + normal score instead of expected 400 + expired. Mitigation: add duration read from tests table (already selected via existing query, just extend SELECT), compute cutoff timestamp, and reject+auto-close before score_attempt call. Full patch sketch shown in action_items."
+}

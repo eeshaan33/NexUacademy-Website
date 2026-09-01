@@ -1,0 +1,28 @@
+{
+  "summary": "Iteration 20 — Re-verified Test Time Guard against live backend. All 5 tests in /app/backend/tests/test_time_guard.py PASS (5/5, 100%). Confirmed backend/routes/student_test_routes.py:submit() now enforces (now - started_at) <= duration_minutes + SUBMIT_GRACE_SECONDS (60s), auto-closes stale attempts with status='expired' + submitted_at=NOW(), and short-circuits any subsequent submit on an expired attempt to 400. Iter19's earlier failure was due to stale backend state; the feature is fully live now. Also fixed a test-infra issue: asyncpg direct connections to Supabase go through pgbouncer (transaction pool_mode) which does not support prepared statements — added statement_cache_size=0 to asyncpg.connect() in the test helpers so the backdating helpers no longer raise DuplicatePreparedStatementError.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_time_guard.py",
+    "/app/test_reports/pytest/iter20_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Guard implementation in student_test_routes.submit() is correct and race-safe: the auto-close UPDATE happens in the same `async with pool.acquire() as conn` block before the HTTPException is raised, so a crashed handler cannot leave a stale in_progress row after the deadline check.",
+    "Timezone handling is defensive — started_at without tzinfo is normalized to UTC before compare. Good.",
+    "The status=='expired' short-circuit at line 157-161 correctly ensures that a second submit on an auto-closed attempt returns 400 with a clear detail. Verified by test_expired_submit_rejected_with_400's follow-up assertion.",
+    "Autosave on an expired attempt returns {success:true, skipped:true} rather than an error — matches spec and verified by the third assertion in the expired test.",
+    "Minor consistency note (non-blocking): the expired short-circuit detail says 'Test time expired. This attempt was auto-closed and can no longer be submitted.' while the just-expired-now branch says 'Test time expired. Your attempt has been auto-closed.' Both contain 'expired' so client detection works, but harmonising them would simplify future i18n."
+  ],
+  "updated_files": ["/app/backend/tests/test_time_guard.py"],
+  "success_rate": {"backend": "100% (5/5 time-guard tests pass)", "frontend": "not tested (backend only)"},
+  "test_credentials": "teacher@test.com/password123, student@test.com/password123 (JEEM2027) — from /app/memory/test_credentials.md",
+  "seed_data_creation": "Each test creates a TEST_timeguard_* test row and deletes it via /teacher/tests/{id} DELETE in the finally block. asyncpg direct UPDATE to test_attempts.started_at (no schema changes).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Reusable file: /app/backend/tests/test_time_guard.py — now works against Supabase pgbouncer thanks to statement_cache_size=0 on asyncpg.connect(). Any future asyncpg direct-connect test helper in this repo must include statement_cache_size=0 for the same reason. Cutoff math: cutoff = started_at + duration_minutes*60 + SUBMIT_GRACE_SECONDS(60). Test durations must be >= 15 (pydantic ge=15 on teacher/tests/create), so expired scenarios are simulated by backdating started_at rather than using duration=1.",
+  "rca of the issue": "N/A — iter19 failures were due to stale backend state at the time (feature not yet deployed). Iter20 confirms guard is live and behaviour matches spec. The only fix needed in iter20 was in the test helpers themselves (asyncpg statement cache incompatibility with Supabase pgbouncer)."
+}

@@ -73,14 +73,15 @@ See `/app/memory/test_credentials.md`.
 - P2: Real-time "live now" banner via Supabase Realtime  *(currently polling every 30 s in `LiveNowBanner`)*
 - P2: Bookmarks + Custom Test builder + Teacher-CRUD admin flow
 
-## Phase 14 (Feb 2026) — Score integrity + Live Now + Receipt emails
-- **Server-side score verification** — `services/scoring.py` recomputes correctness from `tests.questions` (MCQ_Single, MCQ_Multiple, Numerical Integer/Decimal with `answer_range` tolerance). Client `is_correct` is discarded. `negative_marks` is clamped to `<=0` defensively. Idempotent submit + `total_score`/`max_score` persisted.
-- **Autosave endpoint** — `PUT /api/student/tests/attempts/{id}/autosave` (matches the JEEMainInterface 30 s cadence).
-- **Live Now banner** — `LiveNowBanner` mounted inside `Layout`; polls `/student/live-classes/` every 30 s (pauses when tab hidden), shows red pulsing bar with a "Join Now" CTA whenever any is_live=true class is assigned to the student's batch. Session-persisted dismiss per class_id.
-- **Branded PDF payment receipts** — `services/receipt_service.py` builds an A4 receipt (reportlab) and sends it via Resend. Dispatched via **FastAPI BackgroundTasks** on `POST /payments/verify` so /verify latency stays fast; also dispatched from webhook `payment.captured` / `order.paid` with a `already_paid` dedupe.
+## Phase 14 (Feb 2026) — Score integrity + Live Now + Receipt emails + Time Guard
+- **Server-side score verification** — `services/scoring.py` recomputes correctness from `tests.questions` (MCQ_Single, MCQ_Multiple, Numerical with `answer_range` tolerance). Client `is_correct` is discarded. `negative_marks` clamped to `<=0`. Submit is idempotent.
+- **Test Time Guard** — `student_test_routes.submit()` enforces `(now - started_at) <= duration_minutes + 60 s grace`. Stale attempts are auto-closed with `status='expired'` + `submitted_at=NOW()` and every subsequent submit returns HTTP 400. Autosave on expired returns `{skipped:true}`.
+- **Autosave endpoint** — `PUT /api/student/tests/attempts/{id}/autosave` (matches JEEMainInterface 30 s cadence).
+- **Live Now banner** — `LiveNowBanner` mounted inside `Layout`; polls `/student/live-classes/` every 30 s (pauses when tab hidden), red pulsing bar with "Join Now" CTA when any is_live=true class matches student batch. Session-persisted dismiss per class_id.
+- **Branded PDF payment receipts** — `services/receipt_service.py` builds A4 receipt (reportlab) sent via Resend on `/payments/verify` (via FastAPI BackgroundTasks) + on webhook `payment.captured` with `already_paid` dedupe.
 
 ## Verified via Testing Agent
-- iter14: 32/37 · iter15: 37/37 · iter16: 18/18 · iter17: 20/20 · **iter18: 50/50 (12 new + 38 regression)**
+- iter14: 32/37 · iter15: 37/37 · iter16: 18/18 · iter17: 20/20 · iter18: 50/50 · **iter20: 5/5 (time-guard)**
 - P2: Shareable batch join links `/join/JEEM2027`
 - P2: Real-time "live now" banner via Supabase Realtime
 - P2: Bookmarks + Custom Test builder + Teacher-CRUD admin flow

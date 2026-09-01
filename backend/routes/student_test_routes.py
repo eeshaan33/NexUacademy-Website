@@ -3,9 +3,13 @@
 Scoring is SERVER-AUTHORITATIVE: the client's `is_correct` field on each
 answer is ignored. Correctness is recomputed against `tests.questions`
 via `services.scoring.score_attempt`.
+
+Time integrity: submits are rejected when (now - started_at) exceeds the
+test's `duration` minutes plus a 60-second grace window. The stale attempt
+is auto-closed with status='expired' so it can never be re-submitted.
 """
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any, List
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -15,6 +19,10 @@ from config.database import get_pool
 from middleware.auth import get_current_user
 from services.pg_utils import short_id, json_safe
 from services.scoring import score_attempt
+
+# Grace window (seconds) added to `duration` before we hard-reject a submit.
+# Absorbs client-timer / network jitter around the boundary.
+SUBMIT_GRACE_SECONDS = 60
 
 router = APIRouter(prefix="/student/tests", tags=["student-tests"])
 
@@ -131,7 +139,12 @@ class SubmitBody(BaseModel):
 async def submit(attempt_id: str, body: SubmitBody, user=Depends(get_current_user)):
     """Submit a test — score is recomputed server-side. `is_correct` from
     the client is DISCARDED. Idempotent: resubmitting a submitted attempt
-    returns the already-scored result without re-writing."""
+    returns the already-scored result without re-writing.
+
+    Time-integrity guard: if (now - started_at) > (test.duration + 60 s),
+    the attempt is auto-closed with status='expired' and the submit is
+    rejected with 400 so a student cannot open a test, wait days, then
+    submit a full paper."""
     pool = get_pool()
     async with pool.acquire() as conn:
         a = await conn.fetchrow("SELECT * FROM test_attempts WHERE attempt_id = $1", attempt_id)
@@ -141,16 +154,39 @@ async def submit(attempt_id: str, body: SubmitBody, user=Depends(get_current_use
             raise HTTPException(status_code=403, detail="Not your attempt")
         if a["status"] == "submitted":
             return {"success": True, "attempt": json_safe(a), "resubmitted": False}
+        if a["status"] == "expired":
+            raise HTTPException(
+                status_code=400,
+                detail="Test time expired. This attempt was auto-closed and can no longer be submitted.",
+            )
 
-        test = await conn.fetchrow("SELECT questions FROM tests WHERE test_id = $1", a["test_id"])
+        test = await conn.fetchrow("SELECT questions, duration FROM tests WHERE test_id = $1", a["test_id"])
         if not test:
             raise HTTPException(status_code=404, detail="Test not found")
+
+        # --- Time-integrity guard ---
+        started_at = a["started_at"]
+        if started_at and started_at.tzinfo is None:
+            started_at = started_at.replace(tzinfo=timezone.utc)
+        duration_min = int(test["duration"] or 0)
+        if started_at and duration_min > 0:
+            deadline = started_at + timedelta(minutes=duration_min, seconds=SUBMIT_GRACE_SECONDS)
+            if datetime.now(timezone.utc) > deadline:
+                # Auto-close so it can never be submitted again
+                await conn.execute(
+                    "UPDATE test_attempts SET status='expired', submitted_at=NOW() WHERE attempt_id=$1",
+                    attempt_id,
+                )
+                raise HTTPException(
+                    status_code=400,
+                    detail="Test time expired. Your attempt has been auto-closed.",
+                )
 
         raw_qs = test["questions"] or []
         if isinstance(raw_qs, str):
             try:
                 raw_qs = json.loads(raw_qs)
-            except Exception:
+            except json.JSONDecodeError:
                 raw_qs = []
         questions = raw_qs if isinstance(raw_qs, list) else []
 
