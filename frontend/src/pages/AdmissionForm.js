@@ -56,6 +56,7 @@ const AdmissionForm = ({ onComplete }) => {
   const [idProof, setIdProof] = useState(null);
   const [idProofPreview, setIdProofPreview] = useState(null);
   const [signature, setSignature] = useState(null);
+  const [dragOver, setDragOver] = useState({ photo: false, idProof: false });
   
   // Camera and signature refs
   const videoRef = useRef(null);
@@ -121,21 +122,62 @@ const AdmissionForm = ({ onComplete }) => {
     setIsCameraOpen(false);
   };
 
-  const handleFileUpload = (e, type) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (type === 'photo') {
-          setPhoto(reader.result);
-          setPhotoPreview(reader.result);
-        } else if (type === 'idProof') {
-          setIdProof(reader.result);
-          setIdProofPreview(file.name);
-        }
-      };
-      reader.readAsDataURL(file);
+  const readFileInto = (file, type) => {
+    if (!file) return;
+    // Type guard — photo must be image; idProof accepts image or pdf
+    const isImage = file.type.startsWith('image/');
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+    if (type === 'photo' && !isImage) {
+      toast.error('Please drop an image file (JPG/PNG).');
+      return;
     }
+    if (type === 'idProof' && !isImage && !isPdf) {
+      toast.error('ID proof must be an image or PDF.');
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error('File is larger than 8 MB.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (type === 'photo') {
+        setPhoto(reader.result);
+        setPhotoPreview(reader.result);
+      } else if (type === 'idProof') {
+        setIdProof(reader.result);
+        setIdProofPreview(file.name);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleFileUpload = (e, type) => {
+    readFileInto(e.target.files?.[0], type);
+  };
+
+  // --- Drag & drop handlers (shared by both upload zones) ---
+  const handleDragEnter = (e, type) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(prev => ({ ...prev, [type]: true }));
+  };
+  const handleDragLeave = (e, type) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(prev => ({ ...prev, [type]: false }));
+  };
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+  };
+  const handleDrop = (e, type) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(prev => ({ ...prev, [type]: false }));
+    const file = e.dataTransfer?.files?.[0];
+    readFileInto(file, type);
   };
 
   // Signature functions
@@ -698,9 +740,22 @@ const AdmissionForm = ({ onComplete }) => {
                         <span>Open Camera</span>
                       </Button>
                       
-                      <label className="h-24 flex flex-col gap-2 items-center justify-center border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-50">
-                        <Upload className="h-8 w-8 text-gray-400" />
-                        <span className="text-sm text-gray-600">Upload from Gallery</span>
+                      <label
+                        className={`h-24 flex flex-col gap-2 items-center justify-center border-2 border-dashed rounded-lg cursor-pointer transition-all ${
+                          dragOver.photo
+                            ? 'border-blue-500 bg-blue-50 scale-[1.02] shadow-md'
+                            : 'border-gray-300 hover:bg-gray-50'
+                        }`}
+                        onDragEnter={(e) => handleDragEnter(e, 'photo')}
+                        onDragOver={handleDragOver}
+                        onDragLeave={(e) => handleDragLeave(e, 'photo')}
+                        onDrop={(e) => handleDrop(e, 'photo')}
+                        data-testid="photo-dropzone"
+                      >
+                        <Upload className={`h-8 w-8 transition-colors ${dragOver.photo ? 'text-blue-500' : 'text-gray-400'}`} />
+                        <span className={`text-sm text-center transition-colors ${dragOver.photo ? 'text-blue-700 font-semibold' : 'text-gray-600'}`}>
+                          {dragOver.photo ? 'Drop image here' : 'Drag & drop or click to upload'}
+                        </span>
                         <input
                           type="file"
                           accept="image/*"
@@ -756,9 +811,22 @@ const AdmissionForm = ({ onComplete }) => {
                   <Label>ID Proof (Aadhar/PAN/School ID) - Optional</Label>
                   
                   {!idProofPreview ? (
-                    <label className="flex items-center justify-center gap-2 p-6 border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-50">
-                      <FileText className="h-6 w-6 text-gray-400" />
-                      <span className="text-gray-600">Click to upload ID proof</span>
+                    <label
+                      className={`flex items-center justify-center gap-2 p-6 border-2 border-dashed rounded-lg cursor-pointer transition-all ${
+                        dragOver.idProof
+                          ? 'border-blue-500 bg-blue-50 scale-[1.01] shadow-md'
+                          : 'border-gray-300 hover:bg-gray-50'
+                      }`}
+                      onDragEnter={(e) => handleDragEnter(e, 'idProof')}
+                      onDragOver={handleDragOver}
+                      onDragLeave={(e) => handleDragLeave(e, 'idProof')}
+                      onDrop={(e) => handleDrop(e, 'idProof')}
+                      data-testid="idproof-dropzone"
+                    >
+                      <FileText className={`h-6 w-6 transition-colors ${dragOver.idProof ? 'text-blue-500' : 'text-gray-400'}`} />
+                      <span className={`transition-colors ${dragOver.idProof ? 'text-blue-700 font-semibold' : 'text-gray-600'}`}>
+                        {dragOver.idProof ? 'Drop file here' : 'Drag & drop or click to upload ID proof'}
+                      </span>
                       <input
                         type="file"
                         accept="image/*,.pdf"
