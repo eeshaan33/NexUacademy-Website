@@ -18,6 +18,8 @@ import AdminPanel from "./pages/AdminPanel";
 import LandingPage from "./pages/LandingPage";
 import ProfilePage from "./pages/ProfilePage";
 import AuthCallback from "./pages/AuthCallback";
+import FeeStructure from "./pages/FeeStructure";
+import StudentAnalytics from "./pages/student/AnalyticsDashboard";
 
 // Teacher pages
 import TeacherDashboard from "./pages/teacher/TeacherDashboard";
@@ -54,6 +56,8 @@ function AppRouter() {
       <Route path="/admin" element={<AdminPanel />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/sample-questions" element={<SampleQuestions />} />
+      <Route path="/fee-structure" element={<ProtectedRoute><FeeStructure /></ProtectedRoute>} />
+      <Route path="/analytics" element={<ProtectedRoute><Layout><StudentAnalytics /></Layout></ProtectedRoute>} />
 
       {/* Teacher Routes */}
       <Route path="/teacher" element={<ProtectedRoute><TeacherLayout><TeacherDashboard /></TeacherLayout></ProtectedRoute>} />

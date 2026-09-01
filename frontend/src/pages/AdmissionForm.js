@@ -300,11 +300,11 @@ const AdmissionForm = ({ onComplete }) => {
           setIsAuthenticated(true);
         }
         
-        toast.success('Welcome to NexUacademy! Your account has been created.');
-        
-        // Redirect to dashboard after short delay
+        toast.success('Application submitted! Please complete the admission fee to activate your account.');
+
+        // Redirect to fee structure page
         setTimeout(() => {
-          navigate('/dashboard');
+          navigate('/fee-structure', { state: { roll_number: response.data.user?.roll_number } });
         }, 2000);
       }
     } catch (error) {

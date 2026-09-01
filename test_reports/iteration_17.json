@@ -1,0 +1,27 @@
+{
+  "summary": "Iteration 17 — Zoom Meeting SDK live-class E2E regression on Supabase Postgres. 20/20 new pytest cases pass in /app/backend/tests/test_zoom_live_classes.py covering: teacher create (zoom_meeting_id/password/join_url returned; zoom_start_url NOT leaked; 400 for empty batches / bad date; 403 for student), teacher start (SDK signature + sdk_key + meeting_number returned; zak best-effort; non-owner teacher 403; owner + admin allowed; 404 bogus id), student list (batch-scoped, cancelled excluded), student join (403 foreign batch, 400 not-live, 200 signature after start), raise-hand (idempotent — 2 calls => 1 row, appears in teacher participants under raised_hands with is_live=true), teacher lower-hand (removes row), end class (is_live=false, status=completed, raised_hands cleared), delete class (non-owner teacher 403, owner allowed, admin bypass allowed, subsequent GET returns 404). Regression: iter16 payments+analytics suite 18/18 still green. Real Zoom S2S OAuth create_meeting / delete_meeting / get_host_zak / dashboard participants API round-trips succeeded (zak returned, participants empty which is acceptable — no live browser).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_zoom_live_classes.py",
+    "/app/test_reports/pytest/iter17_results.xml",
+    "/app/backend/tests/test_payments_analytics.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "student_live_class_routes.raise_hand: guards batch membership but does NOT require is_live=true. A student can raise hand on an upcoming (not yet started) class that's in their batch, and the row will sit until teacher starts+ends. Low-severity, but consider adding 'AND is_live=true' check for correctness.",
+    "student_live_class_routes.lower_hand: no 404 if class_id doesn't exist (silent DELETE 0 rows). Harmless but inconsistent with other endpoints.",
+    "teacher_live_class_routes.create_live_class: accepts any ISO date, including PAST dates. Zoom API may still accept them but business-wise you probably want scheduled_dt > now(). Not tested here, but a code-review flag.",
+    "teacher_live_class_routes.start_live_class: `cls.get('zoom_meeting_password', '')` — asyncpg Records don't support .get(); this would raise AttributeError if the branch is ever hit. Works today only because zoom_meeting_password is always present. Same pattern on line 126 (`cls.get('zoom_start_url', '')`). Convert to `cls['zoom_meeting_password']` or dict-cast first.",
+    "teacher_live_class_routes.create_live_class: bare `except Exception` around notify_students_about_class swallows errors silently — add logger.exception for observability.",
+    "student_live_class_routes.list_live_classes: no pagination — will scale poorly once classes grow. Add LIMIT/OFFSET later."
+  ],
+  "updated_files": ["/app/backend/tests/test_zoom_live_classes.py"],
+  "success_rate": {"backend": "100% (20/20 new + 18/18 regression = 38/38)", "frontend": "not tested (backend-only pass per request)"},
+  "test_credentials": "admin@nexuacademy.com/nexuacademy123, teacher@test.com/password123, student@test.com/password123, teacher2_iter17@nexuacademy.com/password123 (created by test suite)",
+  "seed_data_creation": "Created second teacher account teacher2_iter17@nexuacademy.com (idempotent — reused if exists) for owner-guard 403 tests. Each test-run creates ~7 Zoom meetings via S2S OAuth; auto-cleaned in module teardown via DELETE /api/teacher/live-classes/{id}. Some Zoom meetings may leak if teardown fails — safe since scheduled_date=2027.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Zoom S2S OAuth + Meeting SDK signature paths are fully working against Supabase. Reusable test file /app/backend/tests/test_zoom_live_classes.py. It performs REAL Zoom API round-trips (create_meeting, delete_meeting, host ZAK, dashboard participants) so it needs internet + valid ZOOM_S2S_* env vars. Runtime ~2 min. The `AttributeError potential on asyncpg Record.get()` note in code review is a latent bug — worth a targeted fix even though no test currently exercises the fallback path.",
+  "rca of the issue": "N/A — no bugs found; all specified edge cases pass."
+}

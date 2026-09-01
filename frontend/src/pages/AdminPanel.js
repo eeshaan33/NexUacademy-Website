@@ -8,15 +8,18 @@ import { toast } from 'sonner';
 import { setPageTitle } from '../utils/pageTitle';
 import AdminBatchesPane from '../components/AdminBatchesPane';
 import AdminAnnouncementsPane from '../components/AdminAnnouncementsPane';
+import AdminAnalyticsPane from '../components/AdminAnalyticsPane';
+import { BarChart3 } from 'lucide-react';
 
 const TABS = [
+  { id: 'analytics', label: 'Analytics', icon: BarChart3 },
   { id: 'batches', label: 'Batches', icon: Layers },
   { id: 'announcements', label: 'Announcements', icon: Megaphone },
 ];
 
 const AdminPanel = () => {
   const { user, isAuthenticated, logout, loading } = useAuth();
-  const [activeTab, setActiveTab] = useState('batches');
+  const [activeTab, setActiveTab] = useState('analytics');
   const navigate = useNavigate();
 
   useEffect(() => { setPageTitle('Admin Panel'); }, []);
@@ -59,6 +62,7 @@ const AdminPanel = () => {
           })}
         </nav>
         <div className="flex-1 min-w-0">
+          {activeTab === 'analytics' && <AdminAnalyticsPane />}
           {activeTab === 'batches' && <AdminBatchesPane />}
           {activeTab === 'announcements' && <AdminAnnouncementsPane />}
         </div>

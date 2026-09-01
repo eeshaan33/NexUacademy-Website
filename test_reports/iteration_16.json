@@ -1,0 +1,23 @@
+{
+  "summary": "Iteration 16 — Razorpay payments + Analytics dashboards E2E tested. 18/18 backend pytest cases pass (auth seed x3, batches by-code x3, analytics x5 incl. RBAC 403s, payments create-order + bad-signature verify + valid-HMAC verify + /my history, webhook unknown-order matched:false + matched-order flips status='paid', full admission→create-order flow). Frontend smoke passed: /fee-structure renders with ₹30,000 + Pay button after student login; /analytics renders StudentAnalytics with 6 stat cards + subject-wise section; /admin default Analytics tab shows stat cards (Students 9, Teachers 2, Classes 4, Tests 3, Revenue ₹60,000), Batch Distribution, Recent Signups, Recent Payments (with paid/failed/created badges). All 3 admin tabs (Analytics, Batches, Announcements) present.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_payments_analytics.py",
+    "/app/test_reports/pytest/iter16_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "payment_routes.verify_payment doesn't guard user_id ownership — a student could send another user's razorpay_order_id + valid signature and flip their OWN profile.payment_status to paid (though row belongs to someone else). Add WHERE user_id=$user_id filter or verify order ownership before UPDATE profiles.",
+    "RAZORPAY_WEBHOOK_SECRET is empty (dev mode). Ensure production sets it — currently anyone with a matching razorpay_order_id can POST /api/payments/webhook and mark a payment paid. Not a bug for dev, but flag for prod.",
+    "analytics_routes.admin_overview: dict merge `dict(r) | {'id': str(r['id'])}` works, but recent_signups includes batch_id UUID as raw (not cast to str) — could break JSON serialization if asyncpg returns UUID; currently serialising OK likely because column is text. Verify with prod schema."
+  ],
+  "updated_files": ["/app/backend/tests/test_payments_analytics.py"],
+  "success_rate": {"backend": "100% (18/18)", "frontend": "100% (3/3 routes smoke)"},
+  "test_credentials": "admin@nexuacademy.com/nexuacademy123, teacher@test.com/password123, student@test.com/password123",
+  "seed_data_creation": "test_full_flow creates a TEST_ prefixed admission user each run (not cleaned up). Consider a teardown fixture in future runs.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All Razorpay + Analytics flows green. Test file /app/backend/tests/test_payments_analytics.py is reusable. Webhook is tested with dev mode (empty RAZORPAY_WEBHOOK_SECRET) — if secret gets set, add HMAC to webhook test payloads. External Razorpay Checkout UI intentionally not clicked through.",
+  "rca of the issue": "N/A — all tests pass."
+}

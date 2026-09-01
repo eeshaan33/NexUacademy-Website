@@ -4,11 +4,12 @@ All seed users are created idempotently by `backend/services/seed_service.py` at
 every backend startup. Passwords below are the canonical dev passwords used by
 every automated test.
 
-| Role     | Email                       | Password           | Batch    |
-|----------|-----------------------------|--------------------|----------|
-| Admin    | admin@nexuacademy.com       | nexuacademy123     | —        |
-| Teacher  | teacher@test.com            | password123        | —        |
-| Student  | student@test.com            | password123        | JEEM2027 |
+| Role     | Email                                | Password           | Batch    |
+|----------|--------------------------------------|--------------------|----------|
+| Admin    | admin@nexuacademy.com                | nexuacademy123     | —        |
+| Teacher  | teacher@test.com                     | password123        | —        |
+| Teacher2 | teacher2_iter17@nexuacademy.com      | password123        | —        |
+| Student  | student@test.com                     | password123        | JEEM2027 |
 
 ## Predefined batches (in DB, ready to use as batch codes)
 - `JEEM2027` — JEE Mains 2027

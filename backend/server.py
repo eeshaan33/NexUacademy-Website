@@ -27,6 +27,8 @@ from routes import (
     push_routes,
     profile_routes,
     contact_routes,
+    payment_routes,
+    analytics_routes,
 )
 
 from config.database import init_pool, close_pool
@@ -49,6 +51,7 @@ for r in (
     question_routes, upload_routes,
     announcement_routes, notification_routes, push_routes,
     profile_routes, contact_routes,
+    payment_routes, analytics_routes,
 ):
     api_router.include_router(r.router)
 
