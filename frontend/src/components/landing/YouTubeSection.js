@@ -9,6 +9,7 @@ const YouTubeSection = ({ navy = '#1E3A5F' }) => (
           src="https://www.youtube.com/embed/videoseries?list=UULFNexUacademypvtltd"
           title="NexUacademy YouTube channel"
           className="w-full h-full"
+          loading="lazy"
           allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
         />

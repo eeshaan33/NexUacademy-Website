@@ -81,7 +81,14 @@ See `/app/memory/test_credentials.md`.
 - **Branded PDF payment receipts** — `services/receipt_service.py` builds A4 receipt (reportlab) sent via Resend on `/payments/verify` (via FastAPI BackgroundTasks) + on webhook `payment.captured` with `already_paid` dedupe.
 
 ## Verified via Testing Agent
-- iter14: 32/37 · iter15: 37/37 · iter16: 18/18 · iter17: 20/20 · iter18: 50/50 · **iter20: 5/5 (time-guard)**
+- iter14: 32/37 · iter15: 37/37 · iter16: 18/18 · iter17: 20/20 · iter18: 50/50 · iter20: 5/5 (time-guard)
+
+## Phase 15 (Feb 2026) — Frontend performance
+- **Route-level code splitting** — every page in `App.js` is now `React.lazy()`; webpack emits per-route chunks (Login 48 KB, Dashboard 93 KB, LandingPage 231 KB, AdminPanel 174 KB) instead of shipping all 2.7 MB upfront.
+- **Suspense fallback** — `components/PageLoader.js` renders a lightweight branded spinner while a chunk downloads.
+- **Section-level lazy load on Landing** — `VideoTestimonials`, `RealResults`, `YouTubeSection` are `lazy()` with their own Suspense fallback; YouTube iframes get `loading="lazy"` and thumbnails get `loading="lazy" decoding="async"`.
+- **Resource hints in `public/index.html`** — preconnect to fonts + `customer-assets.emergentagent.com`, dns-prefetch to youtube + img.youtube, preload `nexuacademy-logo.png`.
+- **Hero image** — `fetchpriority="high"` on the fold-visible founder photo; below-the-fold images marked `loading="lazy" decoding="async"`.
 - P2: Shareable batch join links `/join/JEEM2027`
 - P2: Real-time "live now" banner via Supabase Realtime
 - P2: Bookmarks + Custom Test builder + Teacher-CRUD admin flow

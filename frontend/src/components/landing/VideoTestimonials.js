@@ -34,6 +34,8 @@ const VideoTestimonials = ({ bg = '#F9FAFB', navy = '#1E3A5F' }) => {
                 src={`https://img.youtube.com/vi/${t.id}/maxresdefault.jpg`}
                 onError={(e) => { e.target.src = `https://img.youtube.com/vi/${t.id}/hqdefault.jpg`; }}
                 alt={t.title}
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />

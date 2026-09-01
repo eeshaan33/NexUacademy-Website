@@ -1,12 +1,20 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { motion, useInView, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ChevronUp, Menu, X, Phone, Mail, MapPin, Send, Linkedin, Instagram, Youtube, MessageCircle, ExternalLink, ChevronLeft, ChevronRight, Star, GraduationCap, BookOpen, Trophy, Users, Microscope, Monitor, Award, Clock, Briefcase, Beaker, Target, Rocket } from 'lucide-react';
 import axios from 'axios';
 import { setPageTitle } from '../utils/pageTitle';
-import VideoTestimonials from '../components/landing/VideoTestimonials';
-import RealResults from '../components/landing/RealResults';
-import YouTubeSection from '../components/landing/YouTubeSection';
+
+// Heavy below-the-fold sections load only when the user actually scrolls to
+// them — cuts landing TTI dramatically because YouTube iframes + thumbnail
+// image loops are no longer part of the first paint.
+const VideoTestimonials = lazy(() => import('../components/landing/VideoTestimonials'));
+const RealResults = lazy(() => import('../components/landing/RealResults'));
+const YouTubeSection = lazy(() => import('../components/landing/YouTubeSection'));
+
+const SectionFallback = () => (
+  <div className="py-20 flex items-center justify-center text-slate-300 text-xs uppercase tracking-widest">Loading…</div>
+);
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -183,7 +191,7 @@ export default function LandingPage() {
           <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.6, duration: 0.8 }}
             className="flex-shrink-0">
             <div className="w-64 h-64 md:w-80 md:h-80 rounded-full overflow-hidden border-4 border-white/30 shadow-2xl">
-              <img src={PHOTOS.arms_crossed_smile} alt="Nitin Saini" className="w-full h-full object-cover" />
+              <img src={PHOTOS.arms_crossed_smile} alt="Nitin Saini" fetchpriority="high" decoding="async" className="w-full h-full object-cover" />
             </div>
           </motion.div>
         </div>
@@ -288,7 +296,7 @@ export default function LandingPage() {
           <motion.div variants={fadeUp} className="flex-shrink-0 flex flex-col items-center">
             <motion.div animate={{ y: [0, -8, 0] }} transition={{ repeat: Infinity, duration: 4, ease: 'easeInOut' }}
               className="w-72 h-72 md:w-96 md:h-96 rounded-full overflow-hidden border-[6px] border-white shadow-2xl">
-              <img src={PHOTOS.arms_crossed_serious} alt="Nitin Saini" className="w-full h-full object-cover" />
+              <img src={PHOTOS.arms_crossed_serious} alt="Nitin Saini" loading="lazy" decoding="async" className="w-full h-full object-cover" />
             </motion.div>
             <div className="flex gap-3 mt-8">
               {[
@@ -376,13 +384,19 @@ export default function LandingPage() {
       </Section>
 
       {/* REAL RESULTS (top achievers) */}
-      <RealResults navy={BRAND.navy} />
+      <Suspense fallback={<SectionFallback />}>
+        <RealResults navy={BRAND.navy} />
+      </Suspense>
 
       {/* VIDEO TESTIMONIALS */}
-      <VideoTestimonials bg={BRAND.bgLight} navy={BRAND.navy} />
+      <Suspense fallback={<SectionFallback />}>
+        <VideoTestimonials bg={BRAND.bgLight} navy={BRAND.navy} />
+      </Suspense>
 
       {/* YOUTUBE CHANNEL */}
-      <YouTubeSection navy={BRAND.navy} />
+      <Suspense fallback={<SectionFallback />}>
+        <YouTubeSection navy={BRAND.navy} />
+      </Suspense>
 
       {/* CTA */}
       <Section className="py-20 md:py-28 px-4 text-white text-center relative" style={{ background: `linear-gradient(135deg, ${BRAND.navy}, ${BRAND.lightNavy})` }}>
@@ -564,7 +578,7 @@ export default function LandingPage() {
                   <X size={20} />
                 </button>
                 <div className="flex items-center gap-6">
-                  <img src={PHOTOS.arms_crossed_smile} alt="Nitin Saini" className="w-24 h-24 rounded-full border-4 border-white/30 object-cover" />
+                  <img src={PHOTOS.arms_crossed_smile} alt="Nitin Saini" loading="lazy" decoding="async" className="w-24 h-24 rounded-full border-4 border-white/30 object-cover" />
                   <div>
                     <h3 className="text-3xl font-extrabold">Nitin Saini</h3>
                     <p className="opacity-80 text-sm">IIT Kharagpur Alumni | HOD Chemistry | NexUacademy Founder</p>
