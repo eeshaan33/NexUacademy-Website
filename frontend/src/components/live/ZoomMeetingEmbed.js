@@ -92,6 +92,7 @@ const ZoomMeetingEmbed = ({
       if (root) root.style.display = 'none';
       onMeetingEnd();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
