@@ -1,0 +1,31 @@
+{
+  "summary": "Iteration 18 — Verified all 4 features requested. (1) Server-authoritative scoring: verified client-sent is_correct is discarded and server recomputes correctness (client lied is_correct=True for 4 answers; server correctly returned total_score=7, correct=2, incorrect=2 for the mixed MCQ_Single/MCQ_Multiple/Numerical test). Unattempted submit returns unattempted=4, total_score=0. Idempotent resubmit returns same score. (2) Autosave: PUT /api/student/tests/attempts/{id}/autosave returns 200 with success:true on in_progress, and {success:true, skipped:true} on submitted attempts. (3) Dynamic-batch regression: alphanumeric batch creation via POST /api/batches/ works, duplicate 400, non-alphanumeric 400, predefined JEEM2027 cannot be deleted (400), custom batch DELETE 200. (4) LiveNowBanner: E2E verified in browser — teacher creates+starts class in JEEM2027; student dashboard shows sticky red banner with data-testid='live-now-banner' + 'live-banner-join-btn' href='/live-classes' + dismiss button hides banner. (5) PDF receipt: build_receipt_pdf returns 3.7KB valid %PDF-header bytes. (6) Verify endpoint fires send_payment_receipt_email — Resend call ATTEMPTED (visible in backend logs); returns 200 even when Resend rejects (sandbox key restricts to owner email — acceptable per spec). (7) Regression: iter16 payments+analytics 18/18 pass, iter17 Zoom live-classes 20/20 pass. New iter18 suite 12/12 pass. Total 50/50.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_scoring_and_receipt.py",
+    "/app/backend/tests/test_payments_analytics.py",
+    "/app/backend/tests/test_zoom_live_classes.py",
+    "/app/test_reports/pytest/iter18_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "services/scoring.py: MCQ_Multiple treats an empty correct_answers list combined with an empty student selection as incorrect (falls through to `bool(correct_opts)` gate) which is fine, but if a teacher accidentally saves an MCQ_Multiple with no correct options, EVERY student gets 0/-1 with no way to know — consider warning on test create.",
+    "services/scoring.py: `marks_neg = int(q.get('negative_marks') or 0)` — if a teacher stores negative_marks as `1` (positive by mistake), the code silently awards +1 for wrong answers. Consider clamping to <= 0 or using `-abs(...)`.",
+    "routes/student_test_routes.submit: no time-limit / duration expiration check — a student could open an attempt, wait days, then submit. If tests have `duration`/`scheduled_date_time`, backend should reject submits past duration+started_at.",
+    "routes/student_test_routes.submit: reads `test['questions']` and JSON-decodes if str; if the column is stored as JSONB asyncpg returns list — good. But if the row has NULL questions, silently scores 0/0 — teacher can create a test with 0 questions and it looks 'valid'. Add a validation on create that len(questions)>=1.",
+    "services/receipt_service.send_payment_receipt_email: swallows Resend errors as WARN (correct for best-effort), but does NOT persist any 'receipt_email_sent_at' flag on payments. If a user later disputes 'I never got a receipt', there's no auditable record. Consider adding a `receipt_email_status` / `receipt_email_error` column.",
+    "routes/payment_routes.verify_payment: runs send_payment_receipt_email SYNCHRONOUSLY inside the request handler. reportlab PDF build + Resend HTTP call add ~500-1000ms to /verify latency. Move to BackgroundTasks (FastAPI) or an async task queue so the checkout flow completes faster.",
+    "routes/payment_routes.webhook: HMAC check is skipped entirely when RAZORPAY_WEBHOOK_SECRET is empty — that's dev-friendly but means production could accidentally deploy with a missing secret and accept unsigned webhooks silently. Fail-closed in prod, or log a loud WARN each time.",
+    "frontend/LiveNowBanner: polls every 30 s regardless of tab visibility — wastes battery/bandwidth on backgrounded tabs. Wrap in `document.visibilityState === 'visible'` check.",
+    "frontend/LiveNowBanner: session-storage dismiss is per-class-id — if a NEW class goes live after dismiss, banner correctly re-appears (verified). But `primary = visible[0]` means clicking dismiss only records the FIRST class; if 3 are live, dismissing the primary just promotes the next one — user has to click dismiss 3× to silence all. Consider a 'dismiss all' button or dismiss stores all currently-visible ids."
+  ],
+  "updated_files": ["/app/backend/tests/test_scoring_and_receipt.py"],
+  "success_rate": {"backend": "100% (12/12 new + 38/38 regression = 50/50)", "frontend": "100% (LiveNowBanner appears/dismisses correctly)"},
+  "test_credentials": "admin@nexuacademy.com/nexuacademy123, teacher@test.com/password123, student@test.com/password123 (all from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Each scoring test creates one test row (name TEST_scoring_*) assigned to JEEM2027 and deletes it in-fixture teardown. Payment-verify test creates 2 Razorpay orders. LiveNowBanner test creates+starts+deletes 1 Zoom meeting.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Reusable test files: test_scoring_and_receipt.py (scoring + autosave + batches + PDF + receipt-email + webhook regression), test_payments_analytics.py (iter16), test_zoom_live_classes.py (iter17). Full suite runs in ~4 min against the preview URL. Resend sandbox key only allows sends to eeshaan.cryptsopg@gmail.com — receipt-email dispatches for student@test.com will log 'Resend receipt email failed' as WARN; this is expected and does NOT fail the /verify endpoint (best-effort). PDF is fully generated (3.7KB, %PDF magic). LiveNowBanner selectors 'live-now-banner', 'live-banner-join-btn', 'live-banner-dismiss-btn', 'live-banner-title' all wired correctly.",
+  "rca of the issue": "N/A — no bugs. All 4 requested features work end-to-end."
+}

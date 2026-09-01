@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import NotificationBell from './NotificationBell';
+import LiveNowBanner from './LiveNowBanner';
 import { 
   BookOpen, 
   LayoutDashboard,
@@ -174,6 +175,7 @@ const Layout = ({ children }) => {
 
         {/* Main content */}
         <main className="flex-1 min-h-[calc(100vh-4rem)]">
+          <LiveNowBanner />
           {children}
         </main>
       </div>

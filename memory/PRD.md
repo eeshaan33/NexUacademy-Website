@@ -68,8 +68,19 @@ See `/app/memory/test_credentials.md`.
 3. Add Zoom S2S scopes `user:read:token`, `dashboard:read:list_meeting_participants:admin`, `meeting:delete:meeting:admin` for full participants panel + delete-meeting.
 
 ## Backlog
-- 🔴 **P0 (NEXT SESSION):** Server-side score verification for tests — currently the backend trusts the client-sent `is_correct` flag on each answer during test submit. Rewrite `/api/tests/{id}/submit` (and custom-test submit if present) to recompute correctness server-side by joining `answers` against `questions.correct_option`, then persist authoritative `score`, `is_correct` per answer, and `total_marks`. Client-sent `is_correct` must be ignored.
 - P1: Re-port PYQ Bank + CSV seeder
+- P2: Shareable batch join links `/join/JEEM2027`
+- P2: Real-time "live now" banner via Supabase Realtime  *(currently polling every 30 s in `LiveNowBanner`)*
+- P2: Bookmarks + Custom Test builder + Teacher-CRUD admin flow
+
+## Phase 14 (Feb 2026) — Score integrity + Live Now + Receipt emails
+- **Server-side score verification** — `services/scoring.py` recomputes correctness from `tests.questions` (MCQ_Single, MCQ_Multiple, Numerical Integer/Decimal with `answer_range` tolerance). Client `is_correct` is discarded. `negative_marks` is clamped to `<=0` defensively. Idempotent submit + `total_score`/`max_score` persisted.
+- **Autosave endpoint** — `PUT /api/student/tests/attempts/{id}/autosave` (matches the JEEMainInterface 30 s cadence).
+- **Live Now banner** — `LiveNowBanner` mounted inside `Layout`; polls `/student/live-classes/` every 30 s (pauses when tab hidden), shows red pulsing bar with a "Join Now" CTA whenever any is_live=true class is assigned to the student's batch. Session-persisted dismiss per class_id.
+- **Branded PDF payment receipts** — `services/receipt_service.py` builds an A4 receipt (reportlab) and sends it via Resend. Dispatched via **FastAPI BackgroundTasks** on `POST /payments/verify` so /verify latency stays fast; also dispatched from webhook `payment.captured` / `order.paid` with a `already_paid` dedupe.
+
+## Verified via Testing Agent
+- iter14: 32/37 · iter15: 37/37 · iter16: 18/18 · iter17: 20/20 · **iter18: 50/50 (12 new + 38 regression)**
 - P2: Shareable batch join links `/join/JEEM2027`
 - P2: Real-time "live now" banner via Supabase Realtime
 - P2: Bookmarks + Custom Test builder + Teacher-CRUD admin flow

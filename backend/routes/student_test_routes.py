@@ -1,4 +1,9 @@
-"""Student-side tests: list assigned, start attempt (resume), submit."""
+"""Student-side tests: list assigned, start attempt (resume), submit.
+
+Scoring is SERVER-AUTHORITATIVE: the client's `is_correct` field on each
+answer is ignored. Correctness is recomputed against `tests.questions`
+via `services.scoring.score_attempt`.
+"""
 import json
 from datetime import datetime, timezone
 from typing import Any, List
@@ -9,6 +14,7 @@ from pydantic import BaseModel
 from config.database import get_pool
 from middleware.auth import get_current_user
 from services.pg_utils import short_id, json_safe
+from services.scoring import score_attempt
 
 router = APIRouter(prefix="/student/tests", tags=["student-tests"])
 
@@ -93,29 +99,85 @@ async def save_progress(attempt_id: str, body: SaveAnswersBody, user=Depends(get
     return {"success": True}
 
 
+class AutoSaveBody(BaseModel):
+    answers: List[Any]
+
+
+@router.put("/attempts/{attempt_id}/autosave")
+async def autosave(attempt_id: str, body: AutoSaveBody, user=Depends(get_current_user)):
+    """Periodic in-progress save — mirrors the older `/save` route the JEE
+    Main interface calls every 30 s."""
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        a = await conn.fetchrow("SELECT student_id, status FROM test_attempts WHERE attempt_id = $1", attempt_id)
+        if not a or str(a["student_id"]) != str(user["user_id"]):
+            raise HTTPException(status_code=403, detail="Not your attempt")
+        if a["status"] != "in_progress":
+            return {"success": True, "skipped": True, "reason": "already submitted"}
+        await conn.execute(
+            "UPDATE test_attempts SET saved_answers = $1::jsonb WHERE attempt_id = $2",
+            json.dumps(body.answers), attempt_id,
+        )
+    return {"success": True}
+
+
 class SubmitBody(BaseModel):
     answers: List[Any]
     time_spent: int = 0
+    autoSubmitted: bool = False
 
 
 @router.post("/attempts/{attempt_id}/submit")
 async def submit(attempt_id: str, body: SubmitBody, user=Depends(get_current_user)):
+    """Submit a test — score is recomputed server-side. `is_correct` from
+    the client is DISCARDED. Idempotent: resubmitting a submitted attempt
+    returns the already-scored result without re-writing."""
     pool = get_pool()
     async with pool.acquire() as conn:
         a = await conn.fetchrow("SELECT * FROM test_attempts WHERE attempt_id = $1", attempt_id)
-        if not a or str(a["student_id"]) != str(user["user_id"]):
+        if not a:
+            raise HTTPException(status_code=404, detail="Attempt not found")
+        if str(a["student_id"]) != str(user["user_id"]):
             raise HTTPException(status_code=403, detail="Not your attempt")
-        # Score computation (simple: correct answers count)
-        correct = sum(1 for ans in body.answers if ans.get("is_correct"))
-        total = len(body.answers)
-        incorrect = total - correct
-        accuracy = round((correct / total) * 100, 2) if total else 0
+        if a["status"] == "submitted":
+            return {"success": True, "attempt": json_safe(a), "resubmitted": False}
+
+        test = await conn.fetchrow("SELECT questions FROM tests WHERE test_id = $1", a["test_id"])
+        if not test:
+            raise HTTPException(status_code=404, detail="Test not found")
+
+        raw_qs = test["questions"] or []
+        if isinstance(raw_qs, str):
+            try:
+                raw_qs = json.loads(raw_qs)
+            except Exception:
+                raw_qs = []
+        questions = raw_qs if isinstance(raw_qs, list) else []
+
+        result = score_attempt(questions, body.answers)
+
         await conn.execute(
-            """UPDATE test_attempts SET answers = $1::jsonb, time_spent = $2,
-               correct_answers = $3, incorrect_answers = $4, accuracy = $5,
-               status = 'submitted', submitted_at = NOW()
-               WHERE attempt_id = $6""",
-            json.dumps(body.answers), body.time_spent, correct, incorrect, accuracy, attempt_id,
+            """UPDATE test_attempts
+               SET answers = $1::jsonb,
+                   time_spent = $2,
+                   total_score = $3,
+                   max_score = $4,
+                   correct_answers = $5,
+                   incorrect_answers = $6,
+                   unattempted = $7,
+                   accuracy = $8,
+                   status = 'submitted',
+                   submitted_at = NOW()
+               WHERE attempt_id = $9""",
+            json.dumps(result["authoritative_answers"]),
+            body.time_spent,
+            result["total_score"],
+            result["max_score"],
+            result["correct_answers"],
+            result["incorrect_answers"],
+            result["unattempted"],
+            result["accuracy"],
+            attempt_id,
         )
         row = await conn.fetchrow("SELECT * FROM test_attempts WHERE attempt_id = $1", attempt_id)
-    return {"success": True, "attempt": json_safe(row)}
+    return {"success": True, "attempt": json_safe(row), "auto_submitted": body.autoSubmitted}

@@ -13,12 +13,13 @@ import os
 from typing import Optional
 
 import razorpay
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from config.database import get_pool
 from middleware.auth import get_current_user
 from services.pg_utils import short_id
+from services.receipt_service import send_payment_receipt_email, pretty_paid_at
 
 router = APIRouter(prefix="/payments", tags=["payments"])
 logger = logging.getLogger(__name__)
@@ -93,7 +94,7 @@ class VerifyRequest(BaseModel):
 
 
 @router.post("/verify")
-async def verify_payment(payload: VerifyRequest, user=Depends(get_current_user)):
+async def verify_payment(payload: VerifyRequest, background: BackgroundTasks, user=Depends(get_current_user)):
     secret = os.environ.get("RAZORPAY_KEY_SECRET", "").encode()
     body = f"{payload.razorpay_order_id}|{payload.razorpay_payment_id}".encode()
     expected = hmac.new(secret, body, hashlib.sha256).hexdigest()
@@ -129,6 +130,33 @@ async def verify_payment(payload: VerifyRequest, user=Depends(get_current_user))
             """UPDATE profiles SET payment_status = 'paid', payment_completed_at = NOW()
                WHERE id = $1""",
             user["user_id"],
+        )
+        pay_row = await conn.fetchrow(
+            """SELECT p.payment_id, p.receipt, p.amount, p.plan, p.paid_at,
+                      p.razorpay_payment_id, p.razorpay_order_id,
+                      pr.name, pr.email, pr.phone_number, pr.batch_id
+               FROM payments p LEFT JOIN profiles pr ON pr.id = p.user_id
+               WHERE p.razorpay_order_id = $1""",
+            payload.razorpay_order_id,
+        )
+    # Fire receipt email in the background so /verify returns immediately.
+    if pay_row and pay_row["email"]:
+        background.add_task(
+            send_payment_receipt_email,
+            to_email=pay_row["email"],
+            to_name=pay_row["name"] or "Student",
+            receipt_data={
+                "receipt_no": pay_row["receipt"],
+                "payment_id": pay_row["razorpay_payment_id"],
+                "order_id": pay_row["razorpay_order_id"],
+                "paid_at_pretty": pretty_paid_at(pay_row["paid_at"]),
+                "amount_paise": pay_row["amount"],
+                "plan": pay_row["plan"],
+                "student_name": pay_row["name"],
+                "student_email": pay_row["email"],
+                "student_phone": pay_row["phone_number"],
+                "batch_code": pay_row["batch_id"],
+            },
         )
     return {"success": True, "status": "paid"}
 
@@ -178,6 +206,10 @@ async def webhook(request: Request):
             return {"received": True, "matched": False}
 
         if etype in ("payment.captured", "order.paid"):
+            already_paid = await conn.fetchval(
+                "SELECT status = 'paid' FROM payments WHERE razorpay_order_id = $1",
+                order_id,
+            )
             await conn.execute(
                 """UPDATE payments SET status='paid', paid_at=NOW(), razorpay_payment_id=$2
                    WHERE razorpay_order_id=$1""",
@@ -187,6 +219,36 @@ async def webhook(request: Request):
                 "UPDATE profiles SET payment_status='paid', payment_completed_at=NOW() WHERE id=$1",
                 row["user_id"],
             )
+            # Only email once per payment (skip if verify endpoint already sent)
+            if not already_paid:
+                pay_row = await conn.fetchrow(
+                    """SELECT p.receipt, p.amount, p.plan, p.paid_at,
+                              p.razorpay_payment_id, p.razorpay_order_id,
+                              pr.name, pr.email, pr.phone_number, pr.batch_id
+                       FROM payments p LEFT JOIN profiles pr ON pr.id = p.user_id
+                       WHERE p.razorpay_order_id = $1""",
+                    order_id,
+                )
+                if pay_row and pay_row["email"]:
+                    try:
+                        send_payment_receipt_email(
+                            to_email=pay_row["email"],
+                            to_name=pay_row["name"] or "Student",
+                            receipt_data={
+                                "receipt_no": pay_row["receipt"],
+                                "payment_id": pay_row["razorpay_payment_id"],
+                                "order_id": pay_row["razorpay_order_id"],
+                                "paid_at_pretty": pretty_paid_at(pay_row["paid_at"]),
+                                "amount_paise": pay_row["amount"],
+                                "plan": pay_row["plan"],
+                                "student_name": pay_row["name"],
+                                "student_email": pay_row["email"],
+                                "student_phone": pay_row["phone_number"],
+                                "batch_code": pay_row["batch_id"],
+                            },
+                        )
+                    except Exception as e:
+                        logger.warning(f"Webhook receipt email failed: {e}")
         elif etype == "payment.failed":
             await conn.execute(
                 "UPDATE payments SET status='failed', failed_at=NOW() WHERE razorpay_order_id=$1",
