@@ -23,11 +23,18 @@ const loadRazorpay = () => new Promise((resolve) => {
 const FeeStructure = () => {
   const [loading, setLoading] = useState(false);
   const [paid, setPaid] = useState(false);
+  const [gatewayLoaded, setGatewayLoaded] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
 
-  useEffect(() => { setPageTitle('Admission Fee'); }, []);
+  useEffect(() => { 
+    setPageTitle('Admission Fee'); 
+    loadRazorpay().then(ok => {
+      setGatewayLoaded(ok);
+      if (!ok) toast.error('Payment gateway failed to load. Please disable ad-blockers.');
+    });
+  }, []);
 
   const handlePay = async () => {
     setLoading(true);
@@ -135,16 +142,22 @@ const FeeStructure = () => {
             </div>
 
             <div className="mt-6 flex flex-col md:flex-row items-stretch md:items-center gap-3">
-              <Button
-                onClick={handlePay}
-                disabled={loading || paid}
-                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white h-12 text-base"
-                data-testid="pay-now-btn"
-              >
-                {paid ? <><CheckCircle className="h-5 w-5 mr-2" /> Payment Complete</> :
-                 loading ? <><Loader2 className="h-5 w-5 mr-2 animate-spin" /> Opening Checkout...</> :
-                 <>Pay <span className="mx-1">₹</span>30,000 Securely</>}
-              </Button>
+              {gatewayLoaded ? (
+                <Button
+                  onClick={handlePay}
+                  disabled={loading || paid}
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white h-12 text-base"
+                  data-testid="pay-now-btn"
+                >
+                  {paid ? <><CheckCircle className="h-5 w-5 mr-2" /> Payment Complete</> :
+                   loading ? <><Loader2 className="h-5 w-5 mr-2 animate-spin" /> Opening Checkout...</> :
+                   <>Pay <span className="mx-1">₹</span>30,000 Securely</>}
+                </Button>
+              ) : (
+                <div className="flex-1 p-4 bg-red-50 text-red-600 rounded-lg text-sm text-center border border-red-200">
+                  Payment gateway failed to load. Please disable any ad-blockers and refresh the page.
+                </div>
+              )}
             </div>
 
             <div className="mt-6 pt-6 border-t border-slate-100 text-xs text-slate-500">

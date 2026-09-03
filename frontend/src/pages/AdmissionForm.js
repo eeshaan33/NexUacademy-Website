@@ -702,10 +702,13 @@ const AdmissionForm = ({ onComplete }) => {
                         setBatchVerify({ status: 'loading', batch: null, error: '' });
                         try {
                           const res = await api.get(`/batches/by-code/${formData.batch_code}`);
-                          const b = res.data.batch;
+                          const b = res.data?.batch;
+                          if (!b || !b.id) {
+                            throw new Error('Invalid batch response');
+                          }
                           setBatchVerify({ status: 'ok', batch: b, error: '' });
                           setFormData(prev => ({ ...prev, course_applying: b.id }));
-                          toast.success(`Batch verified: ${b.name}`);
+                          toast.success(`Batch verified: ${b.name || b.code}`);
                         } catch (err) {
                           setBatchVerify({ status: 'error', batch: null, error: 'Invalid Batch ID' });
                           toast.error('Invalid Batch ID. Please double-check with your teacher.');
@@ -716,10 +719,10 @@ const AdmissionForm = ({ onComplete }) => {
                       {batchVerify.status === 'loading' ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Verify'}
                     </Button>
                   </div>
-                  {batchVerify.status === 'ok' && (
+                  {batchVerify.status === 'ok' && batchVerify.batch && (
                     <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 px-3 py-2 rounded">
                       <CheckCircle className="h-4 w-4" />
-                      Joined: <span className="font-semibold">{batchVerify.batch.name}</span>
+                      Joined: <span className="font-semibold">{batchVerify.batch.name || batchVerify.batch.code}</span>
                     </div>
                   )}
                   {batchVerify.status === 'error' && (
