@@ -1,0 +1,42 @@
+{
+  "summary": "Iter22: Tested new paywall upgrade packs (lectures_upgrade ₹1,500 and lectures_tests_upgrade ₹2,500). All 6 backend tests passed and full frontend flow verified. Server-side price catalog is enforced, /auth/me exposes access_tier + is_existing_student, /upgrade page renders both plan cards with correct testids, Razorpay checkout opens with correct plan payload, and Upgrade CTA/nav are correctly hidden for admin role.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_results": {
+    "backend": {
+      "test_auth_me_has_tier_fields": "PASS - access_tier=free, is_existing_student present",
+      "test_create_order_lectures_upgrade": "PASS - amount=150000, plan+order_id+key_id returned",
+      "test_create_order_lectures_tests_upgrade": "PASS - amount=250000",
+      "test_create_order_admission_backcompat": "PASS - amount=3000000",
+      "test_create_order_unknown_plan": "PASS - 400 'Unknown plan: bogus'",
+      "test_create_order_price_override_for_upgrade": "PASS - client amount=1 ignored, server returned 150000"
+    },
+    "frontend": {
+      "student_dashboard_upgrade_cta": "PASS - data-testid=upgrade-cta-btn visible after auth loaded",
+      "student_sidebar_nav_upgrade": "PASS - data-testid=nav-upgrade visible",
+      "upgrade_page_plan_cards": "PASS - plan-lectures_upgrade + plan-lectures_tests_upgrade both rendered",
+      "upgrade_page_pay_buttons": "PASS - pay-lectures_upgrade-btn + pay-lectures_tests_upgrade-btn present",
+      "current_tier_display": "PASS - current-tier text = 'free'",
+      "razorpay_checkout_opens": "PASS - window.Razorpay loaded, api.razorpay.com iframe attached, /payments/create-order XHR body={\"plan\":\"lectures_upgrade\"}",
+      "admin_upgrade_hidden": "PASS - upgrade-cta-btn and nav-upgrade both absent for admin@nexuacademy.com"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter22_upgrade_packs.py",
+    "/app/test_reports/pytest/iter22_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "payment_routes.py verify() and webhook() duplicate the tier promotion logic (two different CASE expressions). Consider extracting into a single helper to avoid drift between the two paths.",
+    "UpgradePage.grantedRank mapping hard-codes plan→tier relationship — this duplicates PLAN_CATALOG server-side knowledge in the frontend. Consider exposing plan metadata via an endpoint for a single source of truth."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter22_upgrade_packs.py"
+  ],
+  "success_rate": {"backend": "100% (6/6)", "frontend": "100% (7/7 checks)"},
+  "test_credentials": "student@test.com / password123, admin@nexuacademy.com / nexuacademy123",
+  "seed_data_creation": "None - reused existing accounts",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter22 paywall packs fully verified. Real Razorpay checkout was NOT completed (per instructions). Tier promotion on successful verify was not exercised end-to-end (needs real payment). If future iteration must test tier promotion, mock/patch verify signature or use test razorpay webhook simulator."
+}

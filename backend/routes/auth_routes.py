@@ -127,6 +127,9 @@ async def me(request: Request):
         elif hasattr(v, "hex") and not isinstance(v, (bytes, bytearray)):
             user[k] = str(v)
     user.pop("push_subscription", None)
+    # Ensure new tier fields are always present in the response
+    user.setdefault("access_tier", "free")
+    user.setdefault("is_existing_student", False)
     return {"success": True, "user": user}
 
 

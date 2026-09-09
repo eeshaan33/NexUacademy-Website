@@ -15,7 +15,7 @@ fees, tier-based access control, and analytics dashboards.
 - **Payments**: Razorpay (test keys wired) — create-order → checkout → verify (HMAC-SHA256) → DB + webhook
 - **Emails**: Resend + branded PDF receipts (reportlab)
 
-## Phase 16 (Feb 2026) — Streamlined admission + Preseed claim + Tier system
+## Phase 16 (Feb 2026) — Streamlined admission + Preseed claim + Tier system + Upgrade packs
 - **3-field admission form** — `AdmissionForm.js` rewritten. Public form now
   takes only Full Name, Email, WhatsApp Number → auto-creates auth user with
   a generated password (`firstname_lower + last4(whatsapp)`) → sign in → redirect
@@ -26,9 +26,14 @@ fees, tier-based access control, and analytics dashboards.
   email + batch. Default password = `firstname_lower + batchYear` (e.g.,
   `arjun2027`). On success: `profiles.access_tier='live_batch'`, 
   `is_existing_student=true`, session tokens returned, password displayed once.
-- **Tier column** — `profiles.access_tier` (values: `free`, `lectures_only`,
-  `full_recorded`, `live_batch`). Set to `live_batch` on paid admission_fee
-  or claimed preseed. Free tier UI paywall logic deferred per user request.
+- **Tier column** — `profiles.access_tier` (`free`, `lectures_only`,
+  `full_recorded`, `live_batch`). Server-side `PLAN_CATALOG` in
+  `payment_routes.py` maps plan → price → granted tier. Client-supplied
+  amounts are ignored for upgrade plans (only admission_fee honours env override).
+- **₹1,500 Lectures Pack (Phase 16)** — plan=`lectures_upgrade` → tier `lectures_only`.
+- **₹2,500 Lectures + Tests Pack (Phase 16)** — plan=`lectures_tests_upgrade` → tier `full_recorded`.
+- **/upgrade page + navbar CTA (Phase 16)** — visible to students whose
+  tier != `live_batch`. Hidden for admin/teacher and for already-full-tier users.
 - **student@test.com moved from JEEM2027 → NEX2027** (seed_service).
 - **Google OAuth redirect** — `/auth/google/url` now prefers SITE_URL / FRONTEND_URL
   over REACT_APP_BACKEND_URL for the callback redirect (fixes production
@@ -74,7 +79,7 @@ See `/app/memory/test_credentials.md`.
 
 ## Verified via Testing Agent
 - iter14: 32/37 · iter15: 37/37 · iter16: 18/18 · iter17: 20/20 · iter18: 50/50
-- iter20: 5/5 (time-guard) · **iter21: 14/14 backend + full frontend (admission, login, first-time-setup)**
+- iter20: 5/5 (time-guard) · iter21: 14/14 (admission/claim) · **iter22: 13/13 (upgrade packs)**
 
 ## External to-do (not code)
 1. Set `RAZORPAY_WEBHOOK_SECRET` in prod after configuring the webhook in

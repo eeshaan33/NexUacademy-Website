@@ -24,7 +24,9 @@ import {
   LogOut,
   User,
   Menu,
-  X
+  X,
+  Sparkles,
+  IndianRupee
 } from 'lucide-react';
 
 const Layout = ({ children }) => {
@@ -32,10 +34,12 @@ const Layout = ({ children }) => {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  const showUpgrade = user?.role === 'student' && user?.access_tier !== 'live_batch';
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, testId: 'nav-dashboard' },
     { name: 'My Classes', href: '/classes', icon: Video, testId: 'nav-classes' },
     { name: 'Live Classes', href: '/live-classes', icon: Video, testId: 'nav-live-classes' },
+    ...(showUpgrade ? [{ name: 'Upgrade', href: '/upgrade', icon: Sparkles, testId: 'nav-upgrade' }] : []),
   ];
 
   const handleLogout = async () => {
@@ -73,7 +77,17 @@ const Layout = ({ children }) => {
             </div>
 
             {/* User menu */}
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-3">
+              {showUpgrade && (
+                <Link
+                  to="/upgrade"
+                  className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white text-xs font-semibold px-3 py-1.5 shadow-sm transition-all"
+                  data-testid="upgrade-cta-btn"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Upgrade
+                </Link>
+              )}
               <NotificationBell />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

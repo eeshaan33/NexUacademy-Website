@@ -35,12 +35,31 @@ def _client() -> razorpay.Client:
 
 class CreateOrderRequest(BaseModel):
     plan: str = Field("admission_fee", max_length=50)
-    amount: Optional[int] = None  # in rupees; defaults to FEE_AMOUNT_INR env
+    amount: Optional[int] = None  # ignored except for admission_fee back-compat
+
+
+# Server-side price catalog + tier granted on verify. Client-supplied amounts
+# are ignored except for admission_fee (which uses FEE_AMOUNT_INR env for
+# backwards compatibility with older tests).
+PLAN_CATALOG = {
+    "admission_fee":            {"amount_rupees": 30000, "grants_tier": "live_batch"},
+    "lectures_upgrade":         {"amount_rupees": 1500,  "grants_tier": "lectures_only"},
+    "lectures_tests_upgrade":   {"amount_rupees": 2500,  "grants_tier": "full_recorded"},
+}
 
 
 @router.post("/create-order")
 async def create_order(payload: CreateOrderRequest, user=Depends(get_current_user)):
-    amount_rupees = payload.amount or int(os.environ.get("FEE_AMOUNT_INR", "30000"))
+    plan_info = PLAN_CATALOG.get(payload.plan)
+    if plan_info is None:
+        raise HTTPException(status_code=400, detail=f"Unknown plan: {payload.plan}")
+
+    if payload.plan == "admission_fee":
+        # Back-compat: honour FEE_AMOUNT_INR env override, else client-supplied
+        amount_rupees = payload.amount or int(os.environ.get("FEE_AMOUNT_INR", plan_info["amount_rupees"]))
+    else:
+        amount_rupees = plan_info["amount_rupees"]
+
     if amount_rupees <= 0:
         raise HTTPException(status_code=400, detail="Invalid amount")
     amount_paise = amount_rupees * 100
@@ -130,13 +149,22 @@ async def verify_payment(payload: VerifyRequest, background: BackgroundTasks, us
             "SELECT plan FROM payments WHERE razorpay_order_id = $1",
             payload.razorpay_order_id,
         )
+        grants_tier = (PLAN_CATALOG.get(pay_plan or "") or {}).get("grants_tier")
+        # For tier upgrades we always promote (they paid). For admission we
+        # only set live_batch. Downgrade never happens automatically.
         await conn.execute(
             """UPDATE profiles SET payment_status = 'paid',
                    payment_completed_at = NOW(),
-                   access_tier = CASE WHEN $2 = 'admission_fee' THEN 'live_batch'
-                                      ELSE access_tier END
+                   access_tier = CASE
+                       WHEN $2::text IS NULL THEN access_tier
+                       WHEN $2::text = 'live_batch' THEN 'live_batch'
+                       WHEN access_tier = 'live_batch' THEN 'live_batch'
+                       WHEN $2::text = 'full_recorded' THEN 'full_recorded'
+                       WHEN $2::text = 'lectures_only' AND access_tier <> 'full_recorded' THEN 'lectures_only'
+                       ELSE access_tier
+                   END
                WHERE id = $1""",
-            user["user_id"], pay_plan,
+            user["user_id"], grants_tier,
         )
         # Also mark student_applications paid if this order belongs to one
         await conn.execute(
@@ -231,8 +259,13 @@ async def webhook(request: Request):
             )
             await conn.execute(
                 """UPDATE profiles SET payment_status='paid', payment_completed_at=NOW(),
-                       access_tier = CASE WHEN (SELECT plan FROM payments WHERE razorpay_order_id=$2) = 'admission_fee'
-                                          THEN 'live_batch' ELSE access_tier END
+                       access_tier = CASE
+                           WHEN (SELECT plan FROM payments WHERE razorpay_order_id=$2) = 'admission_fee' THEN 'live_batch'
+                           WHEN access_tier = 'live_batch' THEN 'live_batch'
+                           WHEN (SELECT plan FROM payments WHERE razorpay_order_id=$2) = 'lectures_tests_upgrade' THEN 'full_recorded'
+                           WHEN (SELECT plan FROM payments WHERE razorpay_order_id=$2) = 'lectures_upgrade' AND access_tier <> 'full_recorded' THEN 'lectures_only'
+                           ELSE access_tier
+                       END
                    WHERE id=$1""",
                 row["user_id"], order_id,
             )

@@ -24,6 +24,7 @@ const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 const AuthCallback = lazy(() => import("./pages/AuthCallback"));
 const FeeStructure = lazy(() => import("./pages/FeeStructure"));
 const FirstTimeSetup = lazy(() => import("./pages/FirstTimeSetup"));
+const UpgradePage = lazy(() => import("./pages/UpgradePage"));
 const StudentAnalytics = lazy(() => import("./pages/student/AnalyticsDashboard"));
 const SampleQuestions = lazy(() => import("./pages/SampleQuestions"));
 
@@ -72,6 +73,7 @@ function AppRouter() {
           <Route path="/classes" element={<ProtectedRoute><Layout><StudentClasses /></Layout></ProtectedRoute>} />
           <Route path="/live-classes" element={<ProtectedRoute><Layout><StudentLiveClasses /></Layout></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Layout><ProfilePage /></Layout></ProtectedRoute>} />
+          <Route path="/upgrade" element={<ProtectedRoute><Layout><UpgradePage /></Layout></ProtectedRoute>} />
 
           {/* Default redirect */}
           <Route path="/" element={<RoleBasedRedirect />} />
