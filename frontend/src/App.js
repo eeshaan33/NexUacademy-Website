@@ -23,6 +23,7 @@ const LandingPage = lazy(() => import("./pages/LandingPage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 const AuthCallback = lazy(() => import("./pages/AuthCallback"));
 const FeeStructure = lazy(() => import("./pages/FeeStructure"));
+const FirstTimeSetup = lazy(() => import("./pages/FirstTimeSetup"));
 const StudentAnalytics = lazy(() => import("./pages/student/AnalyticsDashboard"));
 const SampleQuestions = lazy(() => import("./pages/SampleQuestions"));
 
@@ -53,6 +54,7 @@ function AppRouter() {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/admission" element={<AdmissionForm />} />
+          <Route path="/first-time-setup" element={<FirstTimeSetup />} />
           <Route path="/admin" element={<AdminPanel />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/sample-questions" element={<SampleQuestions />} />

@@ -126,10 +126,24 @@ async def verify_payment(payload: VerifyRequest, background: BackgroundTasks, us
                WHERE razorpay_order_id = $1""",
             payload.razorpay_order_id, payload.razorpay_payment_id, payload.razorpay_signature,
         )
+        pay_plan = await conn.fetchval(
+            "SELECT plan FROM payments WHERE razorpay_order_id = $1",
+            payload.razorpay_order_id,
+        )
         await conn.execute(
-            """UPDATE profiles SET payment_status = 'paid', payment_completed_at = NOW()
+            """UPDATE profiles SET payment_status = 'paid',
+                   payment_completed_at = NOW(),
+                   access_tier = CASE WHEN $2 = 'admission_fee' THEN 'live_batch'
+                                      ELSE access_tier END
                WHERE id = $1""",
-            user["user_id"],
+            user["user_id"], pay_plan,
+        )
+        # Also mark student_applications paid if this order belongs to one
+        await conn.execute(
+            """UPDATE student_applications SET payment_status = 'paid',
+                   razorpay_order_id = $2
+               WHERE user_id = $1 AND payment_status <> 'paid'""",
+            user["user_id"], payload.razorpay_order_id,
         )
         pay_row = await conn.fetchrow(
             """SELECT p.payment_id, p.receipt, p.amount, p.plan, p.paid_at,
@@ -216,8 +230,16 @@ async def webhook(request: Request):
                 order_id, payment_id_rp,
             )
             await conn.execute(
-                "UPDATE profiles SET payment_status='paid', payment_completed_at=NOW() WHERE id=$1",
-                row["user_id"],
+                """UPDATE profiles SET payment_status='paid', payment_completed_at=NOW(),
+                       access_tier = CASE WHEN (SELECT plan FROM payments WHERE razorpay_order_id=$2) = 'admission_fee'
+                                          THEN 'live_batch' ELSE access_tier END
+                   WHERE id=$1""",
+                row["user_id"], order_id,
+            )
+            await conn.execute(
+                """UPDATE student_applications SET payment_status='paid', razorpay_order_id=$2
+                   WHERE user_id=$1 AND payment_status <> 'paid'""",
+                row["user_id"], order_id,
             )
             # Only email once per payment (skip if verify endpoint already sent)
             if not already_paid:

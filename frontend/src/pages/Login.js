@@ -147,10 +147,15 @@ const Login = () => {
             </Link>
           </p>
 
-          <div className="pt-4 border-t">
+          <div className="pt-4 border-t space-y-2">
             <Link to="/admission">
               <Button variant="outline" className="w-full bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 hover:bg-green-100">
                 <span className="text-green-700">New Student? Apply for Admission</span>
+              </Button>
+            </Link>
+            <Link to="/first-time-setup">
+              <Button variant="outline" className="w-full bg-gradient-to-r from-indigo-50 to-purple-50 border-indigo-200 hover:bg-indigo-100" data-testid="first-time-setup-link">
+                <span className="text-indigo-700">Already Enrolled? Claim Your Account</span>
               </Button>
             </Link>
           </div>

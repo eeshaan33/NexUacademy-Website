@@ -74,6 +74,12 @@ logger = logging.getLogger(__name__)
 async def startup_event():
     logger.info("NexUacademy API starting (Supabase Postgres backend)")
     await init_pool()
+    # Run idempotent DB migrations (tier columns, applications, preseed roster)
+    try:
+        from services.migration_service import run_migrations
+        await run_migrations()
+    except Exception as e:
+        logger.warning(f"Migrations failed: {e}")
     # Ensure admin/teacher/student seed users exist in Supabase Auth
     try:
         from services.seed_service import ensure_seed_users

@@ -9,14 +9,38 @@ every automated test.
 | Admin    | admin@nexuacademy.com                | nexuacademy123     | —        |
 | Teacher  | teacher@test.com                     | password123        | —        |
 | Teacher2 | teacher2_iter17@nexuacademy.com      | password123        | —        |
-| Student  | student@test.com                     | password123        | JEEM2027 |
+| Student  | student@test.com                     | password123        | NEX2027  |
 
 ## Predefined batches (in DB, ready to use as batch codes)
 - `JEEM2027` — JEE Mains 2027
 - `NEX2027`  — NexUacademy 2027
 - `NEX2028`  — NexUacademy 2028
 
-Admin can create more batches with any alphanumeric code from `/admin` → Batches tab.
+## Preseed enrolled students (whitelist for /first-time-setup)
+Populated by `backend/services/migration_service.py` on startup into
+`public.preseed_students`. Default password format: `firstnamelowercase + batchYear`
+(e.g., `arjun2027`, `shantanu2028`).
+
+**NEX2027**: Arjun, Garvit, Khushi, Kartavya, Kovid, Krisha, Naavya, Pragya,
+Abhinav, Vivaan, Urveesh, Yashasvi, Madhav, Aniket, Rittam, Eeshaan, Aaryan,
+Ayush, Shefali
+
+**NEX2028**: Shantanu, Pranit
+
+Sample claim payload:
+```json
+POST /api/auth/claim-preseed
+{ "first_name": "Arjun", "email": "arjun@example.com", "batch_id": "NEX2027" }
+```
+Response includes `default_password: "arjun2027"` — shown once to the student
+on the First-Time Setup page.
+
+## New Student Application (3-field public form)
+`POST /api/admissions/simple-submit` → `{ full_name, email, whatsapp_number }`
+Server generates a password = `firstnamelower + last4digits(whatsapp)` and
+returns it once so the frontend can display it after payment. User is auto-
+logged in and redirected to `/fee-structure` for the ₹30,000 Razorpay flow.
+On paid → `profiles.access_tier` is set to `live_batch`.
 
 ## Supabase project
 - URL: https://nygxykzxvuezeeutzmgh.supabase.co

@@ -1,9 +1,9 @@
-# NexUacademy - Product Requirements & State (Phase 13)
+# NexUacademy - Product Requirements & State (Phase 16)
 
 ## Overview
 JEE/NEET learning platform with Teacher Dashboard, Student Portal, Admin Panel,
 embedded Zoom live classes, batch-targeted content, Razorpay-powered admission
-fees, and analytics dashboards.
+fees, tier-based access control, and analytics dashboards.
 
 ## Current Stack
 - **Backend**: Python 3 / FastAPI + `asyncpg` + Supabase Postgres + Auth
@@ -13,82 +13,86 @@ fees, and analytics dashboards.
 - **Live video**: Zoom Meeting SDK (Web SDK, client view, embedded)
 - **Zoom API**: Server-to-Server OAuth for meeting create/delete/participants
 - **Payments**: Razorpay (test keys wired) — create-order → checkout → verify (HMAC-SHA256) → DB + webhook
+- **Emails**: Resend + branded PDF receipts (reportlab)
 
-## Phase 13 (Feb 2026) — Payments + Analytics
-- Razorpay integration: `/api/payments/{create-order, verify, my, webhook}` + `payments` table + `profiles.payment_status`. Verify endpoint enforces ownership (order.user_id must match caller).
-- AdmissionForm success now routes to `/fee-structure` (₹30,000 one-time) → opens Razorpay Checkout → verifies signature → redirects to /dashboard.
-- Webhook signature-verified when `RAZORPAY_WEBHOOK_SECRET` is set (dev-mode bypass when empty).
-- Analytics re-ported: `/api/analytics/{dashboard, subject-wise, admin/overview}`.
-- Student `/analytics` page: 6 stat cards + subject-wise accuracy bars.
-- Admin panel new default tab "Analytics" with revenue, batch distribution, recent signups, recent payments.
+## Phase 16 (Feb 2026) — Streamlined admission + Preseed claim + Tier system
+- **3-field admission form** — `AdmissionForm.js` rewritten. Public form now
+  takes only Full Name, Email, WhatsApp Number → auto-creates auth user with
+  a generated password (`firstname_lower + last4(whatsapp)`) → sign in → redirect
+  to `/fee-structure` for the ₹30,000 Razorpay flow.
+- **First-Time Setup for enrolled students** — new `/first-time-setup` page.
+  21 pre-enrolled students (19 NEX2027 + 2 NEX2028) live in
+  `public.preseed_students`. Claim = first_name (case-insensitive) + fresh
+  email + batch. Default password = `firstname_lower + batchYear` (e.g.,
+  `arjun2027`). On success: `profiles.access_tier='live_batch'`, 
+  `is_existing_student=true`, session tokens returned, password displayed once.
+- **Tier column** — `profiles.access_tier` (values: `free`, `lectures_only`,
+  `full_recorded`, `live_batch`). Set to `live_batch` on paid admission_fee
+  or claimed preseed. Free tier UI paywall logic deferred per user request.
+- **student@test.com moved from JEEM2027 → NEX2027** (seed_service).
+- **Google OAuth redirect** — `/auth/google/url` now prefers SITE_URL / FRONTEND_URL
+  over REACT_APP_BACKEND_URL for the callback redirect (fixes production
+  callback going to the wrong domain).
 
-## Phase 12 (Feb 2026) — MongoDB → Supabase migration
-See prior sections; 37/37 tests passed after Supabase cutover.
+## New DB tables (Phase 16, auto-created by migration_service on startup)
+- `public.student_applications` — 3-field public applications ledger
+- `public.preseed_students` — whitelist of enrolled students eligible for
+  `/first-time-setup` (idempotent seed of 21 rows)
+- `public.profiles.access_tier`, `is_existing_student`, `whatsapp_number` — new columns
 
 ## What's implemented (full list)
 ✅ Auth (login/signup/me/logout/Google OAuth URL)
-✅ Batches (JEEM2027, NEX2027, NEX2028 seeded + admin CRUD with alphanumeric codes)
-✅ Admissions (batch-code verify → auto-create user + profile + admission + roll_number)
+✅ **3-field New Student Application → Razorpay ₹30,000 → live_batch tier** (Phase 16)
+✅ **First-Time Setup for enrolled students (21 preseeded)** (Phase 16)
+✅ **profiles.access_tier column + auto-grant live_batch on paid admission** (Phase 16)
+✅ Batches (JEEM2027, NEX2027, NEX2028 seeded + admin CRUD)
 ✅ Classes (teacher/student, batch-filtered)
 ✅ Live Classes (Zoom SDK create + host/attendee join + raise-hand)
-✅ Tests + Attempts (resume-on-existing in_progress)
-✅ Questions with option-images (jsonb)
+✅ Tests + Attempts (server-authoritative scoring, time-guard)
+✅ Questions with option-images
 ✅ Announcements (batch-targeted + in-app notifications)
 ✅ Notifications
 ✅ Uploads → Supabase Storage
 ✅ Contacts (landing form)
-✅ **Payments (Razorpay)** — new in Phase 13
-✅ **Analytics (student + admin)** — new in Phase 13
+✅ Payments (Razorpay) with branded PDF email receipts
+✅ Analytics (student + admin)
 ✅ Profile page (roll number, batch, personal details)
+✅ Route-level code splitting (React.lazy)
 
 ## Deferred / Not yet re-ported
+- Free-tier paywall UI (₹1,500 / ₹2,500 upgrade packs) — user asked to
+  defer for now; backend `access_tier` column already exists.
 - PYQ browser & bulk CSV seeder
-- Custom Test builder
-- Bookmarks
+- Custom Test builder / Bookmarks
 - Suggestion moderation
-- Teacher CRUD in admin panel (creating teacher accounts)
+- Teacher CRUD in admin panel
 - Page-view analytics middleware
-- Test reminder scheduler (email)
+- Test reminder scheduler
 
 ## Test Credentials
 See `/app/memory/test_credentials.md`.
 
 ## Verified via Testing Agent
-- iter14: 32/37 (3 blockers)
-- iter15: 37/37 (Supabase migration solid)
-- iter16: **18/18 (Razorpay + Analytics all green)**
-- iter17: Zoom live-class end-to-end (teacher create/start/end/participants/lower-hand/delete + student list/join/raise-hand/lower-hand + host_zak + signature roles)
-
-## Session Feb-2026 wrap
-- Fixed pre-completion oxlint blocker in `frontend/public/service-worker.js` (`clients.openWindow` → `self.clients.openWindow`).
+- iter14: 32/37 · iter15: 37/37 · iter16: 18/18 · iter17: 20/20 · iter18: 50/50
+- iter20: 5/5 (time-guard) · **iter21: 14/14 backend + full frontend (admission, login, first-time-setup)**
 
 ## External to-do (not code)
-1. Set `RAZORPAY_WEBHOOK_SECRET` in prod after configuring the webhook in Razorpay Dashboard (Settings → Webhooks → Add URL `<REACT_APP_BACKEND_URL>/api/payments/webhook`, events: payment.captured, payment.failed, order.paid). Currently empty → dev mode.
-2. Enable Google OAuth provider in Supabase Dashboard (Client ID/Secret already shared by user).
-3. Add Zoom S2S scopes `user:read:token`, `dashboard:read:list_meeting_participants:admin`, `meeting:delete:meeting:admin` for full participants panel + delete-meeting.
+1. Set `RAZORPAY_WEBHOOK_SECRET` in prod after configuring the webhook in
+   Razorpay Dashboard (`payment.captured`, `payment.failed`, `order.paid`).
+2. Enable Google OAuth provider in Supabase Dashboard (Client ID/Secret ready).
+   Ensure Redirect URI `<PROD>/auth/callback` is whitelisted.
+3. Redeploy to `nexuacademy.com` — login on prod was reported broken; the
+   preview backend has always worked. A redeploy will pick up the new
+   preseed migration + moved student batch + 3-field form.
 
-## Backlog
-- P1: Re-port PYQ Bank + CSV seeder
+## Backlog / Roadmap
+- P1: Free-tier paywall UI (`₹1,500` unlocks all lectures, `₹2,500` unlocks
+      lectures + all chapter tests) → wire to `access_tier`
+- P1: Free lecture gating (one free lecture per Class 11 / Class 12) —
+      needs `class_level` on classes table
+- P1: Free chapter-test gating (one free test per chapter)
+- P2: Receipt audit log (`receipt_email_status` column)
+- P2: Referral rewards (discount code for admitted students)
+- P2: Dismiss-all live-now banners
 - P2: Shareable batch join links `/join/JEEM2027`
-- P2: Real-time "live now" banner via Supabase Realtime  *(currently polling every 30 s in `LiveNowBanner`)*
-- P2: Bookmarks + Custom Test builder + Teacher-CRUD admin flow
-
-## Phase 14 (Feb 2026) — Score integrity + Live Now + Receipt emails + Time Guard
-- **Server-side score verification** — `services/scoring.py` recomputes correctness from `tests.questions` (MCQ_Single, MCQ_Multiple, Numerical with `answer_range` tolerance). Client `is_correct` is discarded. `negative_marks` clamped to `<=0`. Submit is idempotent.
-- **Test Time Guard** — `student_test_routes.submit()` enforces `(now - started_at) <= duration_minutes + 60 s grace`. Stale attempts are auto-closed with `status='expired'` + `submitted_at=NOW()` and every subsequent submit returns HTTP 400. Autosave on expired returns `{skipped:true}`.
-- **Autosave endpoint** — `PUT /api/student/tests/attempts/{id}/autosave` (matches JEEMainInterface 30 s cadence).
-- **Live Now banner** — `LiveNowBanner` mounted inside `Layout`; polls `/student/live-classes/` every 30 s (pauses when tab hidden), red pulsing bar with "Join Now" CTA when any is_live=true class matches student batch. Session-persisted dismiss per class_id.
-- **Branded PDF payment receipts** — `services/receipt_service.py` builds A4 receipt (reportlab) sent via Resend on `/payments/verify` (via FastAPI BackgroundTasks) + on webhook `payment.captured` with `already_paid` dedupe.
-
-## Verified via Testing Agent
-- iter14: 32/37 · iter15: 37/37 · iter16: 18/18 · iter17: 20/20 · iter18: 50/50 · iter20: 5/5 (time-guard)
-
-## Phase 15 (Feb 2026) — Frontend performance
-- **Route-level code splitting** — every page in `App.js` is now `React.lazy()`; webpack emits per-route chunks (Login 48 KB, Dashboard 93 KB, LandingPage 231 KB, AdminPanel 174 KB) instead of shipping all 2.7 MB upfront.
-- **Suspense fallback** — `components/PageLoader.js` renders a lightweight branded spinner while a chunk downloads.
-- **Section-level lazy load on Landing** — `VideoTestimonials`, `RealResults`, `YouTubeSection` are `lazy()` with their own Suspense fallback; YouTube iframes get `loading="lazy"` and thumbnails get `loading="lazy" decoding="async"`.
-- **Resource hints in `public/index.html`** — preconnect to fonts + `customer-assets.emergentagent.com`, dns-prefetch to youtube + img.youtube, preload `nexuacademy-logo.png`.
-- **Hero image** — `fetchpriority="high"` on the fold-visible founder photo; below-the-fold images marked `loading="lazy" decoding="async"`.
-- P2: Shareable batch join links `/join/JEEM2027`
-- P2: Real-time "live now" banner via Supabase Realtime
 - P2: Bookmarks + Custom Test builder + Teacher-CRUD admin flow
