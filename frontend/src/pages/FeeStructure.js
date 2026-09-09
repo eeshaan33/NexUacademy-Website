@@ -25,7 +25,7 @@ const FeeStructure = () => {
   const [paid, setPaid] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, checkAuth } = useAuth();
 
   useEffect(() => { setPageTitle('Admission Fee'); }, []);
 
@@ -64,6 +64,8 @@ const FeeStructure = () => {
             });
             setPaid(true);
             toast.success('Payment successful! Welcome to NexUacademy 🎉');
+            // Refresh auth so access_tier flips from 'free' → 'live_batch' in-app
+            try { await checkAuth(); } catch { /* non-fatal */ }
             setTimeout(() => navigate('/dashboard', { replace: true }), 2000);
           } catch (e) {
             toast.error('Payment could not be verified. Please contact support.');

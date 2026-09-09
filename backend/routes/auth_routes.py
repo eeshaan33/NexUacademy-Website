@@ -140,22 +140,26 @@ async def logout():
 
 
 @router.get("/google/url")
-async def google_oauth_url():
-    """Return Supabase Google-OAuth authorize URL for the frontend to redirect to."""
+async def google_oauth_url(redirect_to: Optional[str] = None):
+    """Return Supabase Google-OAuth authorize URL for the frontend to redirect to.
+
+    The frontend passes `?redirect_to=<origin>/auth/callback` explicitly so
+    Supabase sends the browser back to the right domain (dev/preview/prod).
+    Falls back to backend env values only if the client omits it.
+    """
     base = os.environ["SUPABASE_URL"].rstrip("/")
-    # Prefer explicit SITE_URL (production domain), then REACT_APP_BACKEND_URL,
-    # then FRONTEND_URL — whichever is set. Callback must be /auth/callback.
-    site = (
-        os.environ.get("SITE_URL")
-        or os.environ.get("FRONTEND_URL")
-        or os.environ.get("REACT_APP_BACKEND_URL", "")
-    )
-    redirect_to = f"{site.rstrip('/')}/auth/callback" if site else ""
+    if not redirect_to:
+        site = (
+            os.environ.get("SITE_URL")
+            or os.environ.get("FRONTEND_URL")
+            or os.environ.get("REACT_APP_BACKEND_URL", "")
+        )
+        redirect_to = f"{site.rstrip('/')}/auth/callback" if site else ""
     url = f"{base}/auth/v1/authorize?provider=google"
     if redirect_to:
         from urllib.parse import quote
         url += f"&redirect_to={quote(redirect_to, safe='')}"
-    return {"success": True, "url": url}
+    return {"success": True, "url": url, "redirect_to": redirect_to}
 
 
 # ---------------------------------------------------------------------------

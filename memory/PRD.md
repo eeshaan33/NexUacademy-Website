@@ -15,7 +15,7 @@ fees, tier-based access control, and analytics dashboards.
 - **Payments**: Razorpay (test keys wired) — create-order → checkout → verify (HMAC-SHA256) → DB + webhook
 - **Emails**: Resend + branded PDF receipts (reportlab)
 
-## Phase 16 (Feb 2026) — Streamlined admission + Preseed claim + Tier system + Upgrade packs
+## Phase 16 (Feb 2026) — Streamlined admission + Preseed claim + Tier system + Upgrade packs + Bugfix pass
 - **3-field admission form** — `AdmissionForm.js` rewritten. Public form now
   takes only Full Name, Email, WhatsApp Number → auto-creates auth user with
   a generated password (`firstname_lower + last4(whatsapp)`) → sign in → redirect
@@ -35,9 +35,24 @@ fees, tier-based access control, and analytics dashboards.
 - **/upgrade page + navbar CTA (Phase 16)** — visible to students whose
   tier != `live_batch`. Hidden for admin/teacher and for already-full-tier users.
 - **student@test.com moved from JEEM2027 → NEX2027** (seed_service).
-- **Google OAuth redirect** — `/auth/google/url` now prefers SITE_URL / FRONTEND_URL
-  over REACT_APP_BACKEND_URL for the callback redirect (fixes production
-  callback going to the wrong domain).
+- **Google OAuth redirect** — `/auth/google/url` now accepts `?redirect_to=`
+  query param and the frontend passes `window.location.origin/auth/callback`
+  explicitly (fixes callback landing on `localhost:3000` on prod).
+
+### Bugfix pass iter23/iter24 (Feb 2026)
+- **Class list 404** — Fixed. Frontend called `GET /teacher/classes/` and
+  `GET /teacher/classes/stats` but backend only exposed `/my-classes` and
+  `/stats/summary`. Added root aliases on both teacher and student class
+  routers. Teacher can now see their scheduled classes; students in the
+  correct batch see them too.
+- **Tier refresh after paid admission** — Fixed. `FeeStructure.js` now
+  awaits `checkAuth()` after `/payments/verify` succeeds so AuthContext
+  refreshes `access_tier` from `free` → `live_batch` before the redirect.
+- **JEEM2027 cleanup** — New idempotent migration `cleanup_batches()` in
+  `services/migration_service.py` moved all 7 profiles from JEEM2027 → NEX2027.
+  Now NEX2027 has 17 students, NEX2028 has 2, JEEM2027 has 0.
+- **Removed dead file** — `src/pages/ClassesPage.js` was never mounted in
+  the router but confused the testing agent — deleted.
 
 ## New DB tables (Phase 16, auto-created by migration_service on startup)
 - `public.student_applications` — 3-field public applications ledger
@@ -79,7 +94,8 @@ See `/app/memory/test_credentials.md`.
 
 ## Verified via Testing Agent
 - iter14: 32/37 · iter15: 37/37 · iter16: 18/18 · iter17: 20/20 · iter18: 50/50
-- iter20: 5/5 (time-guard) · iter21: 14/14 (admission/claim) · **iter22: 13/13 (upgrade packs)**
+- iter20: 5/5 · iter21: 14/14 · iter22: 13/13 · iter23: 8/9 + partial FE
+- **iter24: 100% backend + 100% frontend (classes bugfix regression)**
 
 ## External to-do (not code)
 1. Set `RAZORPAY_WEBHOOK_SECRET` in prod after configuring the webhook in

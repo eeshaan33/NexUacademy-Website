@@ -67,7 +67,11 @@ export const AuthProvider = ({ children }) => {
   };
 
   const loginWithGoogle = async () => {
-    const { data } = await axios.get(`${API}/auth/google/url`);
+    // Always pass the current browser origin so Supabase sends the callback
+    // back to THIS domain (dev / preview / prod) — otherwise it uses whatever
+    // Site URL is configured in the Supabase Dashboard (may be localhost).
+    const redirectTo = `${window.location.origin}/auth/callback`;
+    const { data } = await axios.get(`${API}/auth/google/url`, { params: { redirect_to: redirectTo } });
     if (data.url) window.location.href = data.url;
   };
 

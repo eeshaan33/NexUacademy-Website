@@ -123,3 +123,28 @@ async def run_migrations():
         "Migrations complete — profiles tier cols + student_applications + "
         f"preseed_students ({len(PRESEED_ROSTER)} rows)"
     )
+
+
+async def cleanup_batches():
+    """One-shot cleanup requested by admin (Feb 2026):
+    Move every student currently in JEEM2027 → NEX2027 so all JEE Mains 2027
+    students land in the NexUacademy 2027 batch. Idempotent.
+    """
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        # Only run if NEX2027 exists to avoid an FK violation.
+        exists = await conn.fetchval("SELECT 1 FROM batches WHERE id = 'NEX2027'")
+        if not exists:
+            logger.info("cleanup_batches: NEX2027 batch not found, skipping")
+            return
+        moved = await conn.fetchval(
+            """
+            WITH updated AS (
+                UPDATE profiles SET batch_id = 'NEX2027'
+                 WHERE batch_id = 'JEEM2027' AND role = 'student'
+                 RETURNING 1
+            )
+            SELECT count(*) FROM updated
+            """
+        )
+        logger.info(f"cleanup_batches: moved {moved or 0} JEEM2027 students → NEX2027")

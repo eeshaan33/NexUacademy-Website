@@ -76,8 +76,9 @@ async def startup_event():
     await init_pool()
     # Run idempotent DB migrations (tier columns, applications, preseed roster)
     try:
-        from services.migration_service import run_migrations
+        from services.migration_service import run_migrations, cleanup_batches
         await run_migrations()
+        await cleanup_batches()
     except Exception as e:
         logger.warning(f"Migrations failed: {e}")
     # Ensure admin/teacher/student seed users exist in Supabase Auth

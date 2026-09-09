@@ -1,0 +1,36 @@
+{
+  "summary": "Iter23 bugfix verification for (1) Teacher/student classes list root alias, (2) Google OAuth redirect_to using current origin, (3) FeeStructure→checkAuth() tier refresh, (4) JEEM2027→NEX2027 batch migration + 21 preseed roster. Backend pytest 8/9 passed (1 skipped, no admin students endpoint). DB directly verified: 0 profiles in JEEM2027, 17 in NEX2027, 21 preseed rows, Shefali present w/ default_password='shefali2027'. Frontend E2E: teacher can schedule new class and it renders on /teacher/classes (empty state gone); Google Sign-In captured URL is 'https://<supabase>/auth/v1/authorize?provider=google&redirect_to=https%3A%2F%2Flive-class-hub-17.preview.emergentagent.com%2Fauth%2Fcallback' (current origin, URL-encoded); /upgrade shows current-tier='Free' for student@test.com. However student /classes page (My Classes) does NOT show the newly scheduled class — root cause: ClassesPage.js calls GET /api/classes (returns 404) instead of the working /api/student/classes/ (or /my-classes) endpoint. Additionally, DB returns 'scheduled_date_time' while ClassesPage.js reads 'scheduled_datetime'. This blocks the student half of Bug #1 even though the backend piece is fixed.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ClassesPage (/classes route for students)", "issue": "Calls api.get('/classes') which returns 404. Should call '/student/classes/' or '/student/classes/my-classes'. As a result NEX2027 students see 0 upcoming classes on My Classes page even though the backend correctly returns the class.", "selector": "src/pages/ClassesPage.js:395", "priority": "HIGH"},
+      {"component": "ClassesPage field mapping", "issue": "Reads classData.scheduled_datetime but backend returns scheduled_date_time. Even if endpoint is corrected, CountdownTimer + date/time formatting will silently fail (NaN/Invalid Date).", "selector": "src/pages/ClassesPage.js:53,93,224,278,324,399", "priority": "HIGH"}
+    ],
+    "integration_issues": [
+      {"flow": "Student My Classes list", "issue": "404 from /api/classes hides the newly scheduled NEX2027 class from students; renders 'Check back soon for upcoming live classes!' empty state.", "affected_selectors": ["[data-testid=\"upcoming-class-card\"]", "[data-testid=\"next-class-card\"]"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_iter23_bugfixes.py", "/app/test_reports/pytest/iter23_results.xml"],
+  "action_items": [
+    "Fix src/pages/ClassesPage.js line 395: change api.get('/classes') → api.get('/student/classes/my-classes') (or '/student/classes/'). Response shape is { success, classes: [...] } so map response.data.classes.",
+    "Also map scheduled_date_time → scheduled_datetime (or update ClassesPage to read scheduled_date_time) so upcoming/past filtering and CountdownTimer work.",
+    "Optional: add response_model / json_safe rename in student_class_routes.py to normalize the field name in the API layer to avoid future drift."
+  ],
+  "critical_code_review_comments": [
+    "Frontend/backend contract drift: server returns 'scheduled_date_time' (Postgres column) whereas the older ClassesPage.js was written for 'scheduled_datetime'. Consider standardizing at the API layer (json_safe) rather than at multiple call sites.",
+    "Google OAuth /auth/google/url is a GET endpoint that returns the authorize URL as JSON — the frontend then sets window.location.href to it. Because Supabase Site URL in the dashboard may still point to localhost:3000, the explicit redirect_to query param is what protects preview/prod. Verified end-to-end.",
+    "cleanup_batches() runs on every startup and is idempotent (WHERE batch_id='JEEM2027'), which is fine. Consider logging moved count at WARNING level once (not repeatedly) so re-runs are noise-free."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter23_bugfixes.py"],
+  "success_rate": {"backend": "100% (8/8 executed passed, 1 skipped)", "frontend": "75% (3 of 4 flows fully green — student /classes list flow broken by pre-existing endpoint bug)"},
+  "test_credentials": "teacher@test.com/password123, student@test.com/password123 (NEX2027), admin@nexuacademy.com/nexuacademy123",
+  "seed_data_creation": "None. Backend E2E test creates+deletes its own TEST class. Frontend E2E left one class 'E2E_iter23_<ts>' owned by teacher@test.com — safe to leave or clean via DELETE /api/teacher/classes/{class_id}.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "After main agent updates ClassesPage.js endpoint + field mapping, re-run playwright student flow to confirm '[data-testid=\"next-class-card\"]' or '[data-testid=\"upcoming-class-card\"]' renders. Backend pytest already covers /student/classes/ root alias returning NEX2027 class — no backend re-test needed. Backend passed for Google OAuth and preseed. Do not attempt Razorpay payment; verifying tier through /auth/me is enough.",
+  "rca of the issue": "Bug #1 has two halves. Backend half (teacher list route missing / mismatch) is fixed by the new @router.get('') alias on both teacher_class_routes and student_class_routes plus /stats alias — verified via pytest and browser (teacher sees 6 cards after scheduling; empty state gone). Student half is still visibly broken because src/pages/ClassesPage.js was never updated to call the correct endpoint — it still calls '/api/classes' which does not exist in server.py's router registrations (routes are all under prefixed routers like /teacher/classes, /student/classes, etc.). Fix: either (a) switch the frontend call to '/student/classes/my-classes' AND read scheduled_date_time, or (b) add a legacy '/classes' alias on api_router in server.py that proxies to student_class_routes.my_classes with a compatibility field rename. Bug #2, #3, #4 are all verified working."
+}
