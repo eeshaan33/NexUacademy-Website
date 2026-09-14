@@ -6,7 +6,7 @@ const YouTubeSection = ({ navy = '#1E3A5F' }) => (
     <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 items-center">
       <div className="aspect-video rounded-2xl overflow-hidden shadow-2xl bg-black">
         <iframe
-          src="https://www.youtube.com/embed/videoseries?list=UULFNexUacademypvtltd"
+          src="https://www.youtube.com/embed/videoseries?list=UU6nS44IoXkv3Bx9kPeFt1fQ"
           title="NexUacademy YouTube channel"
           className="w-full h-full"
           loading="lazy"
