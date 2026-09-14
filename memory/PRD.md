@@ -95,7 +95,20 @@ See `/app/memory/test_credentials.md`.
 ## Verified via Testing Agent
 - iter14: 32/37 · iter15: 37/37 · iter16: 18/18 · iter17: 20/20 · iter18: 50/50
 - iter20: 5/5 · iter21: 14/14 · iter22: 13/13 · iter23: 8/9 + partial FE
-- **iter24: 100% backend + 100% frontend (classes bugfix regression)**
+- iter24: 100% (classes bugfix regression)
+- **iter25: 100% (9/9 backend + full frontend) — pre-deploy readiness pass**
+
+## Phase 17 (Feb 2026) — YouTube latest video + pre-deploy hardening
+- **`/api/youtube/latest`** — new endpoint in `routes/youtube_routes.py` that
+  resolves the channel_id from `@NexUacademypvtltd` handle, hits the public
+  RSS feed (`/feeds/videos.xml?channel_id=UC…`), extracts the newest video's
+  ID + title, and caches 1 hour in-memory. No API key required.
+- **YouTubeSection.js** — landing page now embeds the actual latest video
+  (`prxtAAGvBcM` — "Aldehyde & Ketone ONE SHOT") with the fetched title as
+  the heading; falls back to a static known-good embed if the API fails.
+- **Pre-deploy Zoom E2E** — teacher schedule → student list → teacher start
+  → LiveNowBanner shows on all pages within 30 s poll → student join with
+  Zoom signature → teacher end → is_live reverts. Verified end-to-end.
 
 ## External to-do (not code)
 1. Set `RAZORPAY_WEBHOOK_SECRET` in prod after configuring the webhook in
