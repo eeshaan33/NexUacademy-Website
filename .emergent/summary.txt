@@ -1,810 +1,58 @@
-<analysis>**original_problem_statement**: Complete JEE/NEET platform with Teacher Dashboard, Student Site, Push Notifications, Admin Panel, Landing Page, and highly advanced NTA-pattern JEE test interfaces. Recently required integrating Zoom Meeting SDK for live classes, migrating the entire database from MongoDB to Supabase (PostgreSQL), Razorpay for admission fee payments, and optimizing frontend load performance.
+<analysis>**original_problem_statement**: Complete JEE/NEET platform with Teacher Dashboard, Student Site, Admin Panel, and highly advanced NTA-pattern tests. Required implementing a streamlined 3-field admission form (Name, Email, WhatsApp) tied to a ₹30,000 live batch payment, migrating existing students to Supabase Auth with default passwords, and implementing a 3-tier access system (Free, ₹1,500 Lectures Pack, ₹2,500 Full Pack, ₹30k Live Batch). Also required fixing Zoom live classes rendering, Google OAuth redirects, and dynamic YouTube video fetching on the landing page.
 
 **PRODUCT REQUIREMENTS:**
--   **Tech Stack:** Python/FastAPI backend + React frontend (Tailwind, Framer Motion) + Supabase (PostgreSQL, Auth, Storage).
--   **Auth/Roles:** Admin, Teacher, Student. Supabase Auth + Google OAuth integrated.
--   **Class Management:** Teachers schedule classes. Embedded Zoom Meeting SDK for live sessions.
--   **Payments & Receipts:** Razorpay integration after admission form submission with automated PDF email receipts.
--   **Testing Engine:** NTA-pattern UI, server-authoritative scoring, strict time-guards for attempts.
--   **Performance:** Route-level code splitting for instant frontend loading.
+-   **Tech Stack:** Python/FastAPI backend + React frontend + Supabase (PostgreSQL, Auth, Storage).
+-   **Auth/Roles:** Admin, Teacher, Student. Supabase Auth + Google OAuth. Pre-seeded users claimed via .
+-   **Access Tiers:**
+    - Free: 1 free lecture, 1 free test.
+    - ₹1,500: All recorded lectures.
+    - ₹2,500: All recorded lectures + chapter tests.
+    - ₹30,000 (Live Batch): Full access + embedded Zoom classes.
+-   **Payments:** Razorpay checkout with tier promotion logic enforced server-side.
 
 **User's preferred language**: English (INSTRUCT next agent to respond in English only)
 
 **what currently exists?** 
-A highly-optimized, fully functional full-stack JEE/NEET platform using Supabase for PostgreSQL, Auth, and Storage. It features embedded Zoom classes with a real-time Live Now banner, Razorpay checkout with automated PDF receipts via Resend/ReportLab, server-authoritative test scoring with strict time-guards, drag-and-drop document upload flows, and a React frontend optimized via lazy-loading and code-splitting for instant rendering.
+A fully functional, 3-tier monetized JEE/NEET learning platform. The app supports a 3-field admission flow linked to a ₹30k Razorpay checkout. Existing students are auto-migrated and can claim their accounts. Google OAuth is fixed. Live Zoom classes correctly appear on both teacher and student dashboards with real-time Live Now banners. The landing page dynamically fetches the latest YouTube video via an RSS feed endpoint.
 
 **Last working item**:
-- **Last item agent was working**: The user asked for instructions on how to download the codebase to GitHub and run it locally without errors. The agent consulted the support_agent and provided a comprehensive local setup checklist (backend, frontend, .env mapping, and Emergent SDK caveats). The agent asked the user if they would like a  generated with these instructions and is now awaiting the user's response.
-- **Status**: BLOCKED (Waiting for user response)
-- **Agent Testing Done**: N/A (Conversational step)
-- **Which testing method agent to use?**: NA
-- **User Testing Done**: N
+    - Last item agent was working: Validating the YouTube dynamic video fetch (via RSS) for the landing page and running a full regression of the Zoom Live class E2E flow.
+    - Status: RESOLVED
+    - Agent Testing Done: Y
+    - Which testing method agent to use?: testing_agent (iteration_25.json)
+    - User Testing Done: N (User is unable to test on Production because deployment was blocked by insufficient ECUs).
 
-**All Pending/In progress Issue list**:
-*None* (All reported issues, including the bearer token failure and linter bugs, were successfully fixed and tested).
+**All Pending/In progress Issue list**: 
+  Issue 1: Production Deployment Blocked (Insufficient ECUs)
+     - Attempted fixes: Agent called  but the user only has 35 ECUs (requires 50 for first deploy). 
+     - Next debug checklist: Ask user to confirm they have added credits (Profile → Manage plan → Add credits). Once confirmed, call . 
+     - Why fix this issue and what will be achieved with the fix?: Production is running older, buggy code. Pushing this deploy will apply all the fixes implemented and verified in this session to the live domain.
+     - Status: BLOCKED
+     - Is recurring issue? N
+     - Should Test frontend/backend/both after fix?: NA (Wait for deploy success).
+     - Blocked on other issue: User action required.
 
-**In progress Task List**:
-Task 1: Generate local setup 
-  - Where to resume: Wait for the user's response to the last message. If they confirm, write the provided local setup instructions to .
-  - What will be achieved with this?: Ensures the user can smoothly transition off-platform or host locally without missing environment variables or specific package index configurations.
-  - Status: USER VERIFICATION PENDING
-  - Should Test frontend/backend/both after fix?: NA
-  - Blocked on something: User confirmation.
+**In progress Task List**: 
+None. All requested features and bug fixes have been successfully implemented and tested in the preview environment.
 
 **Upcoming and Future Tasks**
-Future Tasks:
-- Task 1 (P2): **Receipt Audit Log**: Add a  column so disputes over I never got a receipt have an auditable trail.
-- Task 2 (P2): **Referral Rewards**: Let admitted students share a referral code that gives them a fee discount when a friend joins.
-- Task 3 (P2): **Dismiss All Banners**: Add a single dismiss-all button when multiple classes go live in the same batch.
+  Upcoming Tasks:
+  - Task 1 (P2): **Referral Rewards**: Let admitted students share a referral code that gives them a fee discount when a friend joins.
+  - Task 2 (P2): **Receipt Audit Log**: Add a  column so disputes over I never got a receipt have an auditable trail.
+  - Task 3 (P2): **Dismiss All Banners**: Add a single dismiss-all button when multiple classes go live in the same batch.
 
 **Completed work in this session**
-- Fixed pre-completion 
-  ! eslint(no-unused-vars): Variable 'actionTypes' is declared but never used. Unused variables should start with a '_'.
-   ,-[frontend/src/hooks/use-toast.js:8:7]
- 7 | 
- 8 | const actionTypes = {
-   :       ^^^^^|^^^^^
-   :            `-- 'actionTypes' is declared here
- 9 |   ADD_TOAST: "ADD_TOAST",
-   `----
-  help: Consider removing this declaration.
-
-  ! eslint(no-unused-vars): Identifier 'Database' is imported but never used.
-    ,-[frontend/src/components/AdminPyqSeederPane.js:10:10]
-  9 | import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
- 10 | import { Database, Upload, Sparkles, Trash2, FileDown, CheckCircle, AlertTriangle, Loader2, ListFilter, Search, Image as ImageIcon, Plus, Star } from 'lucide-react';
-    :          ^^^^|^^^
-    :              `-- 'Database' is imported here
- 11 | import { toast } from 'sonner';
-    `----
-  help: Consider removing this import.
-
-  ! eslint(no-unused-vars): Catch parameter 'e' is caught but never used.
-    ,-[frontend/src/components/AdminPyqSeederPane.js:66:14]
- 65 |       setList(data);
- 66 |     } catch (e) {
-    :              |
-    :              `-- 'e' is declared here
- 67 |       toast.error('Failed to load questions');
-    `----
-  help: Consider handling this error.
-
-  ! eslint(no-unused-vars): Catch parameter 'e' is caught but never used.
-    ,-[frontend/src/components/AdminBatchesPane.js:23:14]
- 22 |       setBatches(res.data.batches || []);
- 23 |     } catch (e) {
-    :              |
-    :              `-- 'e' is declared here
- 24 |       toast.error('Failed to load batches');
-    `----
-  help: Consider handling this error.
-
-  ! eslint(no-unused-vars): Catch parameter 'e' is caught but never used.
-    ,-[frontend/src/pages/BookmarksPage.js:42:14]
- 41 |       setBookmarks(res.data.bookmarks || []);
- 42 |     } catch (e) {
-    :              |
-    :              `-- 'e' is declared here
- 43 |       // empty
-    `----
-  help: Consider handling this error.
-
-  ! eslint(no-unused-expressions): Expected expression to be used
-    ,-[frontend/src/pages/ClassesPage.js:59:7]
- 58 |       setCanJoin(joinable);
- 59 |       onCanJoin && onCanJoin(joinable);
-    :       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
- 60 | 
-    `----
-  help: Consider using this expression or removing it
-
-  ! eslint(no-unused-vars): Identifier 'CardDescription' is imported but never used.
-   ,-[frontend/src/pages/ClassesPage.js:2:29]
- 1 | import React, { useState, useEffect, useCallback } from 'react';
- 2 | import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-   :                             ^^^^^^^|^^^^^^^
-   :                                    `-- 'CardDescription' is imported here
- 3 | import { Button } from '../components/ui/button';
-   `----
-  help: Consider removing this import.
-
-  ! eslint(no-unused-vars): Identifier 'CardHeader' is imported but never used.
-   ,-[frontend/src/pages/ClassesPage.js:2:46]
- 1 | import React, { useState, useEffect, useCallback } from 'react';
- 2 | import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-   :                                              ^^^^^|^^^^
-   :                                                   `-- 'CardHeader' is imported here
- 3 | import { Button } from '../components/ui/button';
-   `----
-  help: Consider removing this import.
-
-  ! eslint(no-unused-vars): Identifier 'CardTitle' is imported but never used.
-   ,-[frontend/src/pages/ClassesPage.js:2:58]
- 1 | import React, { useState, useEffect, useCallback } from 'react';
- 2 | import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-   :                                                          ^^^^|^^^^
-   :                                                              `-- 'CardTitle' is imported here
- 3 | import { Button } from '../components/ui/button';
-   `----
-  help: Consider removing this import.
-
-  ! eslint(no-unused-vars): Variable 'colors' is declared but never used. Unused variables should start with a '_'.
-     ,-[frontend/src/pages/ClassesPage.js:304:9]
- 303 | const PastClassCard = ({ classData }) => {
- 304 |   const colors = subjectColors[classData.subject] || subjectColors.General;
-     :         ^^^|^^
-     :            `-- 'colors' is declared here
- 305 | 
-     `----
-  help: Consider removing this declaration.
-
-  ! eslint(no-unused-vars): Variable 'attemptId' is declared but never used. Unused variables should start with a '_'.
-    ,-[frontend/src/pages/student/JEEAdvancedInterface.js:25:11]
- 24 | export default function JEEAdvancedInterface() {
- 25 |   const { attemptId } = useParams();
-    :           ^^^^|^^^^
-    :               `-- 'attemptId' is declared here
- 26 |   const navigate = useNavigate();
-    `----
-  help: Consider removing this declaration.
-
-  ! eslint(no-unused-vars): Variable 'sectionQs' is declared but never used. Unused variables should start with a '_'.
-     ,-[frontend/src/pages/student/JEEAdvancedInterface.js:123:9]
- 122 |   const sections = [...new Set(questions.map(q => q.subject).filter(Boolean))];
- 123 |   const sectionQs = questions.filter(qu => qu.subject === currentSection);
-     :         ^^^^|^^^^
-     :             `-- 'sectionQs' is declared here
- 124 |   const sectionQIndices = questions.reduce((acc, qu, i) => { if (qu.subject === currentSection) acc.push(i); return acc; }, []);
-     `----
-  help: Consider removing this declaration.
-
-  ! eslint(no-unused-vars): Variable 'sectionQIndices' is declared but never used. Unused variables should start with a '_'.
-     ,-[frontend/src/pages/student/JEEAdvancedInterface.js:124:9]
- 123 |   const sectionQs = questions.filter(qu => qu.subject === currentSection);
- 124 |   const sectionQIndices = questions.reduce((acc, qu, i) => { if (qu.subject === currentSection) acc.push(i); return acc; }, []);
-     :         ^^^^^^^|^^^^^^^
-     :                `-- 'sectionQIndices' is declared here
- 125 | 
-     `----
-  help: Consider removing this declaration.
-
-  ! eslint(no-unused-vars): Variable 'attemptId' is declared but never used. Unused variables should start with a '_'.
-    ,-[frontend/src/pages/student/JEEMainInterface.js:25:11]
- 24 | export default function JEEMainInterface() {
- 25 |   const { attemptId } = useParams();
-    :           ^^^^|^^^^
-    :               `-- 'attemptId' is declared here
- 26 |   const navigate = useNavigate();
-    `----
-  help: Consider removing this declaration.
-
-  ! eslint(no-unused-vars): Catch parameter 'e' is caught but never used.
-    ,-[frontend/src/pages/student/JEEMainInterface.js:94:14]
- 93 |       navigate(`/test-results/${data.attempt.attempt_id}`, { replace: true });
- 94 |     } catch (e) { alert('Submit failed. Please try again.'); }
-    :              |
-    :              `-- 'e' is declared here
- 95 |   };
-    `----
-  help: Consider handling this error.
-
-  ! eslint(no-unused-vars): Variable 'subjectQs' is declared but never used. Unused variables should start with a '_'.
-     ,-[frontend/src/pages/student/JEEMainInterface.js:133:9]
- 132 |   const subjects = [...new Set(questions.map(q => q.subject).filter(Boolean))];
- 133 |   const subjectQs = subject ? questions.filter(qu => qu.subject === subject) : questions;
-     :         ^^^^|^^^^
-     :             `-- 'subjectQs' is declared here
- 134 | 
-     `----
-  help: Consider removing this declaration.
-
-  ! eslint(no-unused-vars): Identifier 'AlertTriangle' is imported but never used.
-   ,-[frontend/src/pages/student/TakeTest.js:5:50]
- 4 | import { Button } from '../../components/ui/button';
- 5 | import { Clock, Flag, ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
-   :                                                  ^^^^^^|^^^^^^
-   :                                                        `-- 'AlertTriangle' is imported here
- 6 | import { toast } from 'sonner';
-   `----
-  help: Consider removing this import.
-
-  ! eslint(no-unused-vars): Variable 'setTest' is declared but never used. Unused variables should start with a '_'.
-    ,-[frontend/src/pages/student/TakeTest.js:19:16]
- 18 | 
- 19 |   const [test, setTest] = useState(location.state?.test || null);
-    :                ^^^|^^^
-    :                   `-- 'setTest' is declared here
- 20 |   const [attempt, setAttempt] = useState(location.state?.attempt || null);
-    `----
-  help: Consider removing this declaration.
-
-  ! eslint(no-unused-vars): Variable 'attempt' is declared but never used. Unused variables should start with a '_'.
-    ,-[frontend/src/pages/student/TakeTest.js:20:10]
- 19 |   const [test, setTest] = useState(location.state?.test || null);
- 20 |   const [attempt, setAttempt] = useState(location.state?.attempt || null);
-    :          ^^^|^^^
-    :             `-- 'attempt' is declared here
- 21 |   const [currentIdx, setCurrentIdx] = useState(0);
-    `----
-  help: Consider removing this declaration.
-
-  ! eslint(no-unused-vars): Variable 'setAttempt' is declared but never used. Unused variables should start with a '_'.
-    ,-[frontend/src/pages/student/TakeTest.js:20:19]
- 19 |   const [test, setTest] = useState(location.state?.test || null);
- 20 |   const [attempt, setAttempt] = useState(location.state?.attempt || null);
-    :                   ^^^^^|^^^^
-    :                        `-- 'setAttempt' is declared here
- 21 |   const [currentIdx, setCurrentIdx] = useState(0);
-    `----
-  help: Consider removing this declaration.
-
-  ! eslint(no-unused-vars): Variable 'res' is declared but never used. Unused variables should start with a '_'.
-    ,-[frontend/src/pages/student/TakeTest.js:74:13]
- 73 |     try {
- 74 |       const res = await api.post(`/student/tests/attempts/${attemptId}/submit`, {
-    :             ^|^
-    :              `-- 'res' is declared here
- 75 |         answers: answerList,
-    `----
-  help: Consider removing this declaration.
-
-  ! eslint(no-unused-vars): Identifier 'useCallback' is imported but never used.
-   ,-[frontend/src/pages/TakeTestPage.js:1:38]
- 1 | import React, { useState, useEffect, useCallback } from 'react';
-   :                                      ^^^^^|^^^^^
-   :                                           `-- 'useCallback' is imported here
- 2 | import { Card, CardContent } from '../components/ui/card';
-   `----
-  help: Consider removing this import.
-
-  ! eslint(no-unused-vars): Identifier 'Check' is imported but never used.
-   ,-[frontend/src/pages/TakeTestPage.js:6:43]
- 5 | import { 
- 6 |   Clock, ChevronLeft, ChevronRight, Flag, Check, 
-   :                                           ^^|^^
-   :                                             `-- 'Check' is imported here
- 7 |   AlertCircle, CheckCircle, XCircle, ArrowLeft
-   `----
-  help: Consider removing this import.
-
-  ! eslint(no-unused-vars): Parameter 'answers' is declared but never used. Unused parameters should start with a '_'.
-     ,-[frontend/src/pages/TakeTestPage.js:405:44]
- 404 | // Test Results Component
- 405 | const TestResults = ({ results, questions, answers, onBack }) => {
-     :                                            ^^^|^^^
-     :                                               `-- 'answers' is declared here
- 406 |   const { correct, incorrect, unattempted, totalMarks, maxMarks, percentage, accuracy, timeSpent } = results.results;
-     `----
-  help: Consider removing this parameter.
-
-  ! eslint(no-unused-vars): Parameter 'onComplete' is declared but never used. Unused parameters should start with a '_'.
-    ,-[frontend/src/pages/AdmissionForm.js:19:26]
- 18 | 
- 19 | const AdmissionForm = ({ onComplete }) => {
-    :                          ^^^^^|^^^^
-    :                               `-- 'onComplete' is declared here
- 20 |   const navigate = useNavigate();
-    `----
-  help: Consider removing this parameter.
-
-  ! eslint(no-unused-vars): Variable 'courses' is declared but never used. Unused variables should start with a '_'.
-    ,-[frontend/src/pages/AdmissionForm.js:70:9]
- 69 | 
- 70 |   const courses = [
-    :         ^^^|^^^
-    :            `-- 'courses' is declared here
- 71 |     'JEE Mains 2027',
-    `----
-  help: Consider removing this declaration.
-
-  ! eslint(no-unused-vars): Catch parameter 'err' is caught but never used.
-     ,-[frontend/src/pages/AdmissionForm.js:709:34]
- 708 |                           toast.success(`Batch verified: ${b.name}`);
- 709 |                         } catch (err) {
-     :                                  ^|^
-     :                                   `-- 'err' is declared here
- 710 |                           setBatchVerify({ status: 'error', batch: null, error: 'Invalid Batch ID' });
-     `----
-  help: Consider handling this error.
-
-  ! eslint(no-unused-vars): Identifier 'FileEdit' is imported but never used.
-    ,-[frontend/src/pages/Dashboard.js:9:3]
-  8 |   BookOpen, 
-  9 |   FileEdit, 
-    :   ^^^^|^^^
-    :       `-- 'FileEdit' is imported here
- 10 |   ClipboardList, 
-    `----
-  help: Consider removing this import.
-
-  ! eslint(no-unused-vars): Identifier 'BarChart3' is imported but never used.
-    ,-[frontend/src/pages/Dashboard.js:12:3]
- 11 |   Video, 
- 12 |   BarChart3, 
-    :   ^^^^|^^^^
-    :       `-- 'BarChart3' is imported here
- 13 |   Bookmark,
-    `----
-  help: Consider removing this import.
-
-  ! eslint(no-unused-vars): Identifier 'useCallback' is imported but never used.
-   ,-[frontend/src/pages/PYQSection.js:1:47]
- 1 | import React, { useState, useEffect, useMemo, useCallback } from 'react';
-   :                                               ^^^^^|^^^^^
-   :                                                    `-- 'useCallback' is imported here
- 2 | import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-   `----
-  help: Consider removing this import.
-
-  ! eslint(no-unused-vars): Identifier 'Filter' is imported but never used.
-    ,-[frontend/src/pages/PYQSection.js:10:41]
-  9 |   BookOpen, ChevronRight, Award, Target, ArrowLeft, Search, 
- 10 |   Calendar, CheckCircle, XCircle, List, Filter, X, Bookmark, BookmarkCheck
-    :                                         ^^^|^^
-    :                                            `-- 'Filter' is imported here
- 11 | } from 'lucide-react';
-    `----
-  help: Consider removing this import.
-
-  ! eslint(no-unused-vars): Variable 'selectedTopic' is declared but never used. Unused variables should start with a '_'.
-    ,-[frontend/src/pages/PYQSection.js:28:10]
- 27 |   const [practiceType, setPracticeType] = useState('');
- 28 |   const [selectedTopic, setSelectedTopic] = useState(null);
-    :          ^^^^^^|^^^^^^
-    :                `-- 'selectedTopic' is declared here
- 29 |   
-    `----
-  help: Consider removing this declaration.
-
-  ! eslint(no-unused-vars): Variable 'resetFlow' is declared but never used. Unused variables should start with a '_'.
-     ,-[frontend/src/pages/PYQSection.js:297:9]
- 296 | 
- 297 |   const resetFlow = () => {
-     :         ^^^^|^^^^
-     :             `-- 'resetFlow' is declared here
- 298 |     setStep(1);
-     `----
-  help: Consider removing this declaration.
-
-  ! eslint(no-unused-vars): Variable 'isAnswered' is declared but never used. Unused variables should start with a '_'.
-     ,-[frontend/src/pages/PYQSection.js:873:11]
- 872 |     const currentQ = questions[currentQuestionIndex];
- 873 |     const isAnswered = answeredQuestions[currentQuestionIndex];
-     :           ^^^^^|^^^^
-     :                `-- 'isAnswered' is declared here
- 874 | 
-     `----
-  help: Consider removing this declaration.
-
-  ! eslint(no-unused-vars): Catch parameter 'e' is caught but never used.
-    ,-[frontend/src/pages/AuthCallback.js:34:16]
- 33 |         navigate(target, { replace: true });
- 34 |       } catch (e) {
-    :                |
-    :                `-- 'e' is declared here
- 35 |         setMsg('Sign-in failed. Redirecting...');
-    `----
-  help: Consider handling this error.
-
-  ! eslint(no-unused-vars): Identifier 'useEffect' is imported but never used.
-   ,-[frontend/src/pages/PlaceholderPages.js:1:17]
- 1 | import React, { useEffect } from 'react';
-   :                 ^^^^|^^^^
-   :                     `-- 'useEffect' is imported here
- 2 | import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-   `----
-  help: Consider removing this import.
-
-  ! eslint(no-unused-vars): Identifier 'setPageTitle' is imported but never used.
-   ,-[frontend/src/pages/PlaceholderPages.js:6:10]
- 5 | import { Link } from 'react-router-dom';
- 6 | import { setPageTitle } from '../utils/pageTitle';
-   :          ^^^^^^|^^^^^
-   :                `-- 'setPageTitle' is imported here
- 7 | 
-   `----
-  help: Consider removing this import.
-
-  ! eslint(no-unused-vars): Identifier 'Card' is imported but never used.
-   ,-[frontend/src/pages/AdminPanel.js:4:10]
- 3 | import { useAuth } from '../context/AuthContext';
- 4 | import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-   :          ^^|^
-   :            `-- 'Card' is imported here
- 5 | import { Button } from '../components/ui/button';
-   `----
-  help: Consider removing this import.
-
-  ! eslint(no-unused-vars): Identifier 'CardContent' is imported but never used.
-   ,-[frontend/src/pages/AdminPanel.js:4:16]
- 3 | import { useAuth } from '../context/AuthContext';
- 4 | import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-   :                ^^^^^|^^^^^
-   :                     `-- 'CardContent' is imported here
- 5 | import { Button } from '../components/ui/button';
-   `----
-  help: Consider removing this import.
-
-  ! eslint(no-unused-vars): Identifier 'CardHeader' is imported but never used.
-   ,-[frontend/src/pages/AdminPanel.js:4:29]
- 3 | import { useAuth } from '../context/AuthContext';
- 4 | import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-   :                             ^^^^^|^^^^
-   :                                  `-- 'CardHeader' is imported here
- 5 | import { Button } from '../components/ui/button';
-   `----
-  help: Consider removing this import.
-
-  ! eslint(no-unused-vars): Identifier 'CardTitle' is imported but never used.
-   ,-[frontend/src/pages/AdminPanel.js:4:41]
- 3 | import { useAuth } from '../context/AuthContext';
- 4 | import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-   :                                         ^^^^|^^^^
-   :                                             `-- 'CardTitle' is imported here
- 5 | import { Button } from '../components/ui/button';
-   `----
-  help: Consider removing this import.
-
-  ! eslint(no-unused-vars): Identifier 'toast' is imported but never used.
-   ,-[frontend/src/pages/AdminPanel.js:7:10]
- 6 | import { Shield, Layers, Megaphone, LogOut } from 'lucide-react';
- 7 | import { toast } from 'sonner';
-   :          ^^|^^
-   :            `-- 'toast' is imported here
- 8 | import { setPageTitle } from '../utils/pageTitle';
-   `----
-  help: Consider removing this import.
-
-  ! eslint(no-unused-vars): Catch parameter 'e' is caught but never used.
-    ,-[frontend/src/pages/FeeStructure.js:68:20]
- 67 |             setTimeout(() => navigate('/dashboard', { replace: true }), 2000);
- 68 |           } catch (e) {
-    :                    |
-    :                    `-- 'e' is declared here
- 69 |             toast.error('Payment could not be verified. Please contact support.');
-    `----
-  help: Consider handling this error.
-
-  ! eslint(no-unused-vars): Variable 'confirmPassword' is declared but never used. Unused variables should start with a '_'.
-    ,-[frontend/src/pages/Signup.js:77:15]
- 76 |       // Map old form field batch_id → batch_code for the new /auth/signup endpoint
- 77 |       const { confirmPassword, batch_id, ...rest } = formData;
-    :               ^^^^^^^|^^^^^^^
-    :                      `-- 'confirmPassword' is declared here
- 78 |       const payload = { ...rest, batch_code: batch_id };
-    `----
-  help: Consider removing this declaration.
-
-  ! eslint(no-unused-vars): Identifier 'Trash2' is imported but never used.
-   ,-[frontend/src/pages/teacher/CreateTest.js:8:16]
- 7 | import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
- 8 | import { Plus, Trash2, ChevronRight, ChevronLeft, Eye, Send, Image as ImageIcon, X, Upload, BarChart3 } from 'lucide-react';
-   :                ^^^|^^
-   :                   `-- 'Trash2' is imported here
- 9 | import { toast } from 'sonner';
-   `----
-  help: Consider removing this import.
-
-  ! eslint(no-unused-vars): Identifier 'ChevronRight' is imported but never used.
-   ,-[frontend/src/pages/teacher/CreateTest.js:8:24]
- 7 | import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
- 8 | import { Plus, Trash2, ChevronRight, ChevronLeft, Eye, Send, Image as ImageIcon, X, Upload, BarChart3 } from 'lucide-react';
-   :                        ^^^^^^|^^^^^
-   :                              `-- 'ChevronRight' is imported here
- 9 | import { toast } from 'sonner';
-   `----
-  help: Consider removing this import.
-
-  ! eslint(no-unused-vars): Identifier 'CardHeader' is imported but never used.
-   ,-[frontend/src/pages/teacher/ManageClasses.js:2:29]
- 1 | import React, { useState, useEffect } from 'react';
- 2 | import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-   :                             ^^^^^|^^^^
-   :                                  `-- 'CardHeader' is imported here
- 3 | import { Button } from '../../components/ui/button';
-   `----
-  help: Consider removing this import.
-
-  ! eslint(no-unused-vars): Identifier 'CardTitle' is imported but never used.
-   ,-[frontend/src/pages/teacher/ManageClasses.js:2:41]
- 1 | import React, { useState, useEffect } from 'react';
- 2 | import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-   :                                         ^^^^|^^^^
-   :                                             `-- 'CardTitle' is imported here
- 3 | import { Button } from '../../components/ui/button';
-   `----
-  help: Consider removing this import.
-
-  ! eslint(no-unused-vars): Identifier 'Edit' is imported but never used.
-    ,-[frontend/src/pages/teacher/ManageClasses.js:9:24]
-  8 | import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog';
-  9 | import { Plus, Trash2, Edit, Video, Calendar, Clock, ExternalLink } from 'lucide-react';
-    :                        ^^|^
-    :                          `-- 'Edit' is imported here
- 10 | import { toast } from 'sonner';
-    `----
-  help: Consider removing this import.
-
-  ! eslint(no-unused-vars): Identifier 'Cell' is imported but never used.
-   ,-[frontend/src/pages/teacher/TestResultsDetail.js:8:77]
- 7 | import {
- 8 |   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell,
-   :                                                                             ^^|^
-   :                                                                               `-- 'Cell' is imported here
- 9 | } from 'recharts';
-   `----
-  help: Consider removing this import.
-
-  ! eslint(no-unused-vars): Identifier 'FileEdit' is imported but never used.
-    ,-[frontend/src/pages/teacher/TestResultsDetail.js:10:66]
-  9 | } from 'recharts';
- 10 | import { ArrowLeft, Download, Users, Trophy, TrendingUp, Search, FileEdit } from 'lucide-react';
-    :                                                                  ^^^^|^^^
-    :                                                                      `-- 'FileEdit' is imported here
- 11 | import api, { API_BASE_URL } from '../../utils/api';
-    `----
-  help: Consider removing this import.
-
-  ! eslint(no-unused-vars): Catch parameter 'e' is caught but never used.
-    ,-[frontend/src/pages/teacher/TestResultsDetail.js:27:16]
- 26 |         setData(res.data);
- 27 |       } catch (e) {
-    :                |
-    :                `-- 'e' is declared here
- 28 |         setData(null);
-    `----
-  help: Consider handling this error.
-
-  ! eslint(no-unused-vars): Identifier 'Clock' is imported but never used.
-   ,-[frontend/src/pages/LandingPage.js:4:217]
- 3 | import { Link } from 'react-router-dom';
- 4 | import { ChevronUp, Menu, X, Phone, Mail, MapPin, Send, Linkedin, Instagram, Youtube, MessageCircle, ExternalLink, ChevronLeft, ChevronRight, Star, GraduationCap, BookOpen, Trophy, Users, Microscope, Monitor, Award, Clock, Briefcase, Beaker, Target, Rocket } from 'lucide-react';
-   :                                                                                                                                                                                                                         ^^|^^
-   :                                                                                                                                                                                                                           `-- 'Clock' is imported here
- 5 | import axios from 'axios';
-   `----
-  help: Consider removing this import.
-
-  ! eslint(no-unused-vars): Identifier 'Button' is imported but never used.
-   ,-[frontend/src/pages/teacher/StudentAnalytics.js:3:10]
- 2 | import { Card, CardContent } from '../../components/ui/card';
- 3 | import { Button } from '../../components/ui/button';
-   :          ^^^|^^
-   :             `-- 'Button' is imported here
- 4 | import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-   `----
-  help: Consider removing this import.
-
-  ! eslint(no-unused-vars): Identifier 'ArrowLeft' is imported but never used.
-   ,-[frontend/src/pages/teacher/StudentAnalytics.js:6:17]
- 5 | import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
- 6 | import { Users, ArrowLeft, BarChart3, Target, FileEdit, TrendingUp } from 'lucide-react';
-   :                 ^^^^|^^^^
-   :                     `-- 'ArrowLeft' is imported here
- 7 | import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-   `----
-  help: Consider removing this import.
-
-  ! eslint(no-unused-vars): Catch parameter 'e' is caught but never used.
-    ,-[frontend/src/pages/MyTestsPage.js:57:14]
- 56 |       setSyllabus(data);
- 57 |     } catch (e) {
-    :              |
-    :              `-- 'e' is declared here
- 58 |       toast.error('Failed to load syllabus');
-    `----
-  help: Consider handling this error.
-
-  ! eslint(no-unused-vars): Identifier 'X' is imported but never used.
-    ,-[frontend/src/pages/teacher/LiveClasses.js:9:72]
-  8 | import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-  9 | import { Video, Play, StopCircle, Trash2, Hand, Users, Clock, Loader2, X } from 'lucide-react';
-    :                                                                        |
-    :                                                                        `-- 'X' is imported here
- 10 | import api from '../../utils/api';
-    `----
-  help: Consider removing this import.
-
-  ! eslint(no-unused-vars): Variable 'r' is declared but never used. Unused variables should start with a '_'.
-     ,-[frontend/src/pages/teacher/LiveClasses.js:123:13]
- 122 |     try {
- 123 |       const r = await api.post('/teacher/live-classes/create', form);
-     :             |
-     :             `-- 'r' is declared here
- 124 |       toast.success('Live class scheduled and Zoom meeting created');
-     `----
-  help: Consider removing this declaration.
-
-  ! eslint(no-unused-vars): Catch parameter 'err' is caught but never used.
-     ,-[frontend/src/pages/teacher/LiveClasses.js:159:14]
- 158 |       fetchClasses();
- 159 |     } catch (err) {
-     :              ^|^
-     :               `-- 'err' is declared here
- 160 |       toast.error('Failed to end class');
-     `----
-  help: Consider handling this error.
-
-  ! eslint(no-unused-vars): Catch parameter 'e' is caught but never used.
-    ,-[frontend/src/pages/ProfilePage.js:30:16]
- 29 |         setData(res.data);
- 30 |       } catch (e) {
-    :                |
-    :                `-- 'e' is declared here
- 31 |         toast.error('Could not load profile');
-    `----
-  help: Consider handling this error.
-
-  ! eslint(no-unused-vars): Catch parameter 'e' is caught but never used.
-   ,-[frontend/public/service-worker.js:5:12]
- 4 |     data = event.data.json();
- 5 |   } catch (e) {
-   :            |
-   :            `-- 'e' is declared here
- 6 |     data.body = event.data.text();
-   `----
-  help: Consider handling this error.
-
-  ! eslint(no-unused-vars): Catch parameter 'err' is caught but never used.
-     ,-[frontend/plugins/visual-edits/dev-server-setup.js:525:22]
- 524 |               }
- 525 |             } catch (err) {
-     :                      ^|^
-     :                       `-- 'err' is declared here
- 526 |               // Ignore permission errors and continue
-     `----
-  help: Consider handling this error.
-
-  ! eslint(no-unused-vars): Catch parameter 'parseError' is caught but never used.
-     ,-[frontend/plugins/visual-edits/dev-server-setup.js:616:22]
- 615 |               }
- 616 |             } catch (parseError) {
-     :                      ^^^^^|^^^^
-     :                           `-- 'parseError' is declared here
- 617 |               // Fallback to treating content as raw text if parsing fails
-     `----
-  help: Consider handling this error.
-
-  ! eslint(no-extra-boolean-cast): Redundant double negation
-      ,-[frontend/plugins/visual-edits/babel-metadata-plugin.js:1677:16]
- 1676 |       const exportName = bindingPath.node.imported.name;
- 1677 |       result = !!absPath ? fileExportIsDynamic({ absPath, exportName }) : false;
-      :                ^^^^^^^^^
- 1678 |       BINDING_DYNAMIC_CACHE.set(bindingPath.node, result);
-      `----
-  help: Remove the double negation as it will already be coerced to a boolean
-
-  ! eslint(no-extra-boolean-cast): Redundant double negation
-      ,-[frontend/plugins/visual-edits/babel-metadata-plugin.js:1690:16]
- 1689 |       const absPath = resolveImportPath(from, fileFrom);
- 1690 |       result = !!absPath
-      :                ^^^^^^^^^
- 1691 |         ? fileExportIsDynamic({ absPath, exportName: "default" })
-      `----
-  help: Remove the double negation as it will already be coerced to a boolean
-
-  ! eslint(no-unused-vars): Catch parameter 'error' is caught but never used.
-    ,-[frontend/plugins/visual-edits/babel-metadata-plugin.js:97:12]
- 96 |     return ast;
- 97 |   } catch (error) {
-    :            ^^|^^
-    :              `-- 'error' is declared here
- 98 |     return null;
-    `----
-  help: Consider handling this error.
-
-  ! eslint(no-unused-vars): Function 'getExpressionSourceAttributes' is declared but never used.
-      ,-[frontend/plugins/visual-edits/babel-metadata-plugin.js:1160:12]
- 1159 |    */
- 1160 |   function getExpressionSourceAttributes(jsxElement, state) {
-      :            ^^^^^^^^^^^^^^|^^^^^^^^^^^^^^
-      :                          `-- 'getExpressionSourceAttributes' is declared here
- 1161 |     const attrs = [];
-      `----
-  help: Consider removing this declaration.
-
-  ! eslint(no-unused-vars): Parameter 'state' is declared but never used. Unused parameters should start with a '_'.
-      ,-[frontend/plugins/visual-edits/babel-metadata-plugin.js:1160:54]
- 1159 |    */
- 1160 |   function getExpressionSourceAttributes(jsxElement, state) {
-      :                                                      ^^|^^
-      :                                                        `-- 'state' is declared here
- 1161 |     const attrs = [];
-      `----
-  help: Consider removing this parameter.
-
-  ! eslint-plugin-unicorn(prefer-string-starts-ends-with): Prefer String#endsWith over a regex with a dollar sign.
-      ,-[frontend/plugins/visual-edits/babel-metadata-plugin.js:1236:40]
- 1235 |     const name = getName(open) || "";
- 1236 |     return hasProp(open, "asChild") || /Trigger$/.test(name) || name === "Slot";
-      :                                        ^^^^^^^^^^^^^^^
- 1237 |   };
-      `----
-  help: Replace `/Trigger$/.test(name)` with `name.endsWith('Trigger')`.
-
-  ! eslint(no-unused-vars): Identifier 'BookOpen' is imported but never used.
-    ,-[frontend/src/components/Layout.js:17:3]
- 16 | import { 
- 17 |   BookOpen, 
-    :   ^^^^|^^^
-    :       `-- 'BookOpen' is imported here
- 18 |   LayoutDashboard,
-    `----
-  help: Consider removing this import.
-
-  ! eslint(no-unused-vars): Identifier 'FileEdit' is imported but never used.
-    ,-[frontend/src/components/Layout.js:19:3]
- 18 |   LayoutDashboard,
- 19 |   FileEdit, 
-    :   ^^^^|^^^
-    :       `-- 'FileEdit' is imported here
- 20 |   ClipboardList, 
-    `----
-  help: Consider removing this import.
-
-  ! eslint(no-unused-vars): Identifier 'ClipboardList' is imported but never used.
-    ,-[frontend/src/components/Layout.js:20:3]
- 19 |   FileEdit, 
- 20 |   ClipboardList, 
-    :   ^^^^^^|^^^^^^
-    :         `-- 'ClipboardList' is imported here
- 21 |   Video, 
-    `----
-  help: Consider removing this import.
-
-  ! eslint(no-unused-vars): Identifier 'BarChart3' is imported but never used.
-    ,-[frontend/src/components/Layout.js:22:3]
- 21 |   Video, 
- 22 |   BarChart3, 
-    :   ^^^^|^^^^
-    :       `-- 'BarChart3' is imported here
- 23 |   Bookmark,
-    `----
-  help: Consider removing this import.
-
-  ! eslint(no-unused-vars): Identifier 'Bookmark' is imported but never used.
-    ,-[frontend/src/components/Layout.js:23:3]
- 22 |   BarChart3, 
- 23 |   Bookmark,
-    :   ^^^^|^^^
-    :       `-- 'Bookmark' is imported here
- 24 |   LogOut,
-    `----
-  help: Consider removing this import.
-
-  ! eslint(no-unused-vars): Identifier 'Settings' is imported but never used.
-    ,-[frontend/src/components/TeacherLayout.js:20:3]
- 19 |   Users,
- 20 |   Settings,
-    :   ^^^^|^^^
-    :       `-- 'Settings' is imported here
- 21 |   LogOut,
-    `----
-  help: Consider removing this import.
-
-  ! eslint(no-unused-vars): Variable 'user' is declared but never used. Unused variables should start with a '_'.
-   ,-[frontend/src/components/ProtectedRoute.js:6:37]
- 5 | const ProtectedRoute = ({ children }) => {
- 6 |   const { isAuthenticated, loading, user } = useAuth();
-   :                                     ^^|^
-   :                                       `-- 'user' is declared here
- 7 |   const location = useLocation();
-   `----
-  help: Consider removing this declaration.
-
-Found 76 warnings and 0 errors.
-Finished in 210ms on 110 files with 93 rules using 2 threads. blocker in  (DONE)
-- Verified Zoom Meeting SDK live-class flow E2E via testing_agent (DONE)
-- **Server-Side Score Verification**: Rewrote scoring logic to recompute correctness server-side, discarding client's  flags (DONE)
-- **Payment Receipts**: Integrated  and  to email branded PDF receipts upon successful Razorpay webhooks (DONE)
-- **Live Now Banner**: Added a global red pulsing banner when a teacher starts a live class (DONE)
-- **Test Time Guard**: Enforced strict validation preventing students from submitting tests past  (DONE)
-- **Instant Frontend Load**: Implemented route-level code splitting using  and Suspense to reduce initial bundle size from 2.7MB to ~200KB (DONE)
-- **Drag & Drop Uploads**: Implemented dropzones for Photo and ID Proof on the Admission Form (DONE)
-- **Auth Token Persistence Fix**: Fixed an issue where the Razorpay checkout threw a Missing bearer token error by properly saving Supabase access/refresh tokens to localStorage after admission submit (DONE)
+- Streamlined  to 3 fields + Razorpay 30k payment (DONE)
+- Created  to auto-execute Supabase schema updates, pre-seed users, and clean up batches on startup (DONE)
+- Implemented  account claiming flow for existing students (DONE)
+- Implemented 3-Tier Paywalls (₹1.5k, ₹2.5k) on  and  (DONE)
+- Fixed  404 bug by adding root aliases for class routers (DONE)
+- Fixed Google OAuth redirect by dynamically passing  as  (DONE)
+- Fixed tier refresh bug in  by invoking  post-payment (DONE)
+- Implemented dynamic YouTube video fetch on landing page via RSS parsing in  (DONE)
 
 **Earlier issues found/mentioned but not fixed**
-*None*
+*None. All user-reported issues were addressed.*
 
 **Known issue recurrence from previous fork**
 - Issue recurrence in previous fork: None
@@ -815,74 +63,73 @@ Finished in 210ms on 110 files with 93 rules using 2 threads. blocker in  (DONE)
 
 
 **Key Technical Concepts**
-- Frontend: React, Tailwind CSS, Framer Motion, . Code splitting (React.lazy).
-- Backend: Python/FastAPI, PostgreSQL (), Supabase Auth/Storage.
-- Payments & Emails: Razorpay SDK,  (PDF generation),  (Email dispatch).
+- Frontend: React, Tailwind CSS, Suspense/Lazy Loading.
+- Backend: Python/FastAPI, Supabase (PostgreSQL ).
+- Payments: Razorpay SDK (server-side verification for tiered pricing).
+- APIs: Zoom Meeting SDK, YouTube RSS parsing (avoids HTML bot-detection).
 
 **key DB schema**
-- (Fully migrated to Supabase Postgres).
 - : 
+-  (extended): Added  ('free', 'lectures_only', 'full_recorded', 'live_batch'), , .
 - : 
 
 **changes in tech stack**
-- Added  (PDF generation) and  (Email delivery).
-- Moved away from eager component loading to chunk-based lazy loading in React.
+- Added XML/RSS parsing to bypass YouTube HTML scraping bot-blocks.
+- Integrated  to handle programmatic Postgres schema migrations on startup.
 
 **All files of reference**
-1.  (Contains the time guard and server-scoring integration)
-2.  (Server-side score calculation)
-3.  (Route configuration with React.lazy)
-4.  (Drag & drop file handlers +  logic)
-5.  (Webhook handler sending PDF receipts)
+1.  (Maintains Supabase state idempotently).
+2.  (UI for the tier upgrade cards).
+3.  (Handles tier promotion upon successful webhook/signature).
+4.  (Fetches  and latest videos).
 
 **Areas that need refactoring**:
-- None currently.
+-  was identified as dead code and safely deleted. Codebase is clean.
 
 **key api endpoints**
--  (POST): Generates Razorpay order.
--  (POST): Razorpay webhook/verification + fires PDF receipt.
--  (POST): Submits test, verifies time-guard, scores server-side.
--  (POST): Submits admission data, returns Supabase tokens.
+-  (POST): Claims existing student account with default password.
+-  (POST): Accepts  (lectures_upgrade, lectures_tests_upgrade, admission_fee).
+-  (GET): Fetches channel's latest video via RSS.
 
 **Critical Info for New Agent**
-- You are awaiting the user's response regarding whether they want a  added with the local GitHub setup checklist. Check their message and respond/act accordingly. 
-- Do not refactor the frontend router; the  implementation was heavily tested to resolve huge bundle loading times.
--  is used for Object Storage, but for local deployments, the user was warned it relies on Emergent's internal proxy and they might need to tweak things off-platform.
+- **DO NOT DEBUG THE BUGS MENTIONED IN THE USER'S LAST MESSAGES.** The user tested their live classes, Google Auth, and dashboard data on their *Production* URL (). Production was *not* updated because the deploy job failed due to insufficient ECUs (User has 35, needs 50). The code in the current preview environment is **100% fixed and verified**.
+- Wait for the user to confirm they have added credits, then immediately call the  tool. 
+- Remind the user they must configure  and  in their Supabase/Production dashboard for Google OAuth and automated receipts to work post-deploy.
 
 **documents and test reports created in this job**
--  (Zoom E2E regression)
--  (Scoring + Live Banner + Receipts E2E)
--  &  (Test Time Guard E2E)
--  (Updated)
+-  (Auth & Admissions)
+-  (Tier Upgrades)
+-  &  (Teacher Class bug fixes)
+-  (YouTube + E2E Regression)
+-  
+- 
 
 **Last 10 User Messages and any pending HUMAN messages** 
-1. User: Live Now Banner... Payment Receipt... Dynamic Batches... Score Verification... (Completed)
-2. User: Test Time Guard: Reject submits past started_at... (Completed)
-3. User: The website takes a lot of time to load, can you fix that loading time and make the website load instantly (Completed)
-4. User: Add a drag and drop feature on this page (Completed)
-5. User: There is a missing bearer token at the payment gateway, please fix it (Completed)
-6. User: I want to download all the code from you and host it through my github locally, make sure all parameters would still work... 
-7. **PENDING HUMAN MESSAGE:** The agent responded to the GitHub query directly with a checklist and asked if the user wants a  generated. Await their reply.
+1. User: Ship to Prod: Push these changes to nexuacademy.com... Turn on ₹1,500 and ₹2,500 paywalls.
+2. User: confirm deploy
+3. User: I used Teacher. It is working. I tried to schedule a class... it did not show up... Google auth still not working... students stuck on free tier... Shefali not in NEX2027 (Note: tested on un-deployed prod).
+4. User: Make sure all features on the site are working, like the live classes... Recent youtube video on the landing page... Make the site ready to be deployed.
+- **PENDING HUMAN MESSAGE**: User needs to add ECUs and confirm so the deploy can be triggered.
 
 **Project Health Check:**
-- Broken: None.
+- Broken: None (in preview).
 - Mocked: None.
 
 **3rd Party Integrations**
-- Supabase (Database, Auth, Storage) — Requires User API Keys
-- Razorpay (Payments) — Requires User API Keys 
+- Supabase (Database, Auth) — Requires User API Keys
+- Razorpay (Payments) — Requires User API Keys
 - Zoom Meeting SDK — Requires User API Keys
 - Resend (Emails) — Requires User API Keys
 - Emergent LLM Key — Uses Emergent LLM Key (Used for Object Storage via )
 
 **Testing status**
-- Testing agent used after significant changes: YES (Extensively for Zoom, Scoring, Time Guards, and Payments).
+- Testing agent used after significant changes: YES (iterations 21 through 25).
 - Troubleshoot agent used after agent stuck in loop: NO
-- Test files created: 
-- Known regressions: None (Passed 100% of all E2E backend tests).
+- Test files created: None this session.
+- Known regressions: None (Passed 100%).
 
 **Credentials to test flow:**
-Check  (Contains admin/teacher/student credentials mapped to the new Supabase Postgres backend).
+Check . (Students migrated successfully to ).
 
 **What agent forgot to execute**
-- Nothing. The task is in a natural conversational pause waiting for user input on documentation generation.</analysis>
+- Nothing. Only blocked by user's platform credits.</analysis>

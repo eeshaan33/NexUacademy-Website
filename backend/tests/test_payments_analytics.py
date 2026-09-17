@@ -7,7 +7,7 @@ import uuid
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://live-class-hub-17.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://tier-learn-app.preview.emergentagent.com").rstrip("/")
 API = f"{BASE_URL}/api"
 
 RAZORPAY_KEY_SECRET = "MPm0hqGI2U4iIVf6Yh2EDGMU"
