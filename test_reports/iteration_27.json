@@ -1,0 +1,22 @@
+{
+  "summary": "Emergent Google Auth (side-by-side with existing Supabase) fully verified. Backend: 8/8 pytest cases pass (missing header 400, invalid session 401, idempotent logout 200, teacher login regression 200, /me with Bearer 200, /me without auth 401 with correct 'Missing bearer token' detail, teacher/classes and student/my-classes still resolve via updated middleware). Frontend: Login page renders both the new 'Continue with Google' (data-testid=emergent-google-button) and legacy google-login-button; clicking Emergent button redirects to https://auth.emergentagent.com/?redirect=<origin>/dashboard (URL-encoded, verified via request interception); email/password login for teacher@test.com still redirects to /teacher; EmergentAuthCallback mounts on /dashboard#session_id=fake_test_id (data-testid=emergent-callback-msg visible), POST fails 401 as expected, then redirects to /login within ~1.5s.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter27_emergent_auth.py",
+    "/app/test_reports/pytest/iter27_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "middleware/auth.py falls back to 'access_token' cookie -> Bearer JWT path (line 39-41). That legacy cookie is not set anywhere in the current codebase; either remove or ensure it isn't a stale attack surface.",
+    "emergent_auth_routes._ensure_supabase_user() calls admin.auth.admin.list_users() on EVERY login — O(N) per Emergent auth. Consider using list_users(email=...) filter (if supported) or caching, otherwise this will become slow with growing user base.",
+    "EmergentAuthCallback clears the URL fragment via replaceState AFTER setUser — good. However AuthContext.checkAuth() is skipped only when the fragment is present at initial mount; if a user shares a link with #session_id= and hits the app on any route besides /dashboard, App.js still mounts the callback (correct). Confirm no other page has code that also parses window.location.hash on mount and interferes."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter27_emergent_auth.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "teacher@test.com/password123 (regression). Emergent OAuth end-to-end not attempted (third-party) — callback tested with bogus session_id per instructions.",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "iteration_27 confirmed Emergent Google Auth side-by-side integration works end-to-end for the parts we can test without real Google OAuth. emergent_sessions Postgres table implicitly verified (401 not 500 on invalid session). Existing Supabase Bearer JWT auth is unaffected by the new dual-token middleware. Legacy 'access_token' cookie fallback in middleware/auth.py is unused — flagged for cleanup."
+}

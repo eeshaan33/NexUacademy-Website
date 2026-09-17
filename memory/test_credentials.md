@@ -53,3 +53,17 @@ On paid → `profiles.access_tier` is set to `live_batch`.
   `dashboard:read:list_meeting_participants:admin`,
   `meeting:delete:meeting:admin` in the Zoom App Marketplace to enable
   participants polling + delete-meeting.
+
+## Emergent-managed Google Auth (added Feb 2026)
+- Coexists with Supabase Auth. New endpoints:
+  - `POST /api/auth/emergent/session` (header `X-Session-ID`) → sets
+    httpOnly `session_token` cookie (7-day, SameSite=None, Secure).
+  - `POST /api/auth/emergent/logout` → clears cookie + deletes DB row.
+- Backend middleware accepts EITHER Supabase Bearer JWT OR the Emergent
+  cookie, so all existing routes work with either flow.
+- Frontend button `[data-testid=emergent-google-button]` on `/login`
+  triggers redirect to `https://auth.emergentagent.com/?redirect=<origin>/dashboard`.
+- No app-managed password is stored for Emergent users — they must
+  always come back via the Emergent auth portal.
+- Full playbook + smoke test: `/app/auth_testing.md`.
+
