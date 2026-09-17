@@ -110,6 +110,24 @@ See `/app/memory/test_credentials.md`.
   → LiveNowBanner shows on all pages within 30 s poll → student join with
   Zoom signature → teacher end → is_live reverts. Verified end-to-end.
 
+## Phase 18 (Feb 2026) — Class-scheduling flow diagnostic
+- User reported classes not appearing on Teacher/Student pages after schedule.
+- Full DB + API + UI trace executed (iteration_26 test report):
+  - Backend curl: teacher POST /api/teacher/classes/create inserts row with
+    `assigned_batches=['NEX2027']`, class returned in GET /api/teacher/classes/.
+  - Student GET /api/student/classes/my-classes matches by `$1 = ANY(assigned_batches)`
+    where `$1 = auth user's batch_id (NEX2027)` → new class visible.
+  - Playwright UI test: Teacher scheduled a class via /teacher/classes, card
+    rendered immediately and after reload; student on /classes saw it in
+    'Upcoming & Live' section. 100% pass, no code changes needed for the bug.
+- Fixed silent error swallowing in ManageClasses.js and StudentClasses.js —
+  now toast + console.error on load failure so this never presents as a
+  false "class missing" symptom again.
+- **RCA: not reproducible in preview.** The user's report almost certainly
+  reflects the un-deployed production build (nexuacademy.com), which still
+  runs pre-Phase-16 code. A redeploy will resolve the perceived bug.
+
+
 ## External to-do (not code)
 1. Set `RAZORPAY_WEBHOOK_SECRET` in prod after configuring the webhook in
    Razorpay Dashboard (`payment.captured`, `payment.failed`, `order.paid`).

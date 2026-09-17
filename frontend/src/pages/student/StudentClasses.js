@@ -14,7 +14,10 @@ const StudentClasses = () => {
     try {
       const res = await api.get('/student/classes/my-classes');
       setClasses(res.data.classes || []);
-    } catch { }
+    } catch (err) {
+      console.error('loadClasses failed', err);
+      toast.error(err.response?.data?.detail || 'Failed to load classes');
+    }
     finally { setLoading(false); }
   };
 
