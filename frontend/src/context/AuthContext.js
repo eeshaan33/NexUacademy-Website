@@ -31,16 +31,17 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuth = useCallback(async () => {
     const token = getToken();
-    if (!token) {
-      setLoading(false);
-      return;
-    }
+    // Try /me regardless of localStorage token — the Emergent cookie session
+    // may be present even when we have no Bearer JWT stored client-side.
     try {
-      const response = await axios.get(`${API}/auth/me`, { headers: authHeader() });
+      const response = await axios.get(`${API}/auth/me`, {
+        headers: authHeader(),
+        withCredentials: true,
+      });
       setUser(response.data.user);
       setIsAuthenticated(true);
     } catch {
-      clearTokens();
+      if (token) clearTokens();
       setUser(null);
       setIsAuthenticated(false);
     } finally {
@@ -48,7 +49,16 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  useEffect(() => { checkAuth(); }, [checkAuth]);
+  useEffect(() => {
+    // CRITICAL: If we're returning from an Emergent OAuth callback, skip the
+    // /me check. EmergentAuthCallback will exchange the session_id and set the
+    // cookie first, then update auth state.
+    if (window.location.hash?.includes('session_id=')) {
+      setLoading(false);
+      return;
+    }
+    checkAuth();
+  }, [checkAuth]);
 
   const login = async (email, password) => {
     const response = await axios.post(`${API}/auth/login`, { email, password });
@@ -75,8 +85,18 @@ export const AuthProvider = ({ children }) => {
     if (data.url) window.location.href = data.url;
   };
 
+  const loginWithEmergent = () => {
+    // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS,
+    // THIS BREAKS THE AUTH. Always derive redirect from window.location.origin.
+    const redirectUrl = `${window.location.origin}/dashboard`;
+    window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
+  };
+
   const logout = async () => {
+    // Try both logout endpoints — one clears Supabase state, the other clears
+    // the Emergent cookie session. Whichever the user is on will succeed.
     try { await axios.post(`${API}/auth/logout`, {}); } catch { /* ignore */ }
+    try { await axios.post(`${API}/auth/emergent/logout`, {}, { withCredentials: true }); } catch { /* ignore */ }
     clearTokens();
     setUser(null);
     setIsAuthenticated(false);
@@ -89,6 +109,7 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     loginWithGoogle,
+    loginWithEmergent,
     logout,
     setUser,
     setIsAuthenticated,

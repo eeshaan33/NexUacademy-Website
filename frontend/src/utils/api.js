@@ -7,6 +7,7 @@ export const API_BASE_URL = `${BACKEND_URL}/api`;
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
+  withCredentials: true, // send Emergent session_token cookie on every request
 });
 
 api.interceptors.request.use((config) => {

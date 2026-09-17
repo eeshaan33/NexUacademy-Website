@@ -12,6 +12,7 @@ load_dotenv(ROOT_DIR / '.env')
 # Import route modules (migrated to Supabase/Postgres)
 from routes import (
     auth_routes,
+    emergent_auth_routes,
     batch_routes,
     admission_routes,
     teacher_class_routes,
@@ -45,7 +46,7 @@ async def root():
 
 # Wire routers
 for r in (
-    auth_routes, batch_routes, admission_routes,
+    auth_routes, emergent_auth_routes, batch_routes, admission_routes,
     teacher_class_routes, teacher_live_class_routes,
     student_class_routes, student_live_class_routes,
     teacher_test_routes, student_test_routes,

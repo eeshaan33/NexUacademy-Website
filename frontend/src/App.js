@@ -1,6 +1,6 @@
 import React, { lazy, Suspense } from "react";
 import "@/App.css";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { Toaster } from "sonner";
 
@@ -22,6 +22,7 @@ const AdminPanel = lazy(() => import("./pages/AdminPanel"));
 const LandingPage = lazy(() => import("./pages/LandingPage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 const AuthCallback = lazy(() => import("./pages/AuthCallback"));
+const EmergentAuthCallback = lazy(() => import("./pages/EmergentAuthCallback"));
 const FeeStructure = lazy(() => import("./pages/FeeStructure"));
 const FirstTimeSetup = lazy(() => import("./pages/FirstTimeSetup"));
 const UpgradePage = lazy(() => import("./pages/UpgradePage"));
@@ -46,6 +47,17 @@ function RoleBasedRedirect() {
 }
 
 function AppRouter() {
+  // Detect Emergent OAuth callback synchronously (URL fragment #session_id=...).
+  // This runs BEFORE any route/ProtectedRoute, avoiding race conditions where
+  // AuthProvider's /me check would 401 while the cookie hasn't been set yet.
+  const location = useLocation();
+  if (location.hash?.includes('session_id=')) {
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <EmergentAuthCallback />
+      </Suspense>
+    );
+  }
   return (
     <>
       <Suspense fallback={<PageLoader />}>

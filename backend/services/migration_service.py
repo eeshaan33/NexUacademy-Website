@@ -93,6 +93,20 @@ async def run_migrations():
             )
         """)
 
+        # ---- emergent_sessions (Emergent-managed Google Auth cookie sessions)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS public.emergent_sessions (
+                session_token TEXT PRIMARY KEY,
+                user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+                email TEXT,
+                expires_at TIMESTAMPTZ NOT NULL,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        """)
+        await conn.execute(
+            "CREATE INDEX IF NOT EXISTS emergent_sessions_user_idx ON public.emergent_sessions(user_id)"
+        )
+
         # ---- preseed_students (whitelist for first-time claim)
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS public.preseed_students (

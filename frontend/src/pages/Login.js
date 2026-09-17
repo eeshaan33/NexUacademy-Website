@@ -11,7 +11,7 @@ import { setPageTitle } from '../utils/pageTitle';
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login, loginWithGoogle, isAuthenticated, user } = useAuth();
+  const { login, loginWithGoogle, loginWithEmergent, isAuthenticated, user } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -133,11 +133,21 @@ const Login = () => {
             type="button"
             variant="outline"
             className="w-full"
+            onClick={loginWithEmergent}
+            data-testid="emergent-google-button"
+          >
+            <Chrome className="mr-2 h-4 w-4" />
+            Continue with Google
+          </Button>
+
+          <Button
+            type="button"
+            variant="ghost"
+            className="w-full text-xs text-muted-foreground"
             onClick={handleGoogleLogin}
             data-testid="google-login-button"
           >
-            <Chrome className="mr-2 h-4 w-4" />
-            Sign in with Google
+            Or use legacy Supabase Google sign-in
           </Button>
 
           <p className="text-center text-sm text-muted-foreground">
