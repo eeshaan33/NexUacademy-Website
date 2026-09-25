@@ -1,21 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { Plus, Trash2, ChevronRight, ChevronLeft, Eye, Send, Image as ImageIcon, X, Upload, BarChart3 } from 'lucide-react';
+import { Plus, Trash2, ChevronRight, ChevronLeft, Eye, Send, Image as ImageIcon, X, Upload, BarChart3, Library, Loader2, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../utils/api';
 import { setPageTitle } from '../../utils/pageTitle';
 import BatchManagerDialog from '../../components/BatchManagerDialog';
+import { useAuth } from '../../context/AuthContext';
 
 const SUBJECTS = ['Physics', 'Chemistry', 'Mathematics', 'All Subjects'];
 const DIFFICULTIES = ['Easy', 'Medium', 'Hard'];
 
 const CreateTest = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const hasBank = !!user?.features?.question_bank;
   const [tests, setTests] = useState([]);
   const [step, setStep] = useState('list');
   const [loading, setLoading] = useState(false);
@@ -29,6 +32,17 @@ const CreateTest = () => {
   const [currentTestId, setCurrentTestId] = useState(null);
   const [questions, setQuestions] = useState([]);
   const [qForm, setQForm] = useState(defaultQuestion(1));
+
+  // ---- Question Bank picker state (Phase 19)
+  const [bankTopics, setBankTopics] = useState([]);
+  const [bankSelTopicIds, setBankSelTopicIds] = useState([]);
+  const [bankSubtopics, setBankSubtopics] = useState([]); // union across selected topics
+  const [bankSelSubtopicIds, setBankSelSubtopicIds] = useState([]);
+  const [bankAvailable, setBankAvailable] = useState([]);
+  const [bankHiddenCount, setBankHiddenCount] = useState(0);
+  const [bankTotalBefore, setBankTotalBefore] = useState(0);
+  const [bankSelected, setBankSelected] = useState(new Set());
+  const [bankLoading, setBankLoading] = useState(false);
 
   useEffect(() => { setPageTitle('Create Test'); loadTests(); loadBatches(); }, []);
 
@@ -63,6 +77,12 @@ const CreateTest = () => {
     if (!form.test_name || !form.scheduled_date_time || form.assigned_batches.length === 0) {
       toast.error('Fill all required fields'); return;
     }
+    // If Question Bank is enabled for this teacher, offer to pull questions from the bank first.
+    if (hasBank) {
+      await loadBankTopics();
+      setStep('bank');
+      return;
+    }
     setLoading(true);
     try {
       const { data } = await api.post('/teacher/tests/create', { ...form, questions: [] });
@@ -71,6 +91,121 @@ const CreateTest = () => {
       toast.success('Test created. Now add questions.');
     } catch (e) { toast.error(e.response?.data?.detail || 'Failed'); }
     finally { setLoading(false); }
+  };
+
+  // ---- Question Bank helpers -----------------------------------------------
+  const loadBankTopics = async () => {
+    try {
+      const { data } = await api.get('/teacher/topics');
+      setBankTopics(data.topics || []);
+    } catch { /* silent — teacher may not have bank access */ }
+  };
+
+  const loadBankSubtopicsForTopics = async (topicIds) => {
+    if (topicIds.length === 0) { setBankSubtopics([]); return; }
+    try {
+      const results = await Promise.all(
+        topicIds.map((id) => api.get(`/teacher/topics/${id}/subtopics`))
+      );
+      const merged = results.flatMap((r) => r.data.subtopics || []);
+      setBankSubtopics(merged);
+    } catch { setBankSubtopics([]); }
+  };
+
+  const loadBankAvailable = async () => {
+    if (bankSelTopicIds.length === 0 || bankSelSubtopicIds.length === 0 || form.assigned_batches.length === 0) {
+      setBankAvailable([]); setBankHiddenCount(0); setBankTotalBefore(0);
+      return;
+    }
+    setBankLoading(true);
+    try {
+      const params = new URLSearchParams();
+      bankSelTopicIds.forEach((id) => params.append('topic_ids', id));
+      bankSelSubtopicIds.forEach((id) => params.append('subtopic_ids', id));
+      form.assigned_batches.forEach((b) => params.append('batch_codes', b));
+      const { data } = await api.get(`/teacher/question-bank/available?${params}`);
+      setBankAvailable(data.questions || []);
+      setBankHiddenCount(data.hidden_count || 0);
+      setBankTotalBefore(data.total_before_exclusion || 0);
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Failed to load bank questions');
+    } finally { setBankLoading(false); }
+  };
+
+  useEffect(() => { loadBankSubtopicsForTopics(bankSelTopicIds); }, [bankSelTopicIds]);
+  useEffect(() => {
+    // Auto-refresh availability when any filter or batch changes
+    if (step === 'bank') loadBankAvailable();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bankSelTopicIds, bankSelSubtopicIds, form.assigned_batches, step]);
+
+  const toggleBankSelected = (id) => setBankSelected((prev) => {
+    const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n;
+  });
+  const selectAllVisible = () => setBankSelected(new Set(bankAvailable.map((q) => q.id)));
+  const clearBankSelection = () => setBankSelected(new Set());
+
+  const bankQuestionToTestQuestion = (q, num) => ({
+    question_number: num,
+    question_text: q.question_text || '',
+    question_image_url: q.question_image_url || '',
+    question_type: q.question_type,
+    options: q.options || { A: { text: '' }, B: { text: '' }, C: { text: '' }, D: { text: '' } },
+    correct_answers: q.correct_answers || [],
+    numerical_answer: q.numerical_answer,
+    answer_range: q.answer_range || null,
+    marks: q.marks || 4,
+    negative_marks: q.negative_marks || -1,
+    subject: form.subject === 'All Subjects' ? '' : form.subject,
+    chapter: '', difficulty: q.difficulty || 'Medium',
+    teacher_note: q.teacher_note || '',
+    from_question_bank_id: q.id,
+  });
+
+  const submitWithBankQuestions = async () => {
+    const picks = bankAvailable.filter((q) => bankSelected.has(q.id));
+    if (picks.length === 0) { toast.error('Select at least one question or skip'); return; }
+    setLoading(true);
+    try {
+      const testQuestions = picks.map((q, i) => bankQuestionToTestQuestion(q, i + 1));
+      const { data } = await api.post('/teacher/tests/create', {
+        ...form,
+        questions: testQuestions,
+        total_questions: testQuestions.length,
+        total_marks: testQuestions.reduce((s, q) => s + (q.marks || 0), 0),
+        status: 'scheduled',
+      });
+      const testId = data.test.test_id;
+      try {
+        await api.post('/teacher/question-bank/record-assignments', {
+          test_id: testId,
+          question_ids: picks.map((q) => q.id),
+          batch_codes: form.assigned_batches,
+        });
+      } catch { /* non-fatal — test is already created */ }
+      toast.success(`Test created with ${picks.length} question(s) from the bank`);
+      resetBankPickerState();
+      setStep('list'); loadTests();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Failed to create test');
+    } finally { setLoading(false); }
+  };
+
+  const skipBankToManual = async () => {
+    setLoading(true);
+    try {
+      const { data } = await api.post('/teacher/tests/create', { ...form, questions: [] });
+      setCurrentTestId(data.test.test_id);
+      resetBankPickerState();
+      setStep('questions');
+      toast.success('Test created. Add manual questions now.');
+    } catch (e) { toast.error(e.response?.data?.detail || 'Failed'); }
+    finally { setLoading(false); }
+  };
+
+  const resetBankPickerState = () => {
+    setBankSelTopicIds([]); setBankSelSubtopicIds([]); setBankAvailable([]);
+    setBankHiddenCount(0); setBankTotalBefore(0); setBankSelected(new Set());
   };
 
   const handleAddQuestion = async () => {
@@ -210,11 +345,191 @@ const CreateTest = () => {
             </div>
           </div>
           <div><Label>Instructions</Label><textarea value={form.instructions} onChange={e => setForm({ ...form, instructions: e.target.value })} rows={3} className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Test instructions..." /></div>
-          <Button onClick={handleCreateTest} disabled={loading} className="w-full" data-testid="create-test-submit">{loading ? 'Creating...' : 'Create Test & Add Questions'}</Button>
+          <Button onClick={handleCreateTest} disabled={loading} className="w-full" data-testid="create-test-submit">{loading ? 'Creating...' : (hasBank ? 'Next: Pick Questions from Bank →' : 'Create Test & Add Questions')}</Button>
         </CardContent>
       </Card>
     </div>
   );
+
+  // ---- BANK PICKER STEP -----------------------------------------------------
+  if (step === 'bank') {
+    const toggleTopic = (id) => setBankSelTopicIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+    const toggleSubtopic = (id) => setBankSelSubtopicIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+
+    return (
+      <div className="max-w-5xl mx-auto space-y-6" data-testid="test-bank-step">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" onClick={() => setStep('config')}><ChevronLeft className="h-4 w-4" /></Button>
+            <div>
+              <h1 className="text-2xl font-bold flex items-center gap-2" style={{ color: '#1B3A52' }}>
+                <Library className="h-6 w-6" /> Add Questions from Question Bank
+              </h1>
+              <p className="text-xs text-slate-500 mt-1">
+                Test: <b>{form.test_name}</b> · Batches: <b>{form.assigned_batches.join(', ')}</b>
+              </p>
+            </div>
+          </div>
+          <Button variant="outline" onClick={skipBankToManual} disabled={loading} data-testid="bank-skip-manual">
+            Skip → Add Manually
+          </Button>
+        </div>
+
+        <Card className="border-slate-200">
+          <CardContent className="p-5 space-y-4">
+            <div>
+              <Label>Topics *</Label>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {bankTopics.length === 0 && (
+                  <span className="text-xs text-slate-400 italic">
+                    No topics in your question bank yet — add questions first from the Question Bank page.
+                  </span>
+                )}
+                {bankTopics.map((t) => (
+                  <button
+                    key={t.id} type="button"
+                    onClick={() => toggleTopic(t.id)}
+                    className={`px-3 py-1.5 rounded-lg text-sm border-2 transition-all ${bankSelTopicIds.includes(t.id) ? 'border-[#1B3A52] bg-[#1B3A52] text-white' : 'border-slate-200 hover:border-[#1B3A52]/40'}`}
+                    data-testid={`bank-topic-${t.id}`}
+                  >
+                    {t.name}{t.subject ? ` · ${t.subject}` : ''}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {bankSelTopicIds.length > 0 && (
+              <div>
+                <Label>Subtopics *</Label>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {bankSubtopics.length === 0 && (
+                    <span className="text-xs text-slate-400 italic">No subtopics under the selected topic(s).</span>
+                  )}
+                  {bankSubtopics.map((s) => (
+                    <button
+                      key={s.id} type="button"
+                      onClick={() => toggleSubtopic(s.id)}
+                      className={`px-3 py-1.5 rounded-lg text-sm border-2 transition-all ${bankSelSubtopicIds.includes(s.id) ? 'border-[#1B3A52] bg-[#1B3A52] text-white' : 'border-slate-200 hover:border-[#1B3A52]/40'}`}
+                      data-testid={`bank-subtopic-${s.id}`}
+                    >
+                      {s.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {bankSelTopicIds.length > 0 && bankSelSubtopicIds.length > 0 && (
+          <Card className="border-slate-200">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center justify-between flex-wrap gap-3">
+                <span className="text-base">
+                  {bankLoading ? (
+                    <span className="flex items-center gap-2 text-slate-500 text-sm"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</span>
+                  ) : (
+                    <>
+                      <b>{bankAvailable.length}</b> available for {form.assigned_batches.join(', ')}
+                      {bankHiddenCount > 0 && (
+                        <span className="ml-2 text-xs font-normal text-slate-500">
+                          ({bankHiddenCount} already used with these batch{form.assigned_batches.length === 1 ? '' : 'es'}, hidden)
+                        </span>
+                      )}
+                    </>
+                  )}
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="outline" onClick={selectAllVisible} disabled={bankAvailable.length === 0} data-testid="bank-select-all">
+                    Select All Visible
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={clearBankSelection} disabled={bankSelected.size === 0}>
+                    Clear
+                  </Button>
+                  <span className="text-xs text-slate-500">{bankSelected.size} selected</span>
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {bankAvailable.length === 0 && !bankLoading && (
+                <div className="text-sm text-slate-400 italic py-4 text-center">
+                  {bankTotalBefore === 0
+                    ? 'No questions in this topic × subtopic combination yet.'
+                    : 'Every matching question has already been used for the selected batch(es).'}
+                </div>
+              )}
+              {bankAvailable.map((q) => {
+                const selected = bankSelected.has(q.id);
+                const multi = form.assigned_batches.length > 1;
+                return (
+                  <button
+                    key={q.id}
+                    type="button"
+                    onClick={() => toggleBankSelected(q.id)}
+                    className={`w-full text-left flex items-start gap-3 p-3 rounded-lg border-2 transition-all ${selected ? 'border-emerald-500 bg-emerald-50/40' : 'border-slate-200 hover:border-[#1B3A52]/40'}`}
+                    data-testid={`bank-q-${q.id}`}
+                  >
+                    <div className={`mt-0.5 h-5 w-5 rounded flex items-center justify-center border-2 ${selected ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-slate-300'}`}>
+                      {selected && <Check className="h-3 w-3" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm text-slate-800">
+                        {(q.question_text || '(image only)').slice(0, 140)}
+                        {q.question_text?.length > 140 ? '…' : ''}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                        <span className="text-[10px] bg-[#1B3A52]/10 text-[#1B3A52] rounded px-1.5 py-0.5 font-semibold">
+                          {q.question_type.replace(/_/g, ' ')}
+                        </span>
+                        {q.difficulty && (
+                          <span className="text-[10px] bg-amber-100 text-amber-700 rounded px-1.5 py-0.5">{q.difficulty}</span>
+                        )}
+                        <span className="text-[10px] text-slate-400">+{q.marks} / {q.negative_marks}</span>
+                        {multi && (
+                          <>
+                            {q.fresh_for.length > 0 && (
+                              <span className="text-[10px] bg-emerald-100 text-emerald-700 rounded px-1.5 py-0.5">
+                                Fresh for: {q.fresh_for.join(', ')}
+                              </span>
+                            )}
+                            {q.used_for.length > 0 && (
+                              <span className="text-[10px] bg-slate-200 text-slate-600 rounded px-1.5 py-0.5">
+                                Already used for: {q.used_for.join(', ')}
+                              </span>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    {q.question_image_url && (
+                      <img src={q.question_image_url} alt="q" className="w-12 h-12 rounded object-cover border border-slate-200" />
+                    )}
+                  </button>
+                );
+              })}
+            </CardContent>
+          </Card>
+        )}
+
+        <div className="flex justify-end gap-3 sticky bottom-4 bg-white/80 backdrop-blur border rounded-lg p-3 shadow">
+          <Button variant="outline" onClick={skipBankToManual} disabled={loading}>
+            Skip → Add Manually
+          </Button>
+          <Button
+            onClick={submitWithBankQuestions}
+            disabled={loading || bankSelected.size === 0}
+            className="bg-[#1B3A52] hover:bg-[#2B4A62] text-white"
+            data-testid="bank-create-test"
+          >
+            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
+            Create Test with {bankSelected.size || ''} Question{bankSelected.size === 1 ? '' : 's'}
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   // ADD QUESTIONS
   return (

@@ -8,6 +8,7 @@ every automated test.
 |----------|--------------------------------------|--------------------|----------|
 | Admin    | admin@nexuacademy.com                | nexuacademy123     | —        |
 | Teacher  | teacher@test.com                     | password123        | —        |
+| Teacher (Question Bank) | nitin@nexuacademy.com | nitin@123      | —        |
 | Teacher2 | teacher2_iter17@nexuacademy.com      | password123        | —        |
 | Student  | student@test.com                     | password123        | NEX2027  |
 

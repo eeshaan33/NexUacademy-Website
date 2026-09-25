@@ -33,6 +33,8 @@ const TeacherDashboard = lazy(() => import("./pages/teacher/TeacherDashboard"));
 const ManageClasses = lazy(() => import("./pages/teacher/ManageClasses"));
 const CreateTest = lazy(() => import("./pages/teacher/CreateTest"));
 const TeacherLiveClasses = lazy(() => import("./pages/teacher/LiveClasses"));
+const BrowseQuestionBank = lazy(() => import("./pages/teacher/QuestionBank/BrowseQuestionBank"));
+const AddQuestion = lazy(() => import("./pages/teacher/QuestionBank/AddQuestion"));
 
 const StudentClasses = lazy(() => import("./pages/student/StudentClasses"));
 const StudentLiveClasses = lazy(() => import("./pages/student/LiveClasses"));
@@ -79,6 +81,8 @@ function AppRouter() {
           <Route path="/teacher/classes" element={<ProtectedRoute><TeacherLayout><ManageClasses /></TeacherLayout></ProtectedRoute>} />
           <Route path="/teacher/tests" element={<ProtectedRoute><TeacherLayout><CreateTest /></TeacherLayout></ProtectedRoute>} />
           <Route path="/teacher/live-classes" element={<ProtectedRoute><TeacherLayout><TeacherLiveClasses /></TeacherLayout></ProtectedRoute>} />
+          <Route path="/teacher/question-bank" element={<ProtectedRoute><TeacherLayout><BrowseQuestionBank /></TeacherLayout></ProtectedRoute>} />
+          <Route path="/teacher/question-bank/new" element={<ProtectedRoute><TeacherLayout><AddQuestion /></TeacherLayout></ProtectedRoute>} />
 
           {/* Student Protected Routes */}
           <Route path="/dashboard" element={<ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute>} />

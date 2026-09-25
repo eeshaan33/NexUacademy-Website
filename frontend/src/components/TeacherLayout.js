@@ -23,6 +23,7 @@ import {
   Menu,
   X,
   Video,
+  Library,
 } from 'lucide-react';
 
 const TeacherLayout = ({ children }) => {
@@ -35,6 +36,9 @@ const TeacherLayout = ({ children }) => {
     { name: 'Manage Classes', href: '/teacher/classes', icon: BookOpen, testId: 'teacher-nav-classes' },
     { name: 'Live Classes', href: '/teacher/live-classes', icon: Video, testId: 'teacher-nav-live-classes' },
     { name: 'Create Tests', href: '/teacher/tests', icon: FileEdit, testId: 'teacher-nav-tests' },
+    ...(user?.features?.question_bank ? [{
+      name: 'Question Bank', href: '/teacher/question-bank', icon: Library, testId: 'teacher-nav-question-bank',
+    }] : []),
     { name: 'View Students', href: '/teacher/students', icon: Users, testId: 'teacher-nav-students' },
   ];
 

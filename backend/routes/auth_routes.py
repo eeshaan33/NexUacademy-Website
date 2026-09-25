@@ -130,6 +130,9 @@ async def me(request: Request):
     # Ensure new tier fields are always present in the response
     user.setdefault("access_tier", "free")
     user.setdefault("is_existing_student", False)
+    # Feature flags (Question Bank is gated to allow-listed teachers + admins)
+    from routes.question_bank_routes import teacher_has_question_bank
+    user["features"] = {"question_bank": teacher_has_question_bank(user)}
     return {"success": True, "user": user}
 
 

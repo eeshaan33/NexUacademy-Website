@@ -148,7 +148,7 @@ else:
 Once credentials are set, run:
 
 ```bash
-curl -X POST "https://tier-learn-app.preview.emergentagent.com/api/admin/create-google-sheet" \
+curl -X POST "https://neet-jee-prep-55.preview.emergentagent.com/api/admin/create-google-sheet" \
   -H "Authorization: Bearer YOUR_SESSION_TOKEN"
 ```
 
@@ -167,7 +167,7 @@ The system automatically syncs YouTube links every 30 seconds.
 To manually trigger sync:
 
 ```bash
-curl -X POST "https://tier-learn-app.preview.emergentagent.com/api/admin/sync-youtube-links" \
+curl -X POST "https://neet-jee-prep-55.preview.emergentagent.com/api/admin/sync-youtube-links" \
   -H "Authorization: Bearer YOUR_SESSION_TOKEN"
 ```
 

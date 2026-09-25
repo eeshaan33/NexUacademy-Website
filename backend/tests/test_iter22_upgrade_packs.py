@@ -3,7 +3,7 @@ import os
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://tier-learn-app.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://neet-jee-prep-55.preview.emergentagent.com").rstrip("/")
 STUDENT_EMAIL = "student@test.com"
 STUDENT_PASSWORD = "password123"
 

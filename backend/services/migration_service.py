@@ -107,6 +107,81 @@ async def run_migrations():
             "CREATE INDEX IF NOT EXISTS emergent_sessions_user_idx ON public.emergent_sessions(user_id)"
         )
 
+        # ---- Question Bank (topics, subtopics, questions, per-batch assignment ledger)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS public.topics (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                name TEXT NOT NULL UNIQUE,
+                subject TEXT,
+                created_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS public.subtopics (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                topic_id UUID NOT NULL REFERENCES public.topics(id) ON DELETE CASCADE,
+                name TEXT NOT NULL,
+                created_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                UNIQUE (topic_id, name)
+            )
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS public.question_bank (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                topic_id UUID NOT NULL REFERENCES public.topics(id),
+                subtopic_id UUID NOT NULL REFERENCES public.subtopics(id),
+                question_text TEXT,
+                question_image_url TEXT,
+                question_type TEXT NOT NULL DEFAULT 'MCQ_Single'
+                    CHECK (question_type IN ('MCQ_Single','MCQ_Multiple','Numerical_Integer','Numerical_Decimal')),
+                options JSONB DEFAULT '{}'::jsonb,
+                correct_answers TEXT[] DEFAULT '{}',
+                numerical_answer NUMERIC,
+                answer_range JSONB,
+                difficulty TEXT CHECK (difficulty IN ('Easy','Medium','Hard')),
+                marks INTEGER DEFAULT 4,
+                negative_marks INTEGER DEFAULT -1,
+                teacher_note TEXT,
+                created_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS public.question_batch_assignments (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                question_id UUID NOT NULL REFERENCES public.question_bank(id) ON DELETE CASCADE,
+                batch_code TEXT NOT NULL,
+                test_id TEXT REFERENCES public.tests(test_id) ON DELETE SET NULL,
+                assigned_at TIMESTAMPTZ DEFAULT NOW(),
+                UNIQUE (question_id, batch_code)
+            )
+        """)
+        await conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_qbank_topic_subtopic ON public.question_bank(topic_id, subtopic_id)"
+        )
+        await conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_qba_batch ON public.question_batch_assignments(batch_code)"
+        )
+        # Normalize batch_code on assignment inserts
+        await conn.execute("""
+            CREATE OR REPLACE FUNCTION public.normalize_qba_batch() RETURNS trigger AS $$
+            BEGIN
+                NEW.batch_code := UPPER(TRIM(NEW.batch_code));
+                RETURN NEW;
+            END;
+            $$ LANGUAGE plpgsql;
+        """)
+        await conn.execute(
+            "DROP TRIGGER IF EXISTS qba_normalize ON public.question_batch_assignments"
+        )
+        await conn.execute("""
+            CREATE TRIGGER qba_normalize BEFORE INSERT OR UPDATE
+                ON public.question_batch_assignments
+                FOR EACH ROW EXECUTE FUNCTION public.normalize_qba_batch();
+        """)
+
         # ---- preseed_students (whitelist for first-time claim)
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS public.preseed_students (

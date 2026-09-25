@@ -1,36 +1,32 @@
-<analysis>**original_problem_statement**: Complete JEE/NEET platform with Teacher Dashboard, Student Site, Admin Panel, and highly advanced NTA-pattern tests. Required implementing a streamlined 3-field admission form (Name, Email, WhatsApp) tied to a ₹30,000 live batch payment, migrating existing students to Supabase Auth with default passwords, and implementing a 3-tier access system (Free, ₹1,500 Lectures Pack, ₹2,500 Full Pack, ₹30k Live Batch). Also required fixing Zoom live classes rendering, Google OAuth redirects, and dynamic YouTube video fetching on the landing page.
+<analysis>**original_problem_statement**: Complete JEE/NEET platform with Teacher Dashboard, Student Site, Admin Panel, and highly advanced NTA-pattern tests. The app needed a diagnostic regression on the Class Scheduling flow (which was missing classes on the UI) and integration of Emergent-managed Google Sign-in alongside the existing Supabase authentication.
 
 **PRODUCT REQUIREMENTS:**
 -   **Tech Stack:** Python/FastAPI backend + React frontend + Supabase (PostgreSQL, Auth, Storage).
--   **Auth/Roles:** Admin, Teacher, Student. Supabase Auth + Google OAuth. Pre-seeded users claimed via .
--   **Access Tiers:**
-    - Free: 1 free lecture, 1 free test.
-    - ₹1,500: All recorded lectures.
-    - ₹2,500: All recorded lectures + chapter tests.
-    - ₹30,000 (Live Batch): Full access + embedded Zoom classes.
+-   **Auth/Roles:** Admin, Teacher, Student. Supabase Auth + Emergent Google OAuth side-by-side. Pre-seeded users claimed via .
+-   **Access Tiers:** Free, ₹1,500 Lectures Pack, ₹2,500 Full Pack, ₹30,000 Live Batch.
 -   **Payments:** Razorpay checkout with tier promotion logic enforced server-side.
 
 **User's preferred language**: English (INSTRUCT next agent to respond in English only)
 
 **what currently exists?** 
-A fully functional, 3-tier monetized JEE/NEET learning platform. The app supports a 3-field admission flow linked to a ₹30k Razorpay checkout. Existing students are auto-migrated and can claim their accounts. Google OAuth is fixed. Live Zoom classes correctly appear on both teacher and student dashboards with real-time Live Now banners. The landing page dynamically fetches the latest YouTube video via an RSS feed endpoint.
+A fully functional, 3-tier monetized JEE/NEET learning platform. The app supports a 3-field admission flow linked to a ₹30k Razorpay checkout. Existing students are auto-migrated. Emergent Google Auth is successfully running in parallel with the legacy Supabase Auth. The reported Class Scheduling bug was diagnosed as a false alarm caused by the user testing on their un-updated live production domain instead of the preview environment (which contains the fixes).
 
 **Last working item**:
-    - Last item agent was working: Validating the YouTube dynamic video fetch (via RSS) for the landing page and running a full regression of the Zoom Live class E2E flow.
-    - Status: RESOLVED
+    - Last item agent was working: Implementing and verifying the Emergent-managed Google Auth integration, including frontend buttons, dual-token backend middleware, and callback routing. 
+    - Status: USER VERIFICATION PENDING
     - Agent Testing Done: Y
-    - Which testing method agent to use?: testing_agent (iteration_25.json)
-    - User Testing Done: N (User is unable to test on Production because deployment was blocked by insufficient ECUs).
+    - Which testing method agent to use?: NA (Testing already done via  in )
+    - User Testing Done: N 
 
 **All Pending/In progress Issue list**: 
   Issue 1: Production Deployment Blocked (Insufficient ECUs)
-     - Attempted fixes: Agent called  but the user only has 35 ECUs (requires 50 for first deploy). 
+     - Attempted fixes: Agent previously called  but the user only had 35 ECUs (requires 50 for first deploy).
      - Next debug checklist: Ask user to confirm they have added credits (Profile → Manage plan → Add credits). Once confirmed, call . 
-     - Why fix this issue and what will be achieved with the fix?: Production is running older, buggy code. Pushing this deploy will apply all the fixes implemented and verified in this session to the live domain.
+     - Why fix this issue and what will be achieved with the fix?: Production () is running older, buggy code (which caused the user to incorrectly report the class-scheduling bug). Pushing this deploy will apply all verified fixes to the live domain.
      - Status: BLOCKED
      - Is recurring issue? N
      - Should Test frontend/backend/both after fix?: NA (Wait for deploy success).
-     - Blocked on other issue: User action required.
+     - Blocked on other issue: User action required to add platform credits.
 
 **In progress Task List**: 
 None. All requested features and bug fixes have been successfully implemented and tested in the preview environment.
@@ -42,14 +38,10 @@ None. All requested features and bug fixes have been successfully implemented an
   - Task 3 (P2): **Dismiss All Banners**: Add a single dismiss-all button when multiple classes go live in the same batch.
 
 **Completed work in this session**
-- Streamlined  to 3 fields + Razorpay 30k payment (DONE)
-- Created  to auto-execute Supabase schema updates, pre-seed users, and clean up batches on startup (DONE)
-- Implemented  account claiming flow for existing students (DONE)
-- Implemented 3-Tier Paywalls (₹1.5k, ₹2.5k) on  and  (DONE)
-- Fixed  404 bug by adding root aliases for class routers (DONE)
-- Fixed Google OAuth redirect by dynamically passing  as  (DONE)
-- Fixed tier refresh bug in  by invoking  post-payment (DONE)
-- Implemented dynamic YouTube video fetch on landing page via RSS parsing in  (DONE)
+- Diagnosed Class Scheduling bug (E2E validated as 100% working in Preview; user was testing on stale Prod domain) (DONE)
+- Integrated Emergent-managed Google Auth via  (DONE)
+- Updated  to support dual-token authentication (Supabase JWT + Emergent Session ID) (DONE)
+- Created  and  (DONE)
 
 **Earlier issues found/mentioned but not fixed**
 *None. All user-reported issues were addressed.*
@@ -65,51 +57,47 @@ None. All requested features and bug fixes have been successfully implemented an
 **Key Technical Concepts**
 - Frontend: React, Tailwind CSS, Suspense/Lazy Loading.
 - Backend: Python/FastAPI, Supabase (PostgreSQL ).
-- Payments: Razorpay SDK (server-side verification for tiered pricing).
-- APIs: Zoom Meeting SDK, YouTube RSS parsing (avoids HTML bot-detection).
+- Auth: Hybrid dual-token architecture (Supabase standard JWTs + Emergent cookie/session-based OAuth).
 
 **key DB schema**
 - : 
--  (extended): Added  ('free', 'lectures_only', 'full_recorded', 'live_batch'), , .
+- : 
 - : 
 
 **changes in tech stack**
-- Added XML/RSS parsing to bypass YouTube HTML scraping bot-blocks.
-- Integrated  to handle programmatic Postgres schema migrations on startup.
+- Added Emergent-managed Google Authentication to run side-by-side with Supabase Authentication. Both now reliably protect backend resources via updated middleware.
 
 **All files of reference**
-1.  (Maintains Supabase state idempotently).
-2.  (UI for the tier upgrade cards).
-3.  (Handles tier promotion upon successful webhook/signature).
-4.  (Fetches  and latest videos).
+1.  (New file for Emergent Google Auth flows).
+2.  (New callback page for Google token exchange).
+3.  (Handles dual authentication).
+4.  (Renders the new Google OAuth buttons).
+5.  (Database structures).
 
 **Areas that need refactoring**:
--  was identified as dead code and safely deleted. Codebase is clean.
+-  has a legacy  cookie fallback snippet which is currently unused and flagged for cleanup (noted in ).
 
 **key api endpoints**
--  (POST): Claims existing student account with default password.
--  (POST): Accepts  (lectures_upgrade, lectures_tests_upgrade, admission_fee).
--  (GET): Fetches channel's latest video via RSS.
+-  (POST): Validates Emergent OAuth session headers.
+-  (GET): Returns user profile acting correctly under both Auth providers.
+-  (POST): Razorpay checkout for tiers.
 
 **Critical Info for New Agent**
-- **DO NOT DEBUG THE BUGS MENTIONED IN THE USER'S LAST MESSAGES.** The user tested their live classes, Google Auth, and dashboard data on their *Production* URL (). Production was *not* updated because the deploy job failed due to insufficient ECUs (User has 35, needs 50). The code in the current preview environment is **100% fixed and verified**.
-- Wait for the user to confirm they have added credits, then immediately call the  tool. 
-- Remind the user they must configure  and  in their Supabase/Production dashboard for Google OAuth and automated receipts to work post-deploy.
+- **CRITICAL**: The user reported a bug where scheduled classes do not appear on the dashboard. **DO NOT DEBUG THIS.** The preview environment is functioning perfectly. The user experienced this bug because they tested on their *Production* domain (), which has not received the latest code changes due to a failed deployment (insufficient ECUs).
+- Wait for the user to confirm they have added platform credits, then immediately call the  tool so the live domain gets updated.
+- Emergent Google Auth is seamlessly integrated and validated via . It requires NO further action unless requested by the user.
 
 **documents and test reports created in this job**
--  (Auth & Admissions)
--  (Tier Upgrades)
--  &  (Teacher Class bug fixes)
--  (YouTube + E2E Regression)
+-  (Verified Class Scheduling E2E regression)
+-  (Verified Emergent Google Auth integration)
+-  (Updated with Emergent Auth tasks)
 -  
-- 
 
 **Last 10 User Messages and any pending HUMAN messages** 
-1. User: Ship to Prod: Push these changes to nexuacademy.com... Turn on ₹1,500 and ₹2,500 paywalls.
-2. User: confirm deploy
-3. User: I used Teacher. It is working. I tried to schedule a class... it did not show up... Google auth still not working... students stuck on free tier... Shefali not in NEX2027 (Note: tested on un-deployed prod).
-4. User: Make sure all features on the site are working, like the live classes... Recent youtube video on the landing page... Make the site ready to be deployed.
-- **PENDING HUMAN MESSAGE**: User needs to add ECUs and confirm so the deploy can be triggered.
+1. User: Please use ask_human tool and confirm your plan now.
+2. User: Agent Instruction - Debug & Fix for Class Scheduling Flow (Reported missing classes on UI).
+3. User: Add the Emergent managed Google sign-in integration to my app.
+- **PENDING HUMAN MESSAGE**: User needs to verify the Emergent Google Sign-in flow and add ECUs/credits so the production deploy can be triggered.
 
 **Project Health Check:**
 - Broken: None (in preview).
@@ -120,16 +108,17 @@ None. All requested features and bug fixes have been successfully implemented an
 - Razorpay (Payments) — Requires User API Keys
 - Zoom Meeting SDK — Requires User API Keys
 - Resend (Emails) — Requires User API Keys
+- Emergent Managed Google Auth - Integrated via Emergent Integrations
 - Emergent LLM Key — Uses Emergent LLM Key (Used for Object Storage via )
 
 **Testing status**
-- Testing agent used after significant changes: YES (iterations 21 through 25).
+- Testing agent used after significant changes: YES (, ).
 - Troubleshoot agent used after agent stuck in loop: NO
-- Test files created: None this session.
-- Known regressions: None (Passed 100%).
+- Test files created: None.
+- Known regressions: None (All pytest cases passed).
 
 **Credentials to test flow:**
-Check . (Students migrated successfully to ).
+Check .
 
 **What agent forgot to execute**
-- Nothing. Only blocked by user's platform credits.</analysis>
+- Nothing. Only blocked by user's platform credits for production deployment.</analysis>
