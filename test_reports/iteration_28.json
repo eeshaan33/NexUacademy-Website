@@ -1,0 +1,47 @@
+{
+  "summary": "Iteration 28: Question Bank + Smart Test Creation feature verified end-to-end. Backend: 9/9 pytest passing (auth/me feature flag, 403 boundary, topic/subtopic create-or-return idempotency, MCQ_Single with PNG upload, Numerical_Decimal, tree counts, per-batch available with fresh_for/used_for arrays, record-assignments, delete-protection 409 + force=true, storage bucket public URL reachable). Frontend: TeacherLayout hides Question Bank for teacher@test.com and shows it for nitin@nexuacademy.com (after full page load). AddQuestion page supports inline topic + subtopic create via [data-testid=topic-combobox-create]/[subtopic-combobox-create], MCQ options, save, and '+ Add Another' shortcut. Browse page shows nested tree with counts and search filtering. CreateTest bank step: 'Next: Pick Questions from Bank →' button label correct, bank-topic/bank-subtopic tiles select, per-batch exclusion badge ('1 already used with these batch, hidden') displayed correctly, 'Create Test with N Question(s)' succeeds and toast 'Test created with 1 question(s) from the bank' appears + record-assignments persist (verified by seeing hidden count on re-entry).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "AuthContext.login() + /api/auth/login response",
+        "issue": "POST /api/auth/login response does NOT include user.features.question_bank. Only /api/auth/me computes it. AuthContext.login() sets user directly from the login response, so immediately after logging in as nitin@nexuacademy.com, TeacherLayout's `user?.features?.question_bank` is undefined and the 'Question Bank' sidebar nav is NOT visible. It only appears after a page reload (which triggers checkAuth() → /auth/me). Regular teachers are unaffected (they should get false either way). Fix: either add features={question_bank: teacher_has_question_bank(user_dict)} to the /auth/login response payload, OR make AuthContext.login() call /auth/me after successful login to hydrate features.",
+        "selector": "[data-testid=teacher-nav-question-bank]",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter28_question_bank.py",
+    "/app/test_reports/pytest/iter28_results.xml"
+  ],
+  "action_items": [
+    "Fix POST /api/auth/login (backend) to include user.features.question_bank in the response payload — mirror what /auth/me does, OR patch AuthContext.login() (frontend) to call /auth/me after successful login. Currently Nitin has to refresh the page to see the Question Bank nav after logging in.",
+    "(Housekeeping, non-blocking) DB has 3 leftover topics from backend pytest (Thermodynamics + Thermodynamics_956a1d + UITest_Topic_888888). Backend delete_question already cleans up assignments but does not delete stray subtopics/topics. Since original spec said tables must be empty at boot, main agent may want to add a cleanup or verify migrations don't reseed.",
+    "(Minor cleanup) middleware/auth.py still has an unused 'access_token' cookie fallback flagged in iteration_27."
+  ],
+  "critical_code_review_comments": [
+    "auth_routes.py POST /login handcrafts the user dict on line 61-68 with NO features field — this is the root cause of the sidebar-hidden bug. Best fix: refactor to a shared _build_user_response(user, profile) helper used by both /login and /me so features is always populated.",
+    "question_bank_routes.py _ensure_bucket() swallows all exceptions except 'already'/'duplicate' — good for idempotency, but any real bucket-create failure (network, quota) will only show up when the subsequent upload() call fails with a less clear message.",
+    "question_bank_routes.py record_assignments loops N*M inserts in Python — fine for typical test size (<200 questions × 3 batches), but consider bulk INSERT ... ON CONFLICT DO NOTHING with unnest() for performance.",
+    "question_bank_routes.py available_for_batches uses ANY($1::uuid[]) — if topic_ids/subtopic_ids ever contain invalid UUID strings, asyncpg will raise. Consider validating with Pydantic Query models or catching and 400ing."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter28_question_bank.py"
+  ],
+  "success_rate": {
+    "backend": "100% (9/9 pytest)",
+    "frontend": "92% — all Question Bank UI flows work; ONE post-login hydration bug: nav item missing until page refresh"
+  },
+  "test_credentials": "nitin@nexuacademy.com/nitin@123 (Question Bank teacher), teacher@test.com/password123 (regular teacher, correctly denied), admin@nexuacademy.com/nexuacademy123 (unused but available)",
+  "seed_data_creation": "Backend pytest created 2 test topics (Thermodynamics_<uuid>, cleaned questions but left topic/subtopic rows). UI test created 1 topic UITest_Topic_888888 and 1 subtopic UITest_Sub_888888 with 1 MCQ_Single question, plus 1 Thermodynamics-scoped Numerical_Decimal question, and 1 scheduled test 'UITest_Test_*' with 1 bank question assigned to NEX2027 (question_batch_assignments row present).",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "iteration_28 fully validated Question Bank + Smart Test Creation. ONE HIGH-priority bug found: /api/auth/login does not return user.features → Nitin's Question Bank nav is hidden until page reload. All other backend endpoints and frontend UI flows (topic/subtopic inline-create, question save, tree, search, bank picker, per-batch exclusion, test creation with assignment persistence) work correctly. DB has leftover test topics from this run — /teacher/topics currently returns 3 topics. When retesting after the login-features fix, only need to verify /api/auth/login response now contains user.features.question_bank AND that Nitin sees the nav immediately after login without reload.",
+  "rca of the issue": "AuthContext.login() (frontend/src/context/AuthContext.js line 63-69) sets user directly from POST /api/auth/login response. Backend /api/auth/login (backend/routes/auth_routes.py line 55-69) constructs the user dict manually with only {user_id, email, name, role, batch_id, profile_pic} — it does NOT invoke teacher_has_question_bank() and does NOT set the `features` key. Meanwhile /api/auth/me (line 120-136) adds `user['features'] = {'question_bank': teacher_has_question_bank(user)}` before returning. Consequence: on first render after login, user.features is undefined → `user?.features?.question_bank` is falsy → TeacherLayout's conditional nav entry is filtered out. A subsequent page refresh triggers AuthContext.checkAuth() → /auth/me → features hydrated → nav appears. FIX: Either (a) mirror the features computation into the /login response, or (b) after setTokens/setUser in AuthContext.login(), call checkAuth() to hit /me and hydrate. Option (a) is preferred (single source of truth for user shape)."
+}

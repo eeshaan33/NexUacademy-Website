@@ -148,3 +148,55 @@ See `/app/memory/test_credentials.md`.
 - P2: Dismiss-all live-now banners
 - P2: Shareable batch join links `/join/JEEM2027`
 - P2: Bookmarks + Custom Test builder + Teacher-CRUD admin flow
+- P2: Bulk-upload questions to bank (CSV + zipped images)
+- P2: Duplicate-question warning on save
+
+## Phase 19 (Feb 2026) — Question Bank + Smart Test Creation (Nitin Saini)
+- **Teacher seeded**: `nitin@nexuacademy.com` / `nitin@123` (bcrypt-hashed by
+  Supabase Auth) — added to `seed_service.SEEDS`.
+- **Feature flag**: `routes/question_bank_routes.QUESTION_BANK_TEACHERS`
+  (allow-list of teacher emails; admins bypass). Exposed on the client via
+  `user.features.question_bank` from both `/auth/login` and `/auth/me`.
+- **New tables (empty at boot, populated organically by teacher):**
+  - `topics` (unique name, subject, created_by)
+  - `subtopics` (topic-scoped unique name)
+  - `question_bank` (topic_id + subtopic_id + MCQ/Numerical, options JSONB,
+    correct_answers[], difficulty, marks, negative_marks, teacher_note)
+  - `question_batch_assignments` (question_id + batch_code UNIQUE — "used
+    with which batch" ledger, powers the per-batch smart exclusion)
+  - Storage bucket `question-bank-images` (public, created lazily).
+- **Backend routes** (`/api/teacher/...`, gated to allow-listed teachers):
+  - `GET/POST /topics`, `GET /topics/{id}/subtopics`, `POST /subtopics` —
+    all case-insensitive create-or-return (no silent duplicates)
+  - `POST /question-bank` (multipart: question image + 4 option images)
+  - `GET /question-bank`, `GET /question-bank/tree`,
+    `GET /question-bank/{id}`, `PUT /question-bank/{id}`
+  - `DELETE /question-bank/{id}` (409 if assignments exist; `?force=true` overrides)
+  - `GET /question-bank/available?topic_ids=&subtopic_ids=&batch_codes=` —
+    per-batch fresh/used arrays; hides questions already used for every
+    requested batch
+  - `POST /question-bank/record-assignments` — CreateTest calls this after
+    inserting bank questions so the ledger "remembers" the pairing
+- **Frontend pages**:
+  - `/teacher/question-bank` — collapsible tree Topics → Subtopics →
+    Questions with counts, live search, empty state, modal preview
+  - `/teacher/question-bank/new` — searchable combobox topic/subtopic with
+    inline "+ Create" (subject picker for new topics); drag-and-drop image
+    upload (question + per-option) with click-to-browse fallback; MCQ/
+    Numerical support; keeps topic+subtopic selected after save for rapid
+    entry with an "+ Add Another to <subtopic>" shortcut.
+  - `/teacher/tests` — new **bank picker step** between config & manual;
+    surfaces available questions given the chosen topic × subtopic × batch,
+    shows "N available, M already used with these batches, hidden" and per-
+    question "Fresh for X / Already used for Y" badges in multi-batch mode.
+    Publishing creates the test with bank questions embedded AND inserts
+    ledger rows for each (question, batch) pair.
+- **Sidebar**: "Question Bank" nav item shown only when
+  `user.features.question_bank === true`. Navy #1B3A52 theme applied to
+  all new pages.
+- **Verified**: iter28 backend 9/9 pytest + frontend E2E (topic-inline
+  create, subtopic-inline create, image drop, MCQ save, tree render,
+  search, bank picker per-batch exclusion, test creation with assignment
+  persistence). Post-testing HIGH bug fixed: `/auth/login` now hydrates
+  `user.features` so the sidebar renders instantly (no reload).
+

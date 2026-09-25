@@ -52,6 +52,10 @@ async def login(payload: LoginRequest):
     async with pool.acquire() as conn:
         profile = await conn.fetchrow("SELECT * FROM profiles WHERE id = $1", res.user.id)
 
+    prof = dict(profile) if profile else {}
+    from routes.question_bank_routes import teacher_has_question_bank
+    role = prof.get("role", "student")
+    email = res.user.email
     return {
         "success": True,
         "access_token": res.session.access_token,
@@ -60,11 +64,16 @@ async def login(payload: LoginRequest):
         "expires_at": res.session.expires_at,
         "user": {
             "user_id": str(res.user.id),
-            "email": res.user.email,
-            "name": (dict(profile) if profile else {}).get("name") or res.user.email,
-            "role": (dict(profile) if profile else {}).get("role", "student"),
-            "batch_id": (dict(profile) if profile else {}).get("batch_id"),
-            "profile_pic": (dict(profile) if profile else {}).get("profile_pic"),
+            "email": email,
+            "name": prof.get("name") or email,
+            "role": role,
+            "batch_id": prof.get("batch_id"),
+            "profile_pic": prof.get("profile_pic"),
+            "access_tier": prof.get("access_tier", "free"),
+            "is_existing_student": prof.get("is_existing_student", False),
+            "features": {
+                "question_bank": teacher_has_question_bank({"role": role, "email": email}),
+            },
         },
     }
 
