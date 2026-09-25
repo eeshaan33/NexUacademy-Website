@@ -159,6 +159,9 @@ const CreateTest = () => {
     subject: form.subject === 'All Subjects' ? '' : form.subject,
     chapter: '', difficulty: q.difficulty || 'Medium',
     teacher_note: q.teacher_note || '',
+    solution_youtube_url: q.solution_youtube_url || '',
+    solution_media_url: q.solution_media_url || '',
+    solution_media_type: q.solution_media_type || '',
     from_question_bank_id: q.id,
   });
 

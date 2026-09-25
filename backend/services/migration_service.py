@@ -182,6 +182,50 @@ async def run_migrations():
                 FOR EACH ROW EXECUTE FUNCTION public.normalize_qba_batch();
         """)
 
+        # add solution/hint enrichment cols (YouTube + image/video) — idempotent
+        await conn.execute("""
+            ALTER TABLE public.question_bank
+                ADD COLUMN IF NOT EXISTS solution_youtube_url TEXT,
+                ADD COLUMN IF NOT EXISTS solution_media_url   TEXT,
+                ADD COLUMN IF NOT EXISTS solution_media_type  TEXT
+                    CHECK (solution_media_type IN ('image','video'))
+        """)
+
+        # ---- OTP + trusted-device store (email OTP on signup + new-device login)
+        await conn.execute("""
+            ALTER TABLE public.profiles
+                ADD COLUMN IF NOT EXISTS phone TEXT,
+                ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMPTZ,
+                ADD COLUMN IF NOT EXISTS phone_verified_at TIMESTAMPTZ
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS public.auth_otps (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                email TEXT NOT NULL,
+                code_hash TEXT NOT NULL,
+                purpose TEXT NOT NULL CHECK (purpose IN ('signup','login')),
+                payload JSONB,
+                attempts INTEGER NOT NULL DEFAULT 0,
+                expires_at TIMESTAMPTZ NOT NULL,
+                verified_at TIMESTAMPTZ,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        """)
+        await conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_auth_otps_email ON public.auth_otps(email, purpose, created_at DESC)"
+        )
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS public.trusted_devices (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+                device_id TEXT NOT NULL,
+                last_ip TEXT,
+                last_seen_at TIMESTAMPTZ DEFAULT NOW(),
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                UNIQUE (user_id, device_id)
+            )
+        """)
+
         # ---- preseed_students (whitelist for first-time claim)
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS public.preseed_students (

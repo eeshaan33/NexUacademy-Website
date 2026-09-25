@@ -151,6 +151,64 @@ See `/app/memory/test_credentials.md`.
 - P2: Bulk-upload questions to bank (CSV + zipped images)
 - P2: Duplicate-question warning on save
 
+## Phase 20 (Feb 2026) — Solution enrichment + Email OTP + Central Contacts
+- **Question Bank solution/hint upgrade** (`question_bank` table):
+  - New columns: `solution_youtube_url` (paste `youtu.be/…?t=N` link with
+    timestamp → student sees a red "Go to YouTube" button in the modal)
+  - `solution_media_url` + `solution_media_type` ('image'|'video') — teacher
+    can drag-and-drop an image (≤5 MB) or a short MP4/WebM (≤25 MB) that
+    renders inline in the browse modal and in the student's solution view.
+  - Uploader helper `_upload_media()` writes to the `question-bank-images`
+    bucket under `<user_id>/solution/<uuid>`. Both image and video are
+    stored in the same public bucket.
+- **Email OTP verification** (Resend, shared with receipt_service):
+  - New tables: `auth_otps` (email, code_hash sha256, purpose in
+    signup/login, JSON payload, attempts, expires_at, verified_at) and
+    `trusted_devices` (user_id + device_id unique).
+  - `profiles` gains `phone`, `email_verified_at`, `phone_verified_at`.
+  - Endpoints (`/api/auth/otp/…`):
+    - `POST /start-signup`  → collect name/email/phone/password/batch,
+      write OTP + payload, email code
+    - `POST /verify-signup` → creates Supabase Auth user (bcrypt-hashed
+      by Supabase), writes profile with `email_verified_at`, auto-trusts
+      the signup device, returns tokens
+    - `POST /verify-login`  → after new-device password login, verifies
+      email code and trusts the device, returns tokens
+    - `POST /resend-login`  → rate-limited resend button on the OTP screen
+  - `POST /api/auth/login` now reads `X-Device-Id` header. Unknown device
+    → returns `{requires_otp: true, email}` and fires an email. Missing
+    header (legacy clients) → returns tokens (backward compat).
+  - `services/otp_email.py` — branded HTML template with the 6-digit code.
+  - **⚠️ Resend deliverability**: keys set, but the Resend account is in
+    "testing mode" — only mails to the account owner deliver. To email real
+    users, verify a domain at resend.com/domains and change `SENDER_EMAIL`
+    to something like `noreply@nexuacademy.com`.
+  - **SMS OTP intentionally deferred** — Signup screen has a phone field
+    and stores it; user chose "skip SMS for now, add later".
+- **Central contacts store** (single source of truth = `profiles`):
+  - `GET /api/admin/contacts` — JSON list (admin-only, 403 otherwise)
+  - `GET /api/admin/contacts/export.csv` — CSV of name/email/phone/role/
+    batch/verified-stamps/signup-date
+  - `AdminContactsPane` — new tab in the admin panel with live search,
+    verification badges, and one-click CSV download.
+- **Frontend wiring**:
+  - `api.js` now sends `X-Device-Id` (stable per-browser UUID in
+    localStorage) on every request — Emergent Google OAuth is naturally
+    excluded because it bypasses `/api/auth/login`.
+  - `AuthContext` gained `startSignupOtp`, `verifySignupOtp`,
+    `verifyLoginOtp`, `resendLoginOtp` helpers; `login()` returns
+    `{requires_otp: true}` instead of tokens when the device is new.
+  - `Signup.js` — 2-step form (details → 6-digit code), phone required.
+  - `Login.js` — OTP challenge screen shown only when backend requests it.
+
+## Backlog / Roadmap
+- P1: SMS OTP (Twilio / MSG91 / Fast2SMS) — user picked "add later"
+- P1: Domain verification on Resend so OTP emails deliver to any address
+- P1: Free-tier paywall UI wired to `access_tier`
+- P2: Referral rewards + dismiss-all live banners + receipt audit log
+- P2: Bulk-upload questions to bank (CSV + zipped images)
+- P2: Duplicate-question detection at save time
+
 ## Phase 19 (Feb 2026) — Question Bank + Smart Test Creation (Nitin Saini)
 - **Teacher seeded**: `nitin@nexuacademy.com` / `nitin@123` (bcrypt-hashed by
   Supabase Auth) — added to `seed_service.SEEDS`.

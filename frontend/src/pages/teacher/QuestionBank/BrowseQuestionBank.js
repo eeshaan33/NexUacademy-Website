@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRight, ChevronDown, FolderTree, Folder, Plus, Search, X, Loader2, Library } from 'lucide-react';
+import { ChevronRight, ChevronDown, FolderTree, Folder, Plus, Search, X, Loader2, Library, Youtube, Film } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../../utils/api';
 import { Button } from '../../../components/ui/button';
@@ -67,8 +67,31 @@ function QuestionModal({ question, onClose }) {
           )}
           {question.teacher_note && (
             <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
-              <div className="text-xs uppercase font-semibold text-slate-500 mb-1">Teacher note</div>
-              <div className="text-sm text-slate-700">{question.teacher_note}</div>
+              <div className="text-xs uppercase font-semibold text-slate-500 mb-1">Solution / Hint</div>
+              <div className="text-sm text-slate-700 whitespace-pre-wrap">{question.teacher_note}</div>
+            </div>
+          )}
+          {question.solution_youtube_url && (
+            <a
+              href={question.solution_youtube_url}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-lg bg-red-600 hover:bg-red-700 text-white px-4 py-2 text-sm font-medium transition-colors"
+              data-testid="qbank-solution-youtube-btn"
+            >
+              <Youtube className="h-4 w-4" /> Go to YouTube
+            </a>
+          )}
+          {question.solution_media_url && (
+            <div className="rounded-lg border border-slate-200 overflow-hidden bg-slate-50" data-testid="qbank-solution-media">
+              <div className="text-xs uppercase font-semibold text-slate-500 px-3 py-2 flex items-center gap-1.5 border-b border-slate-200 bg-white">
+                <Film className="h-3.5 w-3.5" /> Solution {question.solution_media_type}
+              </div>
+              {question.solution_media_type === 'video' ? (
+                <video src={question.solution_media_url} controls className="w-full max-h-72 bg-black" />
+              ) : (
+                <img src={question.solution_media_url} alt="solution" className="w-full max-h-72 object-contain" />
+              )}
             </div>
           )}
         </div>

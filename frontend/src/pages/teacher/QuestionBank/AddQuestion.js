@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   ChevronLeft, Upload, Image as ImageIcon, X, Check, PlusCircle,
-  Search, Loader2,
+  Search, Loader2, Youtube, Film,
 } from 'lucide-react';
 import api from '../../../utils/api';
 import { Button } from '../../../components/ui/button';
@@ -27,6 +27,7 @@ const emptyQuestion = () => ({
   marks: 4,
   negative_marks: -1,
   teacher_note: '',
+  solution_youtube_url: '',
 });
 
 /* ---------------- Searchable topic / subtopic combobox ---------------- */
@@ -184,6 +185,55 @@ function ImageDrop({ file, previewUrl, onFile, onClear, label = 'Drop image here
   );
 }
 
+/* --------------------- Image OR Video drop zone --------------------- */
+function MediaDrop({ file, onFile, onClear, testId }) {
+  const [drag, setDrag] = useState(false);
+  const validate = (f) => {
+    if (!f) return;
+    const isImage = f.type.startsWith('image/');
+    const isVideo = f.type.startsWith('video/');
+    if (!isImage && !isVideo) { toast.error('Only image or video allowed'); return; }
+    const limit = isVideo ? 25 * 1024 * 1024 : 5 * 1024 * 1024;
+    if (f.size > limit) { toast.error(`File exceeds ${limit / (1024 * 1024)} MB`); return; }
+    onFile(f);
+  };
+  if (file) {
+    const url = URL.createObjectURL(file);
+    const isVideo = file.type.startsWith('video/');
+    return (
+      <div className="relative inline-block">
+        {isVideo ? (
+          <video src={url} controls className="max-h-48 rounded-lg border border-slate-200 bg-black" />
+        ) : (
+          <img src={url} alt="solution" className="max-h-48 rounded-lg border border-slate-200 object-contain bg-slate-50" />
+        )}
+        <button type="button" onClick={onClear} data-testid={`${testId}-remove`}
+          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow">
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    );
+  }
+  return (
+    <label
+      onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
+      onDragLeave={() => setDrag(false)}
+      onDrop={(e) => { e.preventDefault(); setDrag(false); validate(e.dataTransfer.files?.[0]); }}
+      className={`flex flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed py-4 px-3 cursor-pointer transition-colors ${drag ? 'border-[#1B3A52] bg-[#1B3A52]/5' : 'border-slate-300 hover:border-[#1B3A52]/60 hover:bg-slate-50'}`}
+      data-testid={testId}
+    >
+      <Upload className="h-5 w-5 text-slate-400" />
+      <span className="text-xs text-slate-500 text-center">Drop an image (≤5 MB) or short video (≤25 MB) — or click to browse</span>
+      <input
+        type="file"
+        accept="image/png,image/jpeg,image/jpg,video/mp4,video/quicktime,video/webm"
+        className="sr-only"
+        onChange={(e) => validate(e.target.files?.[0])}
+      />
+    </label>
+  );
+}
+
 /* ============================== PAGE ============================== */
 export default function AddQuestion() {
   const navigate = useNavigate();
@@ -194,6 +244,7 @@ export default function AddQuestion() {
   const [q, setQ] = useState(emptyQuestion());
   const [qImage, setQImage] = useState(null);
   const [optImages, setOptImages] = useState({ A: null, B: null, C: null, D: null });
+  const [solutionMedia, setSolutionMedia] = useState(null); // image or video file
   const [saving, setSaving] = useState(false);
   const [savedCount, setSavedCount] = useState(0);
 
@@ -243,6 +294,7 @@ export default function AddQuestion() {
     setQ(emptyQuestion());
     setQImage(null);
     setOptImages({ A: null, B: null, C: null, D: null });
+    setSolutionMedia(null);
   };
 
   const validate = () => {
@@ -271,6 +323,8 @@ export default function AddQuestion() {
     fd.append('marks', String(q.marks));
     fd.append('negative_marks', String(q.negative_marks));
     fd.append('teacher_note', q.teacher_note);
+    fd.append('solution_youtube_url', q.solution_youtube_url || '');
+    if (solutionMedia) fd.append('solution_media', solutionMedia);
     if (q.question_type.startsWith('MCQ')) {
       fd.append('options_text', JSON.stringify({
         A: q.options.A.text, B: q.options.B.text, C: q.options.C.text, D: q.options.D.text,
@@ -502,15 +556,61 @@ export default function AddQuestion() {
             </div>
           </div>
 
-          <div>
-            <Label>Teacher Note (shown after wrong answer)</Label>
-            <textarea
-              rows={2}
-              value={q.teacher_note}
-              onChange={(e) => setQ({ ...q, teacher_note: e.target.value })}
-              className="w-full mt-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#1B3A52] focus:border-[#1B3A52]"
-              placeholder="Solution hint, common trap, etc."
-            />
+          <div className="rounded-xl border-2 border-[#1B3A52]/15 bg-[#1B3A52]/[0.03] p-4 space-y-4">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-[#1B3A52] text-white flex items-center justify-center">
+                <Check className="h-4 w-4" />
+              </div>
+              <div>
+                <div className="font-semibold text-slate-800">Solution / Hint (all optional)</div>
+                <div className="text-xs text-slate-500">Shown to students after an attempt. Add any combination — text, YouTube, image or video.</div>
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-slate-700 text-xs">Written Explanation</Label>
+              <textarea
+                rows={2}
+                value={q.teacher_note}
+                onChange={(e) => setQ({ ...q, teacher_note: e.target.value })}
+                className="w-full mt-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#1B3A52] focus:border-[#1B3A52]"
+                placeholder="Solution steps, common trap, key insight…"
+                data-testid="q-teacher-note"
+              />
+            </div>
+
+            <div>
+              <Label className="text-slate-700 text-xs flex items-center gap-1.5">
+                <Youtube className="h-3.5 w-3.5 text-red-600" />
+                YouTube Solution Link
+              </Label>
+              <Input
+                type="url"
+                placeholder="https://youtu.be/…?t=125  (paste the exact timestamp)"
+                value={q.solution_youtube_url}
+                onChange={(e) => setQ({ ...q, solution_youtube_url: e.target.value })}
+                className="mt-1"
+                data-testid="q-solution-youtube"
+              />
+              <p className="text-[11px] text-slate-500 mt-1">
+                Tip: on YouTube, right-click the video at the exact moment → <i>Copy video URL at current time</i>.
+              </p>
+            </div>
+
+            <div>
+              <Label className="text-slate-700 text-xs flex items-center gap-1.5">
+                <Film className="h-3.5 w-3.5 text-[#1B3A52]" />
+                Solution Image or Short Video
+              </Label>
+              <div className="mt-1">
+                <MediaDrop
+                  file={solutionMedia}
+                  onFile={setSolutionMedia}
+                  onClear={() => setSolutionMedia(null)}
+                  testId="q-solution-media"
+                />
+              </div>
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-3 pt-4 border-t border-slate-200">

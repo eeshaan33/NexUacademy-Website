@@ -37,7 +37,7 @@ class SignupRequest(BaseModel):
 
 
 @router.post("/login")
-async def login(payload: LoginRequest):
+async def login(payload: LoginRequest, request: Request):
     supabase = get_supabase()
     try:
         res = supabase.auth.sign_in_with_password({"email": payload.email, "password": payload.password})
@@ -54,8 +54,33 @@ async def login(payload: LoginRequest):
 
     prof = dict(profile) if profile else {}
     from routes.question_bank_routes import teacher_has_question_bank
+    from routes.otp_routes import is_device_trusted, issue_login_challenge
     role = prof.get("role", "student")
     email = res.user.email
+
+    # New-device OTP challenge — only enforced when the client sends a device id
+    # (backward-compatible for older clients that haven't been upgraded yet).
+    device_id = (request.headers.get("x-device-id") or "").strip()
+    if device_id:
+        trusted = await is_device_trusted(str(res.user.id), device_id)
+        if not trusted:
+            await issue_login_challenge(email)
+            return {
+                "success": True,
+                "requires_otp": True,
+                "email": email,
+                "message": "New device detected — check your email for a 6-digit code.",
+            }
+        # Trusted — refresh last_seen_at
+        client_ip = request.client.host if request.client else None
+        async with pool.acquire() as conn:
+            await conn.execute(
+                """UPDATE trusted_devices
+                     SET last_seen_at = NOW(), last_ip = $3
+                   WHERE user_id = $1 AND device_id = $2""",
+                res.user.id, device_id, client_ip,
+            )
+
     return {
         "success": True,
         "access_token": res.session.access_token,
@@ -69,6 +94,7 @@ async def login(payload: LoginRequest):
             "role": role,
             "batch_id": prof.get("batch_id"),
             "profile_pic": prof.get("profile_pic"),
+            "phone": prof.get("phone"),
             "access_tier": prof.get("access_tier", "free"),
             "is_existing_student": prof.get("is_existing_student", False),
             "features": {

@@ -69,6 +69,31 @@ async def _upload_image(file: UploadFile, user_id: str) -> str:
     return supabase.storage.from_(BUCKET).get_public_url(key)
 
 
+async def _upload_media(file: UploadFile, user_id: str) -> tuple[str, str]:
+    """Upload a solution image or video. Returns (public_url, 'image'|'video')."""
+    ct = file.content_type or ""
+    if ct.startswith("image/"):
+        kind = "image"; limit = 5 * 1024 * 1024
+    elif ct.startswith("video/"):
+        kind = "video"; limit = 25 * 1024 * 1024
+    else:
+        raise HTTPException(status_code=400, detail="Solution media must be an image or a video")
+    data = await file.read()
+    if len(data) > limit:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{kind.capitalize()} exceeds {limit // (1024 * 1024)} MB limit",
+        )
+    _ensure_bucket()
+    ext = mimetypes.guess_extension(ct) or (".png" if kind == "image" else ".mp4")
+    if ext.lower() == ".jpeg":
+        ext = ".jpg"
+    key = f"{user_id}/solution/{uuid.uuid4().hex}{ext}"
+    supabase = get_supabase_admin()
+    supabase.storage.from_(BUCKET).upload(key, data, {"content-type": ct, "upsert": "true"})
+    return supabase.storage.from_(BUCKET).get_public_url(key), kind
+
+
 # =============================================================================
 # TOPICS
 # =============================================================================
@@ -178,11 +203,13 @@ async def create_question(
     marks: int = Form(4),
     negative_marks: int = Form(-1),
     teacher_note: Optional[str] = Form(""),
+    solution_youtube_url: Optional[str] = Form(""),
     question_image: Optional[UploadFile] = File(None),
     option_a_image: Optional[UploadFile] = File(None),
     option_b_image: Optional[UploadFile] = File(None),
     option_c_image: Optional[UploadFile] = File(None),
     option_d_image: Optional[UploadFile] = File(None),
+    solution_media: Optional[UploadFile] = File(None),
 ):
     user = await get_qbank_teacher(request)
     if question_type not in ("MCQ_Single", "MCQ_Multiple", "Numerical_Integer", "Numerical_Decimal"):
@@ -228,6 +255,13 @@ async def create_question(
             except ValueError:
                 ans_range = None
 
+    # Solution media (image OR video) + YouTube link
+    solution_media_url = None
+    solution_media_type = None
+    if solution_media is not None and solution_media.filename:
+        solution_media_url, solution_media_type = await _upload_media(solution_media, user["user_id"])
+    yt = (solution_youtube_url or "").strip() or None
+
     pool = get_pool()
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
@@ -235,8 +269,9 @@ async def create_question(
             INSERT INTO question_bank
               (topic_id, subtopic_id, question_text, question_image_url, question_type,
                options, correct_answers, numerical_answer, answer_range, difficulty,
-               marks, negative_marks, teacher_note, created_by)
-            VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9::jsonb,$10,$11,$12,$13,$14)
+               marks, negative_marks, teacher_note, solution_youtube_url,
+               solution_media_url, solution_media_type, created_by)
+            VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9::jsonb,$10,$11,$12,$13,$14,$15,$16,$17)
             RETURNING *
             """,
             topic_id, subtopic_id,
@@ -245,7 +280,9 @@ async def create_question(
             correct, num_ans,
             json.dumps(ans_range) if ans_range else None,
             difficulty, marks, negative_marks,
-            (teacher_note or "").strip(), user["user_id"],
+            (teacher_note or "").strip(), yt,
+            solution_media_url, solution_media_type,
+            user["user_id"],
         )
     return {"success": True, "question": json_safe(row)}
 
@@ -378,6 +415,9 @@ class QuestionUpdate(BaseModel):
     marks: Optional[int] = None
     negative_marks: Optional[int] = None
     teacher_note: Optional[str] = None
+    solution_youtube_url: Optional[str] = None
+    solution_media_url: Optional[str] = None
+    solution_media_type: Optional[str] = None
 
 
 @router.put("/question-bank/{question_id}")

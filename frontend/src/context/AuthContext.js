@@ -61,11 +61,65 @@ export const AuthProvider = ({ children }) => {
   }, [checkAuth]);
 
   const login = async (email, password) => {
-    const response = await axios.post(`${API}/auth/login`, { email, password });
+    // Stable device id — backend uses it to decide if OTP is needed.
+    let deviceId = '';
+    try {
+      deviceId = localStorage.getItem('nx_device_id') || '';
+      if (!deviceId) {
+        deviceId = (crypto.randomUUID && crypto.randomUUID()) || `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+        localStorage.setItem('nx_device_id', deviceId);
+      }
+    } catch { /* private mode */ }
+
+    const response = await axios.post(
+      `${API}/auth/login`, { email, password },
+      { headers: deviceId ? { 'X-Device-Id': deviceId } : {} },
+    );
+
+    if (response.data?.requires_otp) {
+      // Caller (Login.js) is responsible for showing the OTP step.
+      return response.data;
+    }
     setTokens(response.data.access_token || response.data.token, response.data.refresh_token);
     setUser(response.data.user);
     setIsAuthenticated(true);
     return response.data;
+  };
+
+  const verifyLoginOtp = async (email, password, code) => {
+    const deviceId = localStorage.getItem('nx_device_id') || '';
+    const response = await axios.post(
+      `${API}/auth/otp/verify-login`,
+      { email, password, code },
+      { headers: deviceId ? { 'X-Device-Id': deviceId } : {} },
+    );
+    setTokens(response.data.access_token || response.data.token, response.data.refresh_token);
+    setUser(response.data.user);
+    setIsAuthenticated(true);
+    return response.data;
+  };
+
+  const startSignupOtp = async (fields) => {
+    // fields: {name, email, phone, password, batch_code}
+    const { data } = await axios.post(`${API}/auth/otp/start-signup`, fields);
+    return data;
+  };
+
+  const verifySignupOtp = async (email, code) => {
+    const deviceId = localStorage.getItem('nx_device_id') || '';
+    const response = await axios.post(
+      `${API}/auth/otp/verify-signup`,
+      { email, code },
+      { headers: deviceId ? { 'X-Device-Id': deviceId } : {} },
+    );
+    setTokens(response.data.access_token || response.data.token, response.data.refresh_token);
+    setUser(response.data.user);
+    setIsAuthenticated(true);
+    return response.data;
+  };
+
+  const resendLoginOtp = async (email) => {
+    await axios.post(`${API}/auth/otp/resend-login`, { email });
   };
 
   const register = async (userData) => {
@@ -108,6 +162,10 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated,
     login,
     register,
+    verifyLoginOtp,
+    startSignupOtp,
+    verifySignupOtp,
+    resendLoginOtp,
     loginWithGoogle,
     loginWithEmergent,
     logout,

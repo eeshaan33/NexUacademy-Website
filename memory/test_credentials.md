@@ -11,6 +11,16 @@ every automated test.
 | Teacher (Question Bank) | nitin@nexuacademy.com | nitin@123      | —        |
 | Teacher2 | teacher2_iter17@nexuacademy.com      | password123        | —        |
 | Student  | student@test.com                     | password123        | NEX2027  |
+| OTP Test | otp.tester@example.com               | testpass123        | NEX2027  |
+
+**OTP flow notes for testing:**
+- Signup: `POST /api/auth/otp/start-signup` → OTP row saved in `auth_otps` table.
+  In testing, recover the plaintext code by brute-forcing the 6-digit space
+  against `code_hash` (sha256("email_lowercase::code")).
+- Login: send `X-Device-Id: <uuid>` header. Unknown device → `requires_otp: true`.
+  Legacy clients without the header still get tokens (backward compat).
+- All contacts (name + email + phone + verified stamps) live in `profiles`.
+  Admin export: `GET /api/admin/contacts` and `.csv`.
 
 ## Predefined batches (in DB, ready to use as batch codes)
 - `JEEM2027` — JEE Mains 2027
