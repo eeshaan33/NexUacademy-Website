@@ -248,7 +248,6 @@ export default function AddQuestion() {
   const validate = () => {
     if (!topicId) return 'Pick a topic';
     if (!subtopicId) return 'Pick a subtopic';
-    if (!q.question_text.trim() && !qImage) return 'Enter question text or upload a question image';
     if (q.question_type.startsWith('MCQ')) {
       if (q.correct_answers.length === 0) return 'Select at least one correct option';
       if (q.question_type === 'MCQ_Single' && q.correct_answers.length !== 1)
@@ -377,7 +376,7 @@ export default function AddQuestion() {
 
           {/* Question text */}
           <div>
-            <Label className="text-slate-700">Question Text (LaTeX supported)</Label>
+            <Label className="text-slate-700">Question Text (optional, LaTeX supported)</Label>
             <textarea
               rows={4}
               value={q.question_text}
