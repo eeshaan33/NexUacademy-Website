@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 SEEDS = [
     {"email": "admin@nexuacademy.com", "password": "nexuacademy123", "name": "NexUacademy Admin", "role": "admin"},
     {"email": "teacher@test.com",      "password": "password123",    "name": "Demo Teacher",       "role": "teacher"},
-    {"email": "nitin@nexuacademy.com", "password": "nitin@123",      "name": "Nitin Saini",        "role": "teacher"},
+    {"email": "nitinsaini.iitkgp@gmail.com", "password": "nitin@123",      "name": "Nitin Saini",        "role": "teacher"},
     {"email": "student@test.com",      "password": "password123",    "name": "Demo Student",       "role": "student", "batch_id": "NEX2027"},
 ]
 

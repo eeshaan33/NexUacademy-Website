@@ -20,7 +20,7 @@ router = APIRouter(prefix="/teacher", tags=["question-bank"])
 logger = logging.getLogger(__name__)
 
 # ---- Feature flag: which teacher emails see the Question Bank ---------------
-QUESTION_BANK_TEACHERS = {"nitin@nexuacademy.com"}
+QUESTION_BANK_TEACHERS = {"nitinsaini.iitkgp@gmail.com"}
 
 BUCKET = "question-bank-images"
 
