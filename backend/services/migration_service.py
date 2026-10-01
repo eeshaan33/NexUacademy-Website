@@ -203,13 +203,22 @@ async def run_migrations():
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 email TEXT NOT NULL,
                 code_hash TEXT NOT NULL,
-                purpose TEXT NOT NULL CHECK (purpose IN ('signup','login')),
+                purpose TEXT NOT NULL CHECK (purpose IN ('signup','login','email_verify')),
                 payload JSONB,
                 attempts INTEGER NOT NULL DEFAULT 0,
                 expires_at TIMESTAMPTZ NOT NULL,
                 verified_at TIMESTAMPTZ,
                 created_at TIMESTAMPTZ DEFAULT NOW()
             )
+        """)
+        # If table already existed with the old check constraint, migrate it.
+        await conn.execute("""
+            DO $$ BEGIN
+              ALTER TABLE public.auth_otps DROP CONSTRAINT IF EXISTS auth_otps_purpose_check;
+              ALTER TABLE public.auth_otps
+                ADD CONSTRAINT auth_otps_purpose_check
+                CHECK (purpose IN ('signup','login','email_verify'));
+            EXCEPTION WHEN others THEN NULL; END $$;
         """)
         await conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_auth_otps_email ON public.auth_otps(email, purpose, created_at DESC)"

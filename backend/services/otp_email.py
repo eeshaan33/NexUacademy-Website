@@ -13,17 +13,22 @@ def send_otp_email(to_email: str, code: str, purpose: str = "verification") -> b
     if not api_key or not to_email:
         logger.info("Resend not configured or missing recipient; skipping OTP email")
         return False
+    # Expiry depends on purpose — the generic email_verify flow uses 5 min, auth flows use 10 min.
+    expiry_minutes = 5 if purpose == "email_verify" else 10
     subject = {
         "signup": "NexUacademy — Verify your email",
         "login": "NexUacademy — New device login code",
+        "email_verify": "Your NexUacademy Verification Code",
     }.get(purpose, "NexUacademy — Your verification code")
     heading = {
         "signup": "Welcome to NexUacademy! 👋",
         "login": "New device sign-in",
+        "email_verify": "Verify your email",
     }.get(purpose, "Your verification code")
     body_line = {
         "signup": "Use the code below to finish setting up your account.",
         "login": "We noticed a sign-in from a new device. Confirm it's you with the code below.",
+        "email_verify": "Use this one-time code to verify your email address.",
     }.get(purpose, "Use this one-time code to continue.")
 
     html = f"""
@@ -37,7 +42,7 @@ def send_otp_email(to_email: str, code: str, purpose: str = "verification") -> b
         <div style="font-size: 12px; color:#64748b; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px;">Verification Code</div>
         <div style="font-size: 34px; font-weight: 700; letter-spacing: 0.4em; color:#1B3A52;">{code}</div>
       </div>
-      <p style="color:#64748b; font-size: 13px;">This code expires in <b>10 minutes</b>. If you didn't request it, you can safely ignore this email.</p>
+      <p style="color:#64748b; font-size: 13px;">This code expires in <b>{expiry_minutes} minutes</b>. If you didn't request it, you can safely ignore this email.</p>
       <hr style="border:none; border-top:1px solid #e2e8f0; margin: 24px 0;" />
       <p style="color:#94a3b8; font-size: 12px; text-align:center;">© NexUacademy · Auto-generated, please don't reply.</p>
     </div>

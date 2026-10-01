@@ -17,6 +17,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 from config.database import get_pool, get_supabase, get_supabase_admin
 from middleware.auth import get_current_user
+from services.otp_email import send_otp_email
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 logger = logging.getLogger(__name__)
@@ -27,6 +28,15 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class EmailOnlyRequest(BaseModel):
+    email: EmailStr
+
+
+class VerifyOtpRequest(BaseModel):
+    email: EmailStr
+    otp: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
+
+
 class SignupRequest(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=6)
@@ -34,6 +44,78 @@ class SignupRequest(BaseModel):
     role: str = "student"
     batch_code: Optional[str] = None
     phone_number: Optional[str] = None
+
+
+# =============================================================================
+# Generic email-OTP endpoints (per Phase-21 spec)
+#   POST /api/auth/send-otp     { email }        → sends 6-digit code, 5 min TTL
+#   POST /api/auth/verify-otp   { email, otp }   → marks verified, clears code
+# Backed by the same `auth_otps` table as the signup/login flows but with the
+# dedicated purpose='email_verify' so it never collides with those codes.
+# =============================================================================
+import hashlib
+import secrets as _secrets
+from datetime import datetime, timedelta, timezone
+
+GENERIC_OTP_TTL_MIN = 5
+GENERIC_OTP_MAX_ATTEMPTS = 5
+
+
+def _hash_generic(code: str, email: str) -> str:
+    return hashlib.sha256(f"{email.lower()}::{code}".encode()).hexdigest()
+
+
+@router.post("/send-otp")
+async def send_otp(payload: EmailOnlyRequest):
+    email = payload.email.lower()
+    code = f"{_secrets.randbelow(1_000_000):06d}"
+    expires = datetime.now(timezone.utc) + timedelta(minutes=GENERIC_OTP_TTL_MIN)
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        # Invalidate any prior unverified codes for this email
+        await conn.execute(
+            """UPDATE auth_otps SET verified_at = NOW()
+                 WHERE email = $1 AND purpose = 'email_verify' AND verified_at IS NULL""",
+            email,
+        )
+        await conn.execute(
+            """INSERT INTO auth_otps (email, code_hash, purpose, expires_at)
+               VALUES ($1, $2, 'email_verify', $3)""",
+            email, _hash_generic(code, email), expires,
+        )
+    sent = send_otp_email(email, code, purpose="email_verify")
+    if not sent:
+        # Keep returning success=true so attackers can't enumerate deliverability,
+        # but log the real reason.
+        logger.warning(f"send-otp: Resend delivery failed for {email}")
+    return {"success": True, "message": "OTP sent successfully"}
+
+
+@router.post("/verify-otp")
+async def verify_otp(payload: VerifyOtpRequest):
+    email = payload.email.lower()
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """SELECT * FROM auth_otps
+                WHERE email = $1 AND purpose = 'email_verify'
+                  AND verified_at IS NULL AND expires_at > NOW()
+                ORDER BY created_at DESC LIMIT 1""",
+            email,
+        )
+        if not row:
+            raise HTTPException(status_code=400, detail="No active code — request a new one")
+        if row["attempts"] >= GENERIC_OTP_MAX_ATTEMPTS:
+            raise HTTPException(status_code=429, detail="Too many attempts — request a new code")
+        if row["code_hash"] != _hash_generic(payload.otp, email):
+            await conn.execute(
+                "UPDATE auth_otps SET attempts = attempts + 1 WHERE id = $1", row["id"]
+            )
+            raise HTTPException(status_code=400, detail="Incorrect code")
+        await conn.execute(
+            "UPDATE auth_otps SET verified_at = NOW() WHERE id = $1", row["id"]
+        )
+    return {"success": True, "message": "Email verified"}
 
 
 @router.post("/login")
