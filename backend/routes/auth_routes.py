@@ -17,7 +17,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 from config.database import get_pool, get_supabase, get_supabase_admin
 from middleware.auth import get_current_user
-from services.otp_email import send_otp_email
+from services.otp_email import send_otp_email, get_resend_email_status
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 logger = logging.getLogger(__name__)
@@ -102,6 +102,17 @@ async def send_otp(payload: EmailOnlyRequest):
             },
         )
     return {"success": True, "message": "OTP sent successfully", "resend_id": result.get("id")}
+
+
+@router.get("/send-otp/status/{email_id}")
+async def send_otp_status(email_id: str):
+    """Diagnostic — look up delivery status of a previously-sent OTP email.
+    Lets you prove deliverability end-to-end without logging into Resend.
+    """
+    status = get_resend_email_status(email_id)
+    if not status.get("ok"):
+        raise HTTPException(status_code=502, detail=status)
+    return status
 
 
 @router.post("/verify-otp")
