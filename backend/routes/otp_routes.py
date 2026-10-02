@@ -113,6 +113,21 @@ async def start_signup(payload: SignupStart):
         },
     )
     sent = send_otp_email(email, code, purpose="signup")
+    if not sent.get("ok"):
+        logger.warning(
+            f"start-signup: Resend delivery failed for {email}: "
+            f"name={sent.get('name')} status={sent.get('status_code')} message={sent.get('error')}"
+        )
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "success": False,
+                "message": "Could not send verification email. Please contact support if this persists.",
+                "resend_error": sent.get("error"),
+                "resend_status_code": sent.get("status_code"),
+                "resend_error_name": sent.get("name"),
+            },
+        )
     return {"success": True, "email_sent": sent, "expires_in_minutes": OTP_TTL_MIN}
 
 
@@ -208,6 +223,20 @@ async def resend_login_code(payload: LoginOtpStart):
     """Manual resend button on the OTP screen."""
     code = await _create_otp(email=payload.email, purpose="login")
     sent = send_otp_email(payload.email, code, purpose="login")
+    if not sent.get("ok"):
+        logger.warning(
+            f"resend-login: Resend delivery failed for {payload.email}: "
+            f"name={sent.get('name')} status={sent.get('status_code')} message={sent.get('error')}"
+        )
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "success": False,
+                "message": "Could not send verification email",
+                "resend_error": sent.get("error"),
+                "resend_status_code": sent.get("status_code"),
+            },
+        )
     return {"success": True, "email_sent": sent, "expires_in_minutes": OTP_TTL_MIN}
 
 
@@ -283,4 +312,9 @@ async def is_device_trusted(user_id: str, device_id: str) -> bool:
 
 async def issue_login_challenge(email: str) -> None:
     code = await _create_otp(email=email, purpose="login")
-    send_otp_email(email, code, purpose="login")
+    sent = send_otp_email(email, code, purpose="login")
+    if not sent.get("ok"):
+        logger.warning(
+            f"issue_login_challenge: Resend delivery failed for {email}: "
+            f"name={sent.get('name')} status={sent.get('status_code')} message={sent.get('error')}"
+        )
