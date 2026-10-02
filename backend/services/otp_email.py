@@ -7,12 +7,20 @@ import resend
 logger = logging.getLogger(__name__)
 
 
-def send_otp_email(to_email: str, code: str, purpose: str = "verification") -> bool:
+def send_otp_email(to_email: str, code: str, purpose: str = "verification") -> dict:
+    """Send a branded OTP email via Resend.
+
+    Returns a dict so the caller can decide how to handle failures:
+      - {"ok": True,  "id": <resend_id>}
+      - {"ok": False, "error": <message>, "status_code": <int|None>, "name": <resend_err_name|None>}
+    """
     api_key = (os.environ.get("RESEND_API_KEY") or "").strip()
-    sender = (os.environ.get("SENDER_EMAIL") or "onboarding@resend.dev").strip()
-    if not api_key or not to_email:
-        logger.info("Resend not configured or missing recipient; skipping OTP email")
-        return False
+    sender = (os.environ.get("SENDER_EMAIL") or "").strip() or "NexUacademy <info@nexuacademy.com>"
+    if not api_key:
+        return {"ok": False, "error": "RESEND_API_KEY not configured on the server", "status_code": None, "name": "missing_api_key"}
+    if not to_email:
+        return {"ok": False, "error": "Missing recipient", "status_code": None, "name": "missing_to"}
+
     # Expiry depends on purpose — the generic email_verify flow uses 5 min, auth flows use 10 min.
     expiry_minutes = 5 if purpose == "email_verify" else 10
     subject = {
@@ -49,13 +57,28 @@ def send_otp_email(to_email: str, code: str, purpose: str = "verification") -> b
     """
     try:
         resend.api_key = api_key
-        resend.Emails.send({
+        res = resend.Emails.send({
             "from": sender,
             "to": to_email,
             "subject": subject,
             "html": html,
         })
-        return True
+        # resend-python returns a dict with 'id' on success
+        if isinstance(res, dict) and res.get("id"):
+            return {"ok": True, "id": res["id"]}
+        # Some SDK versions nest the error object
+        if isinstance(res, dict) and res.get("error"):
+            err = res["error"]
+            return {"ok": False, "error": err.get("message", str(err)),
+                    "status_code": err.get("statusCode"), "name": err.get("name")}
+        logger.warning(f"Resend returned unexpected shape: {res!r}")
+        return {"ok": False, "error": f"Unexpected Resend response: {res!r}", "status_code": None, "name": "unexpected"}
     except Exception as e:
-        logger.warning(f"Resend OTP email failed for {to_email}: {e}")
-        return False
+        # resend SDK raises resend.exceptions.ResendError for API errors — grab everything useful
+        status = getattr(e, "status_code", None) or getattr(e, "code", None)
+        name = getattr(e, "name", None) or type(e).__name__
+        msg = getattr(e, "message", None) or str(e)
+        logger.warning(
+            f"Resend OTP email failed for {to_email}: name={name} status={status} message={msg}"
+        )
+        return {"ok": False, "error": msg, "status_code": status, "name": name}

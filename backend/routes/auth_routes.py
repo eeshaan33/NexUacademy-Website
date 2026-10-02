@@ -83,12 +83,25 @@ async def send_otp(payload: EmailOnlyRequest):
                VALUES ($1, $2, 'email_verify', $3)""",
             email, _hash_generic(code, email), expires,
         )
-    sent = send_otp_email(email, code, purpose="email_verify")
-    if not sent:
-        # Keep returning success=true so attackers can't enumerate deliverability,
-        # but log the real reason.
-        logger.warning(f"send-otp: Resend delivery failed for {email}")
-    return {"success": True, "message": "OTP sent successfully"}
+
+    result = send_otp_email(email, code, purpose="email_verify")
+    if not result.get("ok"):
+        # Surface the real Resend error back to the client — no silent success.
+        logger.warning(
+            f"send-otp: Resend delivery failed for {email}: "
+            f"name={result.get('name')} status={result.get('status_code')} message={result.get('error')}"
+        )
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "success": False,
+                "message": "Could not send verification email",
+                "resend_error": result.get("error"),
+                "resend_status_code": result.get("status_code"),
+                "resend_error_name": result.get("name"),
+            },
+        )
+    return {"success": True, "message": "OTP sent successfully", "resend_id": result.get("id")}
 
 
 @router.post("/verify-otp")
