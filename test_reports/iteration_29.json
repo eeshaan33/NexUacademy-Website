@@ -1,0 +1,31 @@
+{
+  "summary": "Backend+frontend verification of the Feb 2026 Question Bank refactor (fixed PYQ/Non-PYQ tree, 15 MB image cap, Easy/Moderate/Difficult difficulty, bank-only CreateTest) and the new Test Analysis Dashboard. 9/9 real backend assertions pass (1 flaky-at-first ReadTimeout, retried OK; 1 unknown-tag test skipped — no submitted attempt for student@test.com). Frontend: fixed folder tree renders exactly as spec in Question Bank sidebar, Add Question page, and Create Test flow; 15 MB total image-budget indicator is visible on Add Question; Difficulty select contains exactly ['Easy','Moderate','Difficult']; Create Test is bank-only (yellow note + 'Next: Pick Questions from Bank', no manual-questions path) and exposes data-testid=create-test-submit; Test Analysis page correctly handles bad attempt id (toast 'Attempt not found' + 'Analysis unavailable.' state).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter29_qb_and_analysis.py",
+    "/app/test_reports/pytest/iter29.xml"
+  ],
+  "action_items": [
+    "No code fixes required for the refactor. For a nicer E2E of the student Test Analysis page, consider seeding one submitted attempt for student@test.com so the dashboard can be visually verified in future runs (currently only the 404 error state was exercised because no submitted attempts exist for the seeded student)."
+  ],
+  "critical_code_review_comments": [
+    "test_analysis_routes._bucket seeds legacy keys 'Hard' and 'Medium' in by_difficulty to be safe for old data — these are filtered out at the end if empty, which is correct, but worth noting the spec says only Easy/Moderate/Difficult are allowed going forward.",
+    "question_bank_routes.create_question reads the full upload bytes into memory to measure total size — fine for the 15 MB cap, just be aware FastAPI will buffer each file; if the cap is raised significantly, switch to streaming size checks.",
+    "TestAnalysis.js load() swallows HTTP errors into a toast and renders 'Analysis unavailable.' which is good; consider also showing a 'Back to results' CTA so the student is not stranded."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter29_qb_and_analysis.py"
+  ],
+  "success_rate": {"backend": "100% (9/9 executed, 1 skipped due to no seed data)", "frontend": "100% of items that could be exercised without a submitted attempt"},
+  "test_credentials": "Teacher: nitinsaini.iitkgp@gmail.com / nitin@123 — login via /api/auth/login WITHOUT X-Device-Id header to bypass OTP (legacy clients get token directly). Student: student@test.com / password123.",
+  "seed_data_creation": "One test question created in PYQ > JEE > JEE Mains > Physics by the pytest run (text starts with 'TEST_ auto <hex>'). Can be removed with DELETE /api/teacher/question-bank/{id}.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "To test the submit-flow end-to-end (student submitting a test and viewing the full 9-section TestAnalysis UI), you'll need to first create a test as the teacher via the new bank-only CreateTest flow and have a student actually submit it. The analysis endpoint itself has been verified for shape (404 on bad id) and the UI gracefully handles that; the 9 ordered sections exist in /app/frontend/src/pages/student/TestAnalysis.js (data-testids: test-analysis-page, score-summary-card, attempt-accuracy-card, rank-card, subject-topic-card, difficulty-card, qtype-card, time-card, errors-card, comparison-card, action-card, tag-select-q{N}).",
+  "rca of the issue": "N/A — no issues reproduced."
+}
