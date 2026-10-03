@@ -27,6 +27,7 @@ const FeeStructure = lazy(() => import("./pages/FeeStructure"));
 const FirstTimeSetup = lazy(() => import("./pages/FirstTimeSetup"));
 const UpgradePage = lazy(() => import("./pages/UpgradePage"));
 const StudentAnalytics = lazy(() => import("./pages/student/AnalyticsDashboard"));
+const TestAnalysis = lazy(() => import("./pages/student/TestAnalysis"));
 const SampleQuestions = lazy(() => import("./pages/SampleQuestions"));
 
 const TeacherDashboard = lazy(() => import("./pages/teacher/TeacherDashboard"));
@@ -76,6 +77,7 @@ function AppRouter() {
           <Route path="/sample-questions" element={<SampleQuestions />} />
           <Route path="/fee-structure" element={<ProtectedRoute><FeeStructure /></ProtectedRoute>} />
           <Route path="/analytics" element={<ProtectedRoute><Layout><StudentAnalytics /></Layout></ProtectedRoute>} />
+          <Route path="/test-analysis/:attemptId" element={<ProtectedRoute><Layout><TestAnalysis /></Layout></ProtectedRoute>} />
 
           {/* Teacher Routes */}
           <Route path="/teacher" element={<ProtectedRoute><TeacherLayout><TeacherDashboard /></TeacherLayout></ProtectedRoute>} />

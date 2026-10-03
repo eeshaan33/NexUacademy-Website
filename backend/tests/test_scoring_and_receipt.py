@@ -15,7 +15,7 @@ BACKEND_DIR = "/app/backend"
 if BACKEND_DIR not in sys.path:
     sys.path.insert(0, BACKEND_DIR)
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://neet-jee-prep-55.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://nexu-qbank.preview.emergentagent.com").rstrip("/")
 API = f"{BASE_URL}/api"
 
 RAZORPAY_KEY_SECRET = "MPm0hqGI2U4iIVf6Yh2EDGMU"

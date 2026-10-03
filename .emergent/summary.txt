@@ -1,50 +1,57 @@
-<analysis>**original_problem_statement**: Complete JEE/NEET platform with Teacher Dashboard, Student Site, Admin Panel, and highly advanced NTA-pattern tests. The app needed a diagnostic regression on the Class Scheduling flow (which was missing classes on the UI) and integration of Emergent-managed Google Sign-in alongside the existing Supabase authentication.
+<analysis>**original_problem_statement**: Complete JEE/NEET platform with Teacher Dashboard, Student Site, Admin Panel, and highly advanced NTA-pattern tests. The most recent focus was adding a comprehensive Question Bank + Smart Test Creation feature and implementing an Email OTP verification system on student signup via Resend.
 
 **PRODUCT REQUIREMENTS:**
 -   **Tech Stack:** Python/FastAPI backend + React frontend + Supabase (PostgreSQL, Auth, Storage).
--   **Auth/Roles:** Admin, Teacher, Student. Supabase Auth + Emergent Google OAuth side-by-side. Pre-seeded users claimed via .
--   **Access Tiers:** Free, ₹1,500 Lectures Pack, ₹2,500 Full Pack, ₹30,000 Live Batch.
--   **Payments:** Razorpay checkout with tier promotion logic enforced server-side.
+-   **Auth/Roles:** Admin, Teacher, Student. Supabase Auth + Emergent Google OAuth side-by-side. 
+-   **Question Bank:** Scoped to specific teachers (e.g., Nitin Saini). Contains topics, subtopics, and questions (MCQ/Numerical) with image upload support and solution hints (YouTube/Media). Features smart batch tracking to exclude already-assigned questions from tests.
+-   **OTP Verification:** Email OTP verification during student signups via Resend. Read-only admin contacts export panel.
 
 **User's preferred language**: English (INSTRUCT next agent to respond in English only)
 
 **what currently exists?** 
-A fully functional, 3-tier monetized JEE/NEET learning platform. The app supports a 3-field admission flow linked to a ₹30k Razorpay checkout. Existing students are auto-migrated. Emergent Google Auth is successfully running in parallel with the legacy Supabase Auth. The reported Class Scheduling bug was diagnosed as a false alarm caused by the user testing on their un-updated live production domain instead of the preview environment (which contains the fixes).
+A fully functional, 3-tier monetized JEE/NEET learning platform. A new comprehensive Question Bank module has been added to the Teacher Dashboard with smart filtering (prevents reusing questions for the same batch). An Email OTP verification system (using Resend) has been added to the signup flow, along with an Admin Contacts pane for CSV exports. 
 
 **Last working item**:
-    - Last item agent was working: Implementing and verifying the Emergent-managed Google Auth integration, including frontend buttons, dual-token backend middleware, and callback routing. 
+    - Last item agent was working: Troubleshooting Email OTP delivery in the production environment. The agent identified that the production deployment was missing the necessary Resend environment variables ( and ). The backend was updated to throw a loud 500 error instead of silently succeeding when Resend keys are missing.
     - Status: USER VERIFICATION PENDING
     - Agent Testing Done: Y
-    - Which testing method agent to use?: NA (Testing already done via  in )
-    - User Testing Done: N 
+    - Which testing method agent to use?: NA (Diagnostic E2E tests run successfully via bash/curl locally in preview).
+    - User Testing Done: N
 
 **All Pending/In progress Issue list**: 
-  Issue 1: Production Deployment Blocked (Insufficient ECUs)
-     - Attempted fixes: Agent previously called  but the user only had 35 ECUs (requires 50 for first deploy).
-     - Next debug checklist: Ask user to confirm they have added credits (Profile → Manage plan → Add credits). Once confirmed, call . 
-     - Why fix this issue and what will be achieved with the fix?: Production () is running older, buggy code (which caused the user to incorrectly report the class-scheduling bug). Pushing this deploy will apply all verified fixes to the live domain.
-     - Status: BLOCKED
+  Issue 1: Production OTP Delivery Blocked (Missing Environment Variables)
+     - Attempted fixes: Agent verified OTP delivery is working perfectly in the preview environment, but identified that the user's production environment lacks the required Resend keys. 
+     - Next debug checklist: Ask the user to confirm they have added  and  in their Emergent deployment dashboard and redeployed.
+     - Why fix this issue and what will be achieved with the fix?: Fixes the broken signup OTP flow on the live  domain.
+     - Status: USER VERIFICATION PENDING
      - Is recurring issue? N
-     - Should Test frontend/backend/both after fix?: NA (Wait for deploy success).
-     - Blocked on other issue: User action required to add platform credits.
+     - Should Test frontend/backend/both after fix?: Both (E2E verify OTP flow).
+     - Blocked on other issue: User action required to add env variables to production.
 
 **In progress Task List**: 
-None. All requested features and bug fixes have been successfully implemented and tested in the preview environment.
+None.
 
 **Upcoming and Future Tasks**
   Upcoming Tasks:
-  - Task 1 (P2): **Referral Rewards**: Let admitted students share a referral code that gives them a fee discount when a friend joins.
-  - Task 2 (P2): **Receipt Audit Log**: Add a  column so disputes over I never got a receipt have an auditable trail.
-  - Task 3 (P2): **Dismiss All Banners**: Add a single dismiss-all button when multiple classes go live in the same batch.
+  - Task 1 (P1): **SMS OTP Verification**: Expand the current email-only OTP verification system to include SMS verification on signup.
+  - Task 2 (P2): **Question Bank Bulk Upload**: Create a flow to bulk-upload a set of questions (CSV + zipped images).
+  - Task 3 (P2): **Duplicate Text Check (Question Bank)**: Add a duplicate check that warns if a similar question text already exists in the bank before saving.
+  - Task 4 (P2): **Referral Rewards**: Let admitted students share a referral code that gives them a fee discount when a friend joins.
+  - Task 5 (P2): **Receipt Audit Log**: Add a  column for auditable email logs.
+  - Task 6 (P2): **Dismiss All Banners**: Add a single dismiss-all button when multiple classes go live in the same batch.
 
 **Completed work in this session**
-- Diagnosed Class Scheduling bug (E2E validated as 100% working in Preview; user was testing on stale Prod domain) (DONE)
-- Integrated Emergent-managed Google Auth via  (DONE)
-- Updated  to support dual-token authentication (Supabase JWT + Emergent Session ID) (DONE)
-- Created  and  (DONE)
+- Built Question Bank DB Schema (topics, subtopics, question_bank, question_batch_assignments) (DONE)
+- Built Teacher Question Bank APIs and Frontend UI (Add Question, Browse Tree) (DONE)
+- Added Solution/Hint media & YouTube URL fields to Question Bank (DONE)
+- Integrated Question Bank into Smart Test Creation (with per-batch exclusions) (DONE)
+- Updated Nitin Saini's credentials to  (DONE)
+- Implemented Email OTP flow on signup via Resend (, ) (DONE)
+- Created  page to list and export student profiles with verification timestamps (DONE)
+- Updated OTP email templates for better Gmail deliverability (plain text fallback, List-Unsubscribe, exact subject lines) (DONE)
 
 **Earlier issues found/mentioned but not fixed**
-*None. All user-reported issues were addressed.*
+*None.*
 
 **Known issue recurrence from previous fork**
 - Issue recurrence in previous fork: None
@@ -55,70 +62,75 @@ None. All requested features and bug fixes have been successfully implemented an
 
 
 **Key Technical Concepts**
-- Frontend: React, Tailwind CSS, Suspense/Lazy Loading.
-- Backend: Python/FastAPI, Supabase (PostgreSQL ).
-- Auth: Hybrid dual-token architecture (Supabase standard JWTs + Emergent cookie/session-based OAuth).
+- Frontend: React, Tailwind CSS.
+- Backend: Python/FastAPI, Supabase (PostgreSQL).
+- Question Bank Logic: Uses  to track which batch a question has been assigned to, effectively filtering it out of future test creations for *that specific batch*.
 
 **key DB schema**
 - : 
 - : 
 - : 
+- : 
+- : 
+-  (Updated): added , , 
 
 **changes in tech stack**
-- Added Emergent-managed Google Authentication to run side-by-side with Supabase Authentication. Both now reliably protect backend resources via updated middleware.
+- Added Resend implementation for OTP flows (built directly on the existing Python  SDK logic, not Node.js).
 
 **All files of reference**
-1.  (New file for Emergent Google Auth flows).
-2.  (New callback page for Google token exchange).
-3.  (Handles dual authentication).
-4.  (Renders the new Google OAuth buttons).
-5.  (Database structures).
+1.  (Core logic for the entire Question bank module).
+2.  (UI for creating a new question).
+3.  (Handles Resend API calls and deliverability optimizations).
+4.  (Endpoints to trigger and verify OTPs).
 
 **Areas that need refactoring**:
--  has a legacy  cookie fallback snippet which is currently unused and flagged for cleanup (noted in ).
+- None currently specified.
 
 **key api endpoints**
--  (POST): Validates Emergent OAuth session headers.
--  (GET): Returns user profile acting correctly under both Auth providers.
--  (POST): Razorpay checkout for tiers.
+-  (Renders nested Topic -> Subtopic -> Question view)
+-  (Fetches questions not yet assigned to a specific )
+-  (Triggers Resend OTP with purpose=)
+-  (Diagnostic endpoint fetching real-time delivery status from Resend)
 
 **Critical Info for New Agent**
-- **CRITICAL**: The user reported a bug where scheduled classes do not appear on the dashboard. **DO NOT DEBUG THIS.** The preview environment is functioning perfectly. The user experienced this bug because they tested on their *Production* domain (), which has not received the latest code changes due to a failed deployment (insufficient ECUs).
-- Wait for the user to confirm they have added platform credits, then immediately call the  tool so the live domain gets updated.
-- Emergent Google Auth is seamlessly integrated and validated via . It requires NO further action unless requested by the user.
+- **Resend OTP Implementation**: The backend uses Python/FastAPI. When the user asked to implement the Node.js SDK for Resend, the previous agent correctly maintained the stack and implemented it via the Python  package. **Do NOT migrate this to Node.js**.
+- **Production OTP Bug**: The user reported OTPs failing in production. The root cause is that the live deployment lacks the  and  environment variables. Do NOT change the code logic; wait for the user to confirm they have added these keys to their deployment dashboard.
+- **Data Initialization**: The Question Bank tables (, , etc.) are empty by design. No mock/seed data should be injected via startup scripts.
+- Nitin Saini's active teacher credential is  with password .
 
 **documents and test reports created in this job**
--  (Verified Class Scheduling E2E regression)
--  (Verified Emergent Google Auth integration)
--  (Updated with Emergent Auth tasks)
--  
+-  (Question Bank E2E test report)
+-  (Updated with Phase 16 Question bank & OTP features)
+-  (Updated Nitin Saini credentials)
 
 **Last 10 User Messages and any pending HUMAN messages** 
-1. User: Please use ask_human tool and confirm your plan now.
-2. User: Agent Instruction - Debug & Fix for Class Scheduling Flow (Reported missing classes on UI).
-3. User: Add the Emergent managed Google sign-in integration to my app.
-- **PENDING HUMAN MESSAGE**: User needs to verify the Emergent Google Sign-in flow and add ECUs/credits so the production deploy can be triggered.
+1. User: change the nitin@nexuacademy.com email id login to nitinsaini.iitkgp@gmail.com (Resolved)
+2. User: Implement an email OTP verification system using Resend for our application... (Resolved using Python SDK)
+3. User: OTP is not working... The Resend API call failed during testing... give me a code summary for the ZOOM sdk... (Resolved - deliverability tuned, status diagnostic added, zoom summary given).
+4. User: OTP still not working, go to the depth of the issue and fix it precisely (Resolved - identified Gmail filtering).
+5. User: oh, got it. You are sending all the mails to nitin sir, I want the OTP to be sent to the user... (Resolved - proved it sends to form input email).
+6. User: see the screenshot, I signed in using that email id shown but there is no OTP sent... Please fix the issue 
+- **PENDING HUMAN MESSAGE**: User was informed that production is failing because it's missing the  and  environment variables. The user needs to add these in their Emergent deployment dashboard and redeploy.
 
 **Project Health Check:**
-- Broken: None (in preview).
+- Broken: None (in preview). Production lacks environment variables.
 - Mocked: None.
 
 **3rd Party Integrations**
 - Supabase (Database, Auth) — Requires User API Keys
 - Razorpay (Payments) — Requires User API Keys
 - Zoom Meeting SDK — Requires User API Keys
-- Resend (Emails) — Requires User API Keys
+- Resend (Emails/OTPs) — Requires User API Keys
 - Emergent Managed Google Auth - Integrated via Emergent Integrations
-- Emergent LLM Key — Uses Emergent LLM Key (Used for Object Storage via )
 
 **Testing status**
-- Testing agent used after significant changes: YES (, ).
+- Testing agent used after significant changes: YES ().
 - Troubleshoot agent used after agent stuck in loop: NO
 - Test files created: None.
-- Known regressions: None (All pytest cases passed).
+- Known regressions: None.
 
 **Credentials to test flow:**
-Check .
+Check . (Nitin Saini:  / ).
 
 **What agent forgot to execute**
-- Nothing. Only blocked by user's platform credits for production deployment.</analysis>
+- Nothing missed from requirements. SMS integration was intentionally skipped for now based on explicit user confirmation in .</analysis>

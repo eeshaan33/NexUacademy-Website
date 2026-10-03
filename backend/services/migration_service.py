@@ -191,6 +191,112 @@ async def run_migrations():
                     CHECK (solution_media_type IN ('image','video'))
         """)
 
+        # ---- QB FOLDER HIERARCHY (Feb 2026 refactor) --------------------------
+        # Fixed tree: PYQ / Non-PYQ  →  exam / subject / (section / subject)
+        # Replaces the dynamic topics/subtopics model for Question Bank.
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS public.qb_folders (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                parent_id UUID REFERENCES public.qb_folders(id) ON DELETE CASCADE,
+                name TEXT NOT NULL,
+                path TEXT NOT NULL UNIQUE,
+                level INT NOT NULL,
+                is_leaf BOOLEAN NOT NULL DEFAULT FALSE,
+                sort_order INT NOT NULL DEFAULT 0,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        """)
+        await conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_qb_folders_parent ON public.qb_folders(parent_id)"
+        )
+        # Add folder_id on question_bank, nullable (legacy rows have none)
+        # and relax topic/subtopic FKs so new rows can skip them.
+        await conn.execute("""
+            ALTER TABLE public.question_bank
+                ADD COLUMN IF NOT EXISTS folder_id UUID REFERENCES public.qb_folders(id)
+        """)
+        await conn.execute("""
+            DO $$ BEGIN
+              ALTER TABLE public.question_bank ALTER COLUMN topic_id DROP NOT NULL;
+              ALTER TABLE public.question_bank ALTER COLUMN subtopic_id DROP NOT NULL;
+            EXCEPTION WHEN others THEN NULL; END $$;
+        """)
+        # Difficulty: accept Easy / Moderate / Difficult (new standard) + legacy
+        await conn.execute("""
+            DO $$ BEGIN
+              ALTER TABLE public.question_bank DROP CONSTRAINT IF EXISTS question_bank_difficulty_check;
+            EXCEPTION WHEN others THEN NULL; END $$;
+        """)
+        await conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_qbank_folder ON public.question_bank(folder_id)"
+        )
+
+        # Seed the fixed folder hierarchy (idempotent — ON CONFLICT DO NOTHING)
+        FOLDER_SEED = [
+            # (path, level, is_leaf, sort_order)
+            ("PYQ", 0, False, 1),
+            ("PYQ/JEE", 1, False, 1),
+            ("PYQ/JEE/JEE Mains", 2, False, 1),
+            ("PYQ/JEE/JEE Mains/Physics", 3, True, 1),
+            ("PYQ/JEE/JEE Mains/Chemistry", 3, True, 2),
+            ("PYQ/JEE/JEE Mains/Maths", 3, True, 3),
+            ("PYQ/JEE/JEE Advanced", 2, False, 2),
+            ("PYQ/JEE/JEE Advanced/Physics", 3, True, 1),
+            ("PYQ/JEE/JEE Advanced/Chemistry", 3, True, 2),
+            ("PYQ/JEE/JEE Advanced/Maths", 3, True, 3),
+            ("PYQ/NEET", 1, False, 2),
+            ("PYQ/NEET/Physics", 2, True, 1),
+            ("PYQ/NEET/Chemistry", 2, True, 2),
+            ("PYQ/NEET/Biology", 2, True, 3),
+            ("PYQ/Olympiads", 1, False, 3),
+            ("PYQ/Olympiads/NSEP", 2, True, 1),
+            ("PYQ/Olympiads/NSEC", 2, True, 2),
+            ("PYQ/Olympiads/NSEB", 2, True, 3),
+            ("PYQ/Olympiads/NSEA", 2, True, 4),
+            ("PYQ/Olympiads/NSEJS", 2, True, 5),
+            ("Non-PYQ", 0, False, 2),
+            ("Non-PYQ/Physics", 1, True, 1),
+            ("Non-PYQ/Chemistry", 1, True, 2),
+            ("Non-PYQ/Maths", 1, True, 3),
+            ("Non-PYQ/Biology", 1, True, 4),
+        ]
+        for path, level, is_leaf, order in FOLDER_SEED:
+            parent_path = path.rsplit("/", 1)[0] if "/" in path else None
+            name = path.rsplit("/", 1)[-1]
+            await conn.execute(
+                """
+                INSERT INTO public.qb_folders (parent_id, name, path, level, is_leaf, sort_order)
+                VALUES (
+                    (SELECT id FROM public.qb_folders WHERE path = $1),
+                    $2, $3, $4, $5, $6
+                )
+                ON CONFLICT (path) DO NOTHING
+                """,
+                parent_path, name, path, level, is_leaf, order,
+            )
+        # Prune any legacy / stray folders that don't match the master tree
+        allowed_paths = [p for p, *_ in FOLDER_SEED]
+        await conn.execute(
+            "DELETE FROM public.qb_folders WHERE path <> ALL($1::text[])",
+            allowed_paths,
+        )
+
+        # ---- SELF-REPORTED ERROR TAGS on test attempts -----------------------
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS public.attempt_error_tags (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                attempt_id TEXT NOT NULL REFERENCES public.test_attempts(attempt_id) ON DELETE CASCADE,
+                question_number INT NOT NULL,
+                error_tag TEXT NOT NULL,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW(),
+                UNIQUE (attempt_id, question_number)
+            )
+        """)
+        await conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_err_tags_attempt ON public.attempt_error_tags(attempt_id)"
+        )
+
         # ---- OTP + trusted-device store (email OTP on signup + new-device login)
         await conn.execute("""
             ALTER TABLE public.profiles
