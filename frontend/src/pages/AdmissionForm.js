@@ -103,21 +103,116 @@ const AdmissionForm = () => {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address *</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    value={form.email}
-                    onChange={onChange}
-                    placeholder="you@example.com"
-                    className="pl-10 h-11"
-                    data-testid="email-input"
-                    required
-                  />
+            {/* Step 2: Address & Course */}
+            {step === 2 && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="address">Address *</Label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <textarea
+                      id="address"
+                      name="address"
+                      value={formData.address}
+                      onChange={handleInputChange}
+                      placeholder="Enter your full address"
+                      className="w-full min-h-[80px] pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      data-testid="address-input"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="city">City *</Label>
+                    <Input
+                      id="city"
+                      name="city"
+                      value={formData.city}
+                      onChange={handleInputChange}
+                      placeholder="City"
+                      data-testid="city-input"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="state">State *</Label>
+                    <Input
+                      id="state"
+                      name="state"
+                      value={formData.state}
+                      onChange={handleInputChange}
+                      placeholder="State"
+                      data-testid="state-input"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="pincode">Pincode *</Label>
+                    <Input
+                      id="pincode"
+                      name="pincode"
+                      value={formData.pincode}
+                      onChange={handleInputChange}
+                      placeholder="6-digit pincode"
+                      maxLength={6}
+                      data-testid="pincode-input"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="batch_code">Batch ID *</Label>
+                  <p className="text-xs text-gray-500">Enter the alphanumeric Batch ID shared by your teacher/admin (e.g. JEEM2027)</p>
+                  <div className="flex gap-2">
+                    <Input
+                      id="batch_code"
+                      name="batch_code"
+                      value={formData.batch_code}
+                      onChange={(e) => {
+                        const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+                        setFormData(prev => ({ ...prev, batch_code: val }));
+                        setBatchVerify({ status: 'idle', batch: null, error: '' });
+                      }}
+                      placeholder="e.g. JEEM2027"
+                      className="font-mono uppercase tracking-wider"
+                      maxLength={16}
+                      data-testid="batch-code-input"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={!formData.batch_code || batchVerify.status === 'loading'}
+                      onClick={async () => {
+                        setBatchVerify({ status: 'loading', batch: null, error: '' });
+                        try {
+                          const res = await api.get(`/batches/by-code/${formData.batch_code}`);
+                          const b = res.data?.batch;
+                          if (!b || !b.id) {
+                            throw new Error('Invalid batch response');
+                          }
+                          setBatchVerify({ status: 'ok', batch: b, error: '' });
+                          setFormData(prev => ({ ...prev, course_applying: b.id }));
+                          toast.success(`Batch verified: ${b.name || b.code}`);
+                        } catch (err) {
+                          setBatchVerify({ status: 'error', batch: null, error: 'Invalid Batch ID' });
+                          toast.error('Invalid Batch ID. Please double-check with your teacher.');
+                        }
+                      }}
+                      data-testid="batch-verify-btn"
+                    >
+                      {batchVerify.status === 'loading' ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Verify'}
+                    </Button>
+                  </div>
+                  {batchVerify.status === 'ok' && batchVerify.batch && (
+                    <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 px-3 py-2 rounded">
+                      <CheckCircle className="h-4 w-4" />
+                      Joined: <span className="font-semibold">{batchVerify.batch.name || batchVerify.batch.code}</span>
+                    </div>
+                  )}
+                  {batchVerify.status === 'error' && (
+                    <p className="text-sm text-red-600">{batchVerify.error}</p>
+                  )}
                 </div>
               </div>
 

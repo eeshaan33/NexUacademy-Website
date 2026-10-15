@@ -10,6 +10,7 @@ import Layout from "./components/Layout";
 import TeacherLayout from "./components/TeacherLayout";
 import PageViewTracker from "./components/PageViewTracker";
 import PageLoader from "./components/PageLoader";
+import { ErrorBoundary } from "./ErrorBoundary";
 
 // Every heavy page is code-split so the initial bundle stays tiny.
 // Webpack-dev-server compiles each chunk on demand → cold navigation to
@@ -70,8 +71,7 @@ function AppRouter() {
           <Route path="/landing" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
-          <Route path="/admission" element={<AdmissionForm />} />
-          <Route path="/first-time-setup" element={<FirstTimeSetup />} />
+          <Route path="/admission" element={<ErrorBoundary><AdmissionForm /></ErrorBoundary>} />
           <Route path="/admin" element={<AdminPanel />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/sample-questions" element={<SampleQuestions />} />

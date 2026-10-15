@@ -23,11 +23,18 @@ const loadRazorpay = () => new Promise((resolve) => {
 const FeeStructure = () => {
   const [loading, setLoading] = useState(false);
   const [paid, setPaid] = useState(false);
+  const [gatewayLoaded, setGatewayLoaded] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
   const { user, checkAuth } = useAuth();
 
-  useEffect(() => { setPageTitle('Admission Fee'); }, []);
+  useEffect(() => { 
+    setPageTitle('Admission Fee'); 
+    loadRazorpay().then(ok => {
+      setGatewayLoaded(ok);
+      if (!ok) toast.error('Payment gateway failed to load. Please disable ad-blockers.');
+    });
+  }, []);
 
   const handlePay = async () => {
     setLoading(true);
@@ -106,7 +113,7 @@ const FeeStructure = () => {
               <div>
                 <p className="text-sm text-slate-500 uppercase tracking-wide">Admission Fee</p>
                 <p className="text-3xl font-bold text-indigo-700 flex items-center">
-                  <IndianRupee className="h-6 w-6" />{FEE_AMOUNT_INR.toLocaleString('en-IN')}
+                  <span className="mr-1">₹</span>30,000
                 </p>
                 <p className="text-xs text-slate-500 mt-1">One-time · GST inclusive</p>
               </div>
@@ -128,25 +135,35 @@ const FeeStructure = () => {
               ))}
             </ul>
 
-            <div className="mt-6 flex flex-col md:flex-row items-stretch md:items-center gap-3">
-              <Button
-                onClick={handlePay}
-                disabled={loading || paid}
-                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white h-12 text-base"
-                data-testid="pay-now-btn"
-              >
-                {paid ? <><CheckCircle className="h-5 w-5 mr-2" /> Payment Complete</> :
-                 loading ? <><Loader2 className="h-5 w-5 mr-2 animate-spin" /> Opening Checkout...</> :
-                 <>Pay <IndianRupee className="h-4 w-4 mx-1" />{FEE_AMOUNT_INR.toLocaleString('en-IN')} Securely</>}
-              </Button>
-              <div className="flex items-center gap-2 text-xs text-slate-500">
-                <Shield className="h-4 w-4 text-green-500" />
-                <span>Powered by Razorpay · 256-bit SSL secured</span>
+            <div className="mt-8 p-4 bg-slate-50 rounded-lg border border-slate-200 flex items-start gap-3">
+              <Shield className="h-5 w-5 text-indigo-600 shrink-0 mt-0.5" />
+              <div className="text-xs text-slate-600 space-y-1">
+                <p className="font-semibold text-slate-900">100% Secure Payment</p>
+                <p>Transactions are processed through a 256-bit encrypted secure gateway.</p>
               </div>
             </div>
 
+            <div className="mt-6 flex flex-col md:flex-row items-stretch md:items-center gap-3">
+              {gatewayLoaded ? (
+                <Button
+                  onClick={handlePay}
+                  disabled={loading || paid}
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white h-12 text-base"
+                  data-testid="pay-now-btn"
+                >
+                  {paid ? <><CheckCircle className="h-5 w-5 mr-2" /> Payment Complete</> :
+                   loading ? <><Loader2 className="h-5 w-5 mr-2 animate-spin" /> Opening Checkout...</> :
+                   <>Pay <span className="mx-1">₹</span>30,000 Securely</>}
+                </Button>
+              ) : (
+                <div className="flex-1 p-4 bg-red-50 text-red-600 rounded-lg text-sm text-center border border-red-200">
+                  Payment gateway failed to load. Please disable any ad-blockers and refresh the page.
+                </div>
+              )}
+            </div>
+
             <div className="mt-6 pt-6 border-t border-slate-100 text-xs text-slate-500">
-              <p>Signed in as <strong>{user?.email}</strong> · Roll: <strong className="font-mono">{location.state?.roll_number || user?.roll_number || '—'}</strong></p>
+              <p>Signed in as <strong>{user?.email || 'Student'}</strong> · Roll: <strong className="font-mono">{(location.state && location.state.roll_number) || user?.roll_number || '—'}</strong></p>
               <p className="mt-1">Having trouble? Email support@nexuacademy.com</p>
             </div>
 
