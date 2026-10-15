@@ -7,7 +7,7 @@ import uuid
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://nta-test-engine.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://nexu-qbank.preview.emergentagent.com").rstrip("/")
 API = f"{BASE_URL}/api"
 
 RAZORPAY_KEY_SECRET = "MPm0hqGI2U4iIVf6Yh2EDGMU"

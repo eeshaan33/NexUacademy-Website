@@ -1,6 +1,6 @@
 import React, { lazy, Suspense } from "react";
 import "@/App.css";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { Toaster } from "sonner";
 
@@ -23,14 +23,21 @@ const AdminPanel = lazy(() => import("./pages/AdminPanel"));
 const LandingPage = lazy(() => import("./pages/LandingPage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 const AuthCallback = lazy(() => import("./pages/AuthCallback"));
+const EmergentAuthCallback = lazy(() => import("./pages/EmergentAuthCallback"));
 const FeeStructure = lazy(() => import("./pages/FeeStructure"));
+const FirstTimeSetup = lazy(() => import("./pages/FirstTimeSetup"));
+const UpgradePage = lazy(() => import("./pages/UpgradePage"));
 const StudentAnalytics = lazy(() => import("./pages/student/AnalyticsDashboard"));
+const TestAnalysis = lazy(() => import("./pages/student/TestAnalysis"));
 const SampleQuestions = lazy(() => import("./pages/SampleQuestions"));
 
 const TeacherDashboard = lazy(() => import("./pages/teacher/TeacherDashboard"));
 const ManageClasses = lazy(() => import("./pages/teacher/ManageClasses"));
 const CreateTest = lazy(() => import("./pages/teacher/CreateTest"));
 const TeacherLiveClasses = lazy(() => import("./pages/teacher/LiveClasses"));
+const BrowseQuestionBank = lazy(() => import("./pages/teacher/QuestionBank/BrowseQuestionBank"));
+const AddQuestion = lazy(() => import("./pages/teacher/QuestionBank/AddQuestion"));
+const EmailOtpVerify = lazy(() => import("./pages/EmailOtpVerify"));
 
 const StudentClasses = lazy(() => import("./pages/student/StudentClasses"));
 const StudentLiveClasses = lazy(() => import("./pages/student/LiveClasses"));
@@ -45,6 +52,17 @@ function RoleBasedRedirect() {
 }
 
 function AppRouter() {
+  // Detect Emergent OAuth callback synchronously (URL fragment #session_id=...).
+  // This runs BEFORE any route/ProtectedRoute, avoiding race conditions where
+  // AuthProvider's /me check would 401 while the cookie hasn't been set yet.
+  const location = useLocation();
+  if (location.hash?.includes('session_id=')) {
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <EmergentAuthCallback />
+      </Suspense>
+    );
+  }
   return (
     <>
       <Suspense fallback={<PageLoader />}>
@@ -59,18 +77,23 @@ function AppRouter() {
           <Route path="/sample-questions" element={<SampleQuestions />} />
           <Route path="/fee-structure" element={<ProtectedRoute><FeeStructure /></ProtectedRoute>} />
           <Route path="/analytics" element={<ProtectedRoute><Layout><StudentAnalytics /></Layout></ProtectedRoute>} />
+          <Route path="/test-analysis/:attemptId" element={<ProtectedRoute><Layout><TestAnalysis /></Layout></ProtectedRoute>} />
 
           {/* Teacher Routes */}
           <Route path="/teacher" element={<ProtectedRoute><TeacherLayout><TeacherDashboard /></TeacherLayout></ProtectedRoute>} />
           <Route path="/teacher/classes" element={<ProtectedRoute><TeacherLayout><ManageClasses /></TeacherLayout></ProtectedRoute>} />
           <Route path="/teacher/tests" element={<ProtectedRoute><TeacherLayout><CreateTest /></TeacherLayout></ProtectedRoute>} />
           <Route path="/teacher/live-classes" element={<ProtectedRoute><TeacherLayout><TeacherLiveClasses /></TeacherLayout></ProtectedRoute>} />
+          <Route path="/teacher/question-bank" element={<ProtectedRoute><TeacherLayout><BrowseQuestionBank /></TeacherLayout></ProtectedRoute>} />
+          <Route path="/teacher/question-bank/new" element={<ProtectedRoute><TeacherLayout><AddQuestion /></TeacherLayout></ProtectedRoute>} />
+          <Route path="/verify-email" element={<EmailOtpVerify />} />
 
           {/* Student Protected Routes */}
           <Route path="/dashboard" element={<ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute>} />
           <Route path="/classes" element={<ProtectedRoute><Layout><StudentClasses /></Layout></ProtectedRoute>} />
           <Route path="/live-classes" element={<ProtectedRoute><Layout><StudentLiveClasses /></Layout></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Layout><ProfilePage /></Layout></ProtectedRoute>} />
+          <Route path="/upgrade" element={<ProtectedRoute><Layout><UpgradePage /></Layout></ProtectedRoute>} />
 
           {/* Default redirect */}
           <Route path="/" element={<RoleBasedRedirect />} />

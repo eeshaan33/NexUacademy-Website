@@ -10,7 +10,8 @@ logger = logging.getLogger(__name__)
 SEEDS = [
     {"email": "admin@nexuacademy.com", "password": "nexuacademy123", "name": "NexUacademy Admin", "role": "admin"},
     {"email": "teacher@test.com",      "password": "password123",    "name": "Demo Teacher",       "role": "teacher"},
-    {"email": "student@test.com",      "password": "password123",    "name": "Demo Student",       "role": "student", "batch_id": "JEEM2027"},
+    {"email": "nitinsaini.iitkgp@gmail.com", "password": "nitin@123",      "name": "Nitin Saini",        "role": "teacher"},
+    {"email": "student@test.com",      "password": "password123",    "name": "Demo Student",       "role": "student", "batch_id": "NEX2027"},
 ]
 
 
@@ -57,8 +58,10 @@ async def ensure_seed_users():
             except Exception:
                 pass
 
-        # Ensure profile row has role + batch + roll_number
+        # Ensure profile row has role + batch + roll_number.
+        # For student@test.com we force batch to NEX2027 (user request Feb-2026).
         async with pool.acquire() as conn:
+            force_batch = s.get("batch_id") if s["email"] == "student@test.com" else None
             await conn.execute(
                 """
                 INSERT INTO profiles (id, email, name, role, batch_id, roll_number)
@@ -66,9 +69,10 @@ async def ensure_seed_users():
                 ON CONFLICT (id) DO UPDATE
                    SET name = EXCLUDED.name,
                        role = EXCLUDED.role,
-                       batch_id = COALESCE(profiles.batch_id, EXCLUDED.batch_id),
+                       batch_id = COALESCE($7, profiles.batch_id, EXCLUDED.batch_id),
                        roll_number = COALESCE(profiles.roll_number, EXCLUDED.roll_number)
                 """,
                 user_id, s["email"], s["name"], s["role"], s.get("batch_id"), _roll(),
+                force_batch,
             )
     logger.info("Seed users ensured")

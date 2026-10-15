@@ -1,0 +1,31 @@
+{
+  "summary": "Full E2E of class-scheduling flow (Teacher schedule → Teacher list refresh → Persistence on reload → Student list by batch_id → Regression on /teacher/live-classes). All UI + API assertions passed. The reported bug is NOT reproducible in this preview environment.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "misc frontend polling", "issue": "Recurring 404/405 console errors in browser (from Dashboard widgets / polling endpoints). Not blocking scheduling flow but noisy — worth investigating which polling endpoints are missing."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "No action needed for the reported bug — class scheduling works end-to-end. Inform user that the fix from the previous fork is live in preview and may not yet be reflected on their un-deployed production URL (they should redeploy).",
+    "Optional: audit repeated 404/405 axios calls seen on the teacher dashboard and post-login pages (unrelated to scheduling, but user-visible in devtools)."
+  ],
+  "critical_code_review_comments": [
+    "ManageClasses.js catches errors with empty `catch {}` blocks (loadClasses/loadBatches) — silently swallows failures; should log or toast on batch-load failure to help future debugging.",
+    "StudentClasses.js loadClasses swallows all errors silently and still sets loading=false, so a failing GET /student/classes/my-classes shows the empty state instead of an error. This is exactly the kind of thing that produced the reported false symptom — recommend surfacing errors."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "teacher@test.com / password123 ; student@test.com / password123 (batch NEX2027)",
+  "seed_data_creation": "Created one temporary class 'UI Class NEX2027 <ts>' (class_id=class_95ba7ee84e3d) via UI, verified end-to-end, then deleted via API. DB is clean.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Verified flow on 2026-01-17 preview URL. Teacher POST /api/teacher/classes/create returned 200 with class object; class showed on Manage Classes both immediately and after reload; student on batch NEX2027 saw it under 'Upcoming & Live' with matching testid. /teacher/live-classes still renders. If user reports again, investigate whether they are viewing production (un-deployed) URL vs preview.",
+  "rca of the issue": "Not reproducible. Full flow — Teacher submit form → Supabase INSERT (via /api/teacher/classes/create) → loadClasses refetch → dialog close & card render → reload persistence → Student polling GET /student/classes/my-classes (batch_id=NEX2027 match against upper-cased assigned_batches) — works. Details: POST returned {success:true, class:{class_id:'class_95ba7ee84e3d', ...}}. Teacher card count went from 15 → 16, title matched. Student's card list included the new class both by title and by data-testid='student-class-<id>'. Most likely user was viewing an older deployed production build; the previous fork's fixes (uppercase normalization trigger, correct API paths, useEffect refetch after create) are in effect here."
+}

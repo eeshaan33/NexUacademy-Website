@@ -4,14 +4,30 @@ import { getToken, clearTokens } from '../context/AuthContext';
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 export const API_BASE_URL = `${BACKEND_URL}/api`;
 
+// Persistent per-browser device id — used for the OTP challenge on new-device logins.
+const DEVICE_KEY = 'nx_device_id';
+export const getDeviceId = () => {
+  try {
+    let id = localStorage.getItem(DEVICE_KEY);
+    if (!id) {
+      id = (crypto.randomUUID && crypto.randomUUID()) || `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      localStorage.setItem(DEVICE_KEY, id);
+    }
+    return id;
+  } catch { return ''; }
+};
+
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
+  withCredentials: true, // send Emergent session_token cookie on every request
 });
 
 api.interceptors.request.use((config) => {
   const t = getToken();
   if (t) config.headers.Authorization = `Bearer ${t}`;
+  const dev = getDeviceId();
+  if (dev) config.headers['X-Device-Id'] = dev;
   return config;
 });
 

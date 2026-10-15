@@ -1,0 +1,31 @@
+{
+  "summary": "Iter 21 — Verified new claim + simple-submit + student batch move + seed logins. Backend: 14/14 pytest passed in test_iter21_admissions_claim.py (3 seed logins including student now in NEX2027, preseed-status for Arjun/Shefali/Shantanu + unknown, claim-preseed success/reclaim-400/unknown-404, /auth/me returns access_tier='live_batch' after claim, simple-submit success/duplicate-400, and /payments/create-order with token returns order_id + amount=3000000 paise + key_id). Frontend: /admission shows exactly 3 fields (full-name, email, whatsapp) and Continue to Payment; submitting redirects to /fee-structure and stores nx_access_token in localStorage. /login shows both 'New Student? Apply for Admission' and the new 'Already Enrolled? Claim Your Account' link (data-testid=first-time-setup-link); login with student@test.com/password123 lands on /dashboard. /first-time-setup renders first-name-input, email-input, batch-select, claim-submit-btn; a valid preseed claim (Kovid + NEX2027 + fresh email) shows the success card with claim-password='kovid2027' and 'Continue to Dashboard' button.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/first-time-setup", "issues": ["Console hydration warnings from Emergent's dev instrumentation injecting <span> inside native <select>/<option>. Not caused by app code (BATCHES.map renders <option> correctly) — safe to ignore in preview; will not appear in production build without dev instrumentation."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter21_admissions_claim.py",
+    "/app/test_reports/pytest/iter21_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "claim-preseed correctly sets access_tier='live_batch' and batch_id in the response and persists it (/auth/me confirms).",
+    "simple-submit + create-order chain works: amount is exactly 3000000 paise (₹30,000) and Razorpay key_id + order_id are returned.",
+    "Duplicate email on simple-submit correctly returns 400.",
+    "Preseed-status returns correct claimed flag; unknown name gives is_preseed=false (200), not 404 — matches spec.",
+    "student@test.com is now in batch NEX2027 as required (seed migration verified via login response.user.batch_id).",
+    "Minor: /auth/me returns wrapped shape {success, user:{...}} while some endpoints return flat user; test had to unwrap. Not a bug, just consistency worth documenting."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter21_admissions_claim.py"],
+  "success_rate": {"backend": "100% (14/14)", "frontend": "100% (admission, login, first-time-setup flows all pass)"},
+  "test_credentials": "admin@nexuacademy.com/nexuacademy123, teacher@test.com/password123, student@test.com/password123 (now NEX2027). Preseed claim used Kovid+NEX2027 (frontend) and Garvit-family via fixture (backend) — do not reuse in next iter.",
+  "seed_data_creation": "Backend module-scoped fixtures claimed the first available preseed name from CLAIM_CANDIDATES list and created one throwaway simple-submit application per run (fresh uuid emails). Frontend claim consumed one additional preseed name (Kovid this run).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Reusable file: /app/backend/tests/test_iter21_admissions_claim.py. CLAIM_CANDIDATES list at top consumes one name per run — Kovid, Garvit likely consumed this iter, Aaryan/Arjun were consumed in dev; prefer later entries. simple-submit expects payload {full_name,email,whatsapp_number} (not phone_number). /auth/me returns {success:true,user:{...}} so unwrap before asserting fields."
+}

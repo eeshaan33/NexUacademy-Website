@@ -1,6 +1,7 @@
-"""Auth middleware — verifies Supabase Auth JWTs and loads the user's profile."""
+"""Auth middleware — verifies Supabase Auth JWTs OR Emergent cookie sessions."""
 import os
 import logging
+from datetime import datetime, timezone
 from typing import Optional
 
 import jwt
@@ -10,6 +11,8 @@ from jwt import PyJWKClient
 from config.database import get_pool, get_supabase_admin
 
 logger = logging.getLogger(__name__)
+
+EMERGENT_COOKIE = "session_token"
 
 # Supabase issues JWTs signed with a project-level JWT secret. For simplicity we
 # verify tokens by calling supabase.auth.get_user(access_token) which validates
@@ -23,21 +26,53 @@ async def _load_profile(user_id: str) -> Optional[dict]:
         return dict(row) if row else None
 
 
-def _read_token(request: Request) -> str:
+def _read_token(request: Request) -> tuple[str, str]:
+    """Return (kind, token). kind is 'jwt' or 'emergent'."""
     auth = request.headers.get("Authorization", "")
     if auth.startswith("Bearer "):
-        return auth[7:].strip()
-    # Cookie fallback for browser sessions we set manually
+        return ("jwt", auth[7:].strip())
+    # Emergent cookie session — set by /api/auth/emergent/session
+    tok = request.cookies.get(EMERGENT_COOKIE, "")
+    if tok:
+        return ("emergent", tok)
+    # Legacy cookie fallback (Supabase access_token stored in cookie)
     tok = request.cookies.get("access_token", "")
     if tok:
-        return tok
+        return ("jwt", tok)
     raise HTTPException(status_code=401, detail="Missing bearer token")
 
 
+async def _resolve_emergent_session(token: str) -> dict:
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT user_id, email, expires_at FROM emergent_sessions WHERE session_token = $1",
+            token,
+        )
+    if not row:
+        raise HTTPException(status_code=401, detail="Invalid session")
+    expires_at = row["expires_at"]
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=401, detail="Session expired")
+
+    profile = await _load_profile(str(row["user_id"])) or {}
+    profile["user_id"] = str(row["user_id"])
+    profile["email"] = row["email"]
+    profile["name"] = profile.get("name") or row["email"].split("@")[0]
+    profile.setdefault("role", "student")
+    profile["auth_provider"] = "emergent"
+    return profile
+
+
 async def get_current_user(request: Request) -> dict:
-    """Verify Supabase Auth JWT and return the merged profile dict.
+    """Verify Supabase JWT or Emergent cookie session and return profile dict.
     Adds convenience keys: `user_id`, `email`, `name`, `role`."""
-    token = _read_token(request)
+    kind, token = _read_token(request)
+    if kind == "emergent":
+        return await _resolve_emergent_session(token)
+
     supabase = get_supabase_admin()
     try:
         res = supabase.auth.get_user(token)

@@ -21,7 +21,7 @@ if BACKEND_DIR not in sys.path:
 from dotenv import load_dotenv
 load_dotenv("/app/backend/.env")
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://nta-test-engine.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://nexu-qbank.preview.emergentagent.com").rstrip("/")
 API = f"{BASE_URL}/api"
 DATABASE_URL = os.environ["DATABASE_URL"]
 

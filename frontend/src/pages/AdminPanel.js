@@ -3,16 +3,18 @@ import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { Shield, Layers, Megaphone, LogOut } from 'lucide-react';
+import { Shield, Layers, Megaphone, LogOut, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { setPageTitle } from '../utils/pageTitle';
 import AdminBatchesPane from '../components/AdminBatchesPane';
 import AdminAnnouncementsPane from '../components/AdminAnnouncementsPane';
 import AdminAnalyticsPane from '../components/AdminAnalyticsPane';
+import AdminContactsPane from '../components/AdminContactsPane';
 import { BarChart3 } from 'lucide-react';
 
 const TABS = [
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+  { id: 'contacts', label: 'Contacts', icon: Users },
   { id: 'batches', label: 'Batches', icon: Layers },
   { id: 'announcements', label: 'Announcements', icon: Megaphone },
 ];
@@ -63,6 +65,7 @@ const AdminPanel = () => {
         </nav>
         <div className="flex-1 min-w-0">
           {activeTab === 'analytics' && <AdminAnalyticsPane />}
+          {activeTab === 'contacts' && <AdminContactsPane />}
           {activeTab === 'batches' && <AdminBatchesPane />}
           {activeTab === 'announcements' && <AdminAnnouncementsPane />}
         </div>

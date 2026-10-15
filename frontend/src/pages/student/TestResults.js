@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
-import { CheckCircle, XCircle, Minus, ArrowLeft, MessageSquare, Bookmark, BookmarkCheck } from 'lucide-react';
+import { CheckCircle, XCircle, Minus, ArrowLeft, MessageSquare, Bookmark, BookmarkCheck, BarChart3 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../utils/api';
 import { setPageTitle } from '../../utils/pageTitle';
@@ -124,7 +124,12 @@ const TestResults = () => {
         <Link to="/assigned-tests">
           <Button variant="ghost" size="sm"><ArrowLeft className="h-4 w-4" /></Button>
         </Link>
-        <h1 className="text-2xl font-bold text-slate-900">{test_name || 'Test Results'}</h1>
+        <h1 className="text-2xl font-bold text-slate-900 flex-1">{test_name || 'Test Results'}</h1>
+        <Link to={`/test-analysis/${attemptId}`}>
+          <Button className="bg-indigo-600 hover:bg-indigo-700 text-white" size="sm" data-testid="view-full-analysis-btn">
+            <BarChart3 className="h-4 w-4 mr-1.5" /> Full Analysis
+          </Button>
+        </Link>
       </div>
 
       {/* Score Summary */}

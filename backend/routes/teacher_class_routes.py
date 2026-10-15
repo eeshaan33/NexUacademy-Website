@@ -63,6 +63,13 @@ async def create_class(payload: ClassCreateRequest, user=Depends(get_current_tea
     return {"success": True, "class": json_safe(row), "message": "Class scheduled"}
 
 
+@router.get("")
+@router.get("/")
+async def list_classes_root(user=Depends(get_current_teacher)):
+    """Alias for /my-classes so the frontend's GET /teacher/classes/ works."""
+    return await my_classes(user)
+
+
 @router.get("/my-classes")
 async def my_classes(user=Depends(get_current_teacher)):
     pool = get_pool()
@@ -87,6 +94,7 @@ async def delete_class(class_id: str, user=Depends(get_current_teacher)):
     return {"success": True, "message": "Class deleted"}
 
 
+@router.get("/stats")
 @router.get("/stats/summary")
 async def stats(user=Depends(get_current_teacher)):
     pool = get_pool()

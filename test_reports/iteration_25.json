@@ -1,0 +1,22 @@
+{
+  "summary": "Pre-deploy readiness pass: 9/9 backend pytest tests PASS (YouTube latest + full teacher/student live-class Zoom E2E). Frontend E2E verified: landing YouTube section renders real /embed/<video_id> iframe (video 'Aldehyde & Ketone ONE SHOT', vid=prxtAAGvBcM) with heading = fetched title; student /live-classes lists 8 cards with proper student-class-<id> testids; teacher schedule form works (toast 'Live class scheduled and Zoom meeting created' shown, teacher live-class-card-<id> + start-class-<id> + delete-class-<id> testids all present); after teacher /start endpoint fires, student sees LIVE NOW pulsing banner (data-testid=live-now-banner) on BOTH /dashboard AND /live-classes with Join Now CTA, plus green data-testid=join-class-<id> button on the card. teacher /end reverts is_live cleanly.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter25_predeploy.py",
+    "/app/test_reports/pytest/iter25.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "YouTubeSection.js falls back to the old videoseries?list=UULFNexUacademypvtltd URL when /api/youtube/latest fails — that fallback URL still uses the raw handle instead of channel_id and Youtube usually renders 'Video unavailable' for such playlist embeds. Consider using a static known video_id fallback instead.",
+    "Backend create-live-class response returns the payload under key 'class' (not 'data') while other endpoints use 'data' — inconsistent envelope shape across the API surface; recommend standardising."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter25_predeploy.py"],
+  "success_rate": {"backend": "100% (9/9)", "frontend": "100% for all requested flows"},
+  "test_credentials": "teacher@test.com / password123 ; student@test.com / password123 (NEX2027)",
+  "seed_data_creation": "Created 3 test live classes during E2E (AutoTest Live 1789372899, AutoTest Live 1789372935, UI_AutoTest_1789373097, BannerTest). BannerTest was started and then ended to clean up is_live state. All can be safely deleted by main agent if desired; none are is_live=true at the moment of report.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Confirmed create-live-class payload schema is {title, subject, scheduled_date (YYYY-MM-DD), scheduled_time (HH:MM), duration_minutes, assigned_batches[], description?} and response envelope is {success, message, class:{class_id,...}}. YouTube latest returns {success, video_id, title, embed_url, cached}. LiveNowBanner polls every 30s but also fires immediately on mount, so a fresh page load right after /start already shows the banner (no need to wait the 30s in tests).",
+  "rca of the issue": "N/A — no bugs found. All acceptance criteria met."
+}

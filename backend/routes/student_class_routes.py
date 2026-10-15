@@ -7,6 +7,12 @@ from services.pg_utils import json_safe
 router = APIRouter(prefix="/student/classes", tags=["student-classes"])
 
 
+@router.get("")
+@router.get("/")
+async def list_root(user=Depends(get_current_user)):
+    return await my_classes(user)
+
+
 @router.get("/my-classes")
 async def my_classes(user=Depends(get_current_user)):
     pool = get_pool()

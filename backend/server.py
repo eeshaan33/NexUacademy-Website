@@ -12,6 +12,9 @@ load_dotenv(ROOT_DIR / '.env')
 # Import route modules (migrated to Supabase/Postgres)
 from routes import (
     auth_routes,
+    emergent_auth_routes,
+    otp_routes,
+    admin_contacts_routes,
     batch_routes,
     admission_routes,
     teacher_class_routes,
@@ -20,7 +23,9 @@ from routes import (
     student_live_class_routes,
     teacher_test_routes,
     student_test_routes,
+    test_analysis_routes,
     question_routes,
+    question_bank_routes,
     upload_routes,
     announcement_routes,
     notification_routes,
@@ -29,6 +34,7 @@ from routes import (
     contact_routes,
     payment_routes,
     analytics_routes,
+    youtube_routes,
 )
 
 from config.database import init_pool, close_pool
@@ -44,14 +50,16 @@ async def root():
 
 # Wire routers
 for r in (
-    auth_routes, batch_routes, admission_routes,
+    auth_routes, emergent_auth_routes, otp_routes, admin_contacts_routes,
+    batch_routes, admission_routes,
     teacher_class_routes, teacher_live_class_routes,
     student_class_routes, student_live_class_routes,
-    teacher_test_routes, student_test_routes,
-    question_routes, upload_routes,
+    teacher_test_routes, student_test_routes, test_analysis_routes,
+    question_routes, question_bank_routes, upload_routes,
     announcement_routes, notification_routes, push_routes,
     profile_routes, contact_routes,
     payment_routes, analytics_routes,
+    youtube_routes,
 ):
     api_router.include_router(r.router)
 
@@ -74,6 +82,13 @@ logger = logging.getLogger(__name__)
 async def startup_event():
     logger.info("NexUacademy API starting (Supabase Postgres backend)")
     await init_pool()
+    # Run idempotent DB migrations (tier columns, applications, preseed roster)
+    try:
+        from services.migration_service import run_migrations, cleanup_batches
+        await run_migrations()
+        await cleanup_batches()
+    except Exception as e:
+        logger.warning(f"Migrations failed: {e}")
     # Ensure admin/teacher/student seed users exist in Supabase Auth
     try:
         from services.seed_service import ensure_seed_users

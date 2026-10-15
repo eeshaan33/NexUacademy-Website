@@ -1,56 +1,57 @@
-<analysis>**original_problem_statement**: Complete JEE/NEET platform with Teacher Dashboard, Student Site, Push Notifications, Admin Panel, a stunning Landing Page, and highly advanced NTA-pattern JEE Main & Advanced test interfaces featuring KaTeX math rendering and Object Storage for question images. 
+<analysis>**original_problem_statement**: Complete JEE/NEET platform with Teacher Dashboard, Student Site, Admin Panel, and highly advanced NTA-pattern tests. The most recent focus was adding a comprehensive Question Bank + Smart Test Creation feature and implementing an Email OTP verification system on student signup via Resend.
 
 **PRODUCT REQUIREMENTS:**
--   **Tech Stack:** Python/FastAPI backend + React frontend (Tailwind, Framer Motion) + MongoDB.
--   **Auth/Roles:** Admin (creates teachers), Teacher (manages classes/tests), Student (takes tests). Google OAuth integrated.
--   **Landing Page:** Professional landing page matching the brand, complete with founder details, animations, courses, and contact form.
--   **Class Management:** Teachers can create classes assigned to specific batches with Zoom links.
--   **Advanced Test Engine:** NTA-style UI matching real JEE Main (Orange theme) and JEE Advanced (Blue theme, sections). Features KaTeX support and Object Storage for images.
+-   **Tech Stack:** Python/FastAPI backend + React frontend + Supabase (PostgreSQL, Auth, Storage).
+-   **Auth/Roles:** Admin, Teacher, Student. Supabase Auth + Emergent Google OAuth side-by-side. 
+-   **Question Bank:** Scoped to specific teachers (e.g., Nitin Saini). Contains topics, subtopics, and questions (MCQ/Numerical) with image upload support and solution hints (YouTube/Media). Features smart batch tracking to exclude already-assigned questions from tests.
+-   **OTP Verification:** Email OTP verification during student signups via Resend. Read-only admin contacts export panel.
 
 **User's preferred language**: English (INSTRUCT next agent to respond in English only)
 
 **what currently exists?** 
-A robust, fully-functional full-stack JEE/NEET platform. It features a secure Admin Panel (with logout), Teacher dashboard for scheduling Zoom classes and creating tests, and a Student dashboard. The platform successfully utilizes advanced NTA-pattern JEE Main (orange) and JEE Advanced (blue) testing interfaces with KaTeX math rendering, image uploads via Emergent Object Storage, and smart routing based on test patterns.
+A fully functional, 3-tier monetized JEE/NEET learning platform. A new comprehensive Question Bank module has been added to the Teacher Dashboard with smart filtering (prevents reusing questions for the same batch). An Email OTP verification system (using Resend) has been added to the signup flow, along with an Admin Contacts pane for CSV exports. 
 
 **Last working item**:
-- **Last item agent was working**: Adding a logout button to the Admin Panel.
-- **Status**: USER VERIFICATION PENDING
-- **Agent Testing Done**: Y
-- **Which testing method agent to use?** screenshot tool (already tested UI visibility and logout redirection)
-- **User Testing Done**: N
+    - Last item agent was working: Troubleshooting Email OTP delivery in the production environment. The agent identified that the production deployment was missing the necessary Resend environment variables ( and ). The backend was updated to throw a loud 500 error instead of silently succeeding when Resend keys are missing.
+    - Status: USER VERIFICATION PENDING
+    - Agent Testing Done: Y
+    - Which testing method agent to use?: NA (Diagnostic E2E tests run successfully via bash/curl locally in preview).
+    - User Testing Done: N
 
-**All Pending/In progress Issue list**:
-Issue 1: Missing Pydantic Models for Backend (P1)
-   - Attempted fixes: None. The backend is still heavily relying on raw dictionaries for nested structures.
-   - Next debug checklist: Update FastAPI routes and database queries to use strict Pydantic models for , , , and .
-   - Why fix this issue and what will be achieved with the fix?: Prevents silent data corruption and type errors in the backend, ensuring API robustness.
-   - Status: NOT STARTED
-   - Is recurring issue? Y
-   - Should Test frontend/backend/both after fix?: backend
-   - Blocked on other issue: None
+**All Pending/In progress Issue list**: 
+  Issue 1: Production OTP Delivery Blocked (Missing Environment Variables)
+     - Attempted fixes: Agent verified OTP delivery is working perfectly in the preview environment, but identified that the user's production environment lacks the required Resend keys. 
+     - Next debug checklist: Ask the user to confirm they have added  and  in their Emergent deployment dashboard and redeployed.
+     - Why fix this issue and what will be achieved with the fix?: Fixes the broken signup OTP flow on the live  domain.
+     - Status: USER VERIFICATION PENDING
+     - Is recurring issue? N
+     - Should Test frontend/backend/both after fix?: Both (E2E verify OTP flow).
+     - Blocked on other issue: User action required to add env variables to production.
 
-**In progress Task List**:
-*None*
+**In progress Task List**: 
+None.
 
-**Upcoming and Future Tasks**:
-- Task 1 (P1): Implement Class Reminder System (24h, 1h, 15min email/push notifications via PyWebPush).
-- Task 2 (P1): Detailed Student Analytics UI (Chapter-wise heatmap, 30-day activity graph).
-- Task 3 (P1): Teacher Detailed Test Results (View per-student results with CSV export).
-- Task 4 (P2): Phase 2 Batch Management (Allow teachers to create custom batches instead of hardcoded ones).
-- Task 5 (P2): Student My Analytics page (Bookmarks, Leaderboards, Study Plans, Video Lectures).
+**Upcoming and Future Tasks**
+  Upcoming Tasks:
+  - Task 1 (P1): **SMS OTP Verification**: Expand the current email-only OTP verification system to include SMS verification on signup.
+  - Task 2 (P2): **Question Bank Bulk Upload**: Create a flow to bulk-upload a set of questions (CSV + zipped images).
+  - Task 3 (P2): **Duplicate Text Check (Question Bank)**: Add a duplicate check that warns if a similar question text already exists in the bank before saving.
+  - Task 4 (P2): **Referral Rewards**: Let admitted students share a referral code that gives them a fee discount when a friend joins.
+  - Task 5 (P2): **Receipt Audit Log**: Add a  column for auditable email logs.
+  - Task 6 (P2): **Dismiss All Banners**: Add a single dismiss-all button when multiple classes go live in the same batch.
 
 **Completed work in this session**
-- Wired up  and  into the React Router via a new  in .
-- Fixed a double  bug during test submissions in both JEE interfaces.
-- Fixed  crash by adapting it to the new option object structure () and added KaTeX rendering to the results view.
-- Added a working Logout button to the  header.
+- Built Question Bank DB Schema (topics, subtopics, question_bank, question_batch_assignments) (DONE)
+- Built Teacher Question Bank APIs and Frontend UI (Add Question, Browse Tree) (DONE)
+- Added Solution/Hint media & YouTube URL fields to Question Bank (DONE)
+- Integrated Question Bank into Smart Test Creation (with per-batch exclusions) (DONE)
+- Updated Nitin Saini's credentials to  (DONE)
+- Implemented Email OTP flow on signup via Resend (, ) (DONE)
+- Created  page to list and export student profiles with verification timestamps (DONE)
+- Updated OTP email templates for better Gmail deliverability (plain text fallback, List-Unsubscribe, exact subject lines) (DONE)
 
 **Earlier issues found/mentioned but not fixed**
-Issue 1:
-- Debug checklist: Backend Pydantic models are missing. Refactor dict-based routing to use strict schemas.
-- Why to solve this issue and what will be achieved with this?: Ensures data integrity.
-- Should Test frontend/backend/both after fix: backend
-- Is recurring issue? Y
+*None.*
 
 **Known issue recurrence from previous fork**
 - Issue recurrence in previous fork: None
@@ -61,68 +62,75 @@ Issue 1:
 
 
 **Key Technical Concepts**
-- Frontend: React, Tailwind CSS, Framer Motion (Animations), react-katex (Math rendering).
-- Backend: Python/FastAPI, MongoDB (Motor).
-- Storage: Emergent Object Storage.
-- Auth: Custom JWT Authentication & Google OAuth.
+- Frontend: React, Tailwind CSS.
+- Backend: Python/FastAPI, Supabase (PostgreSQL).
+- Question Bank Logic: Uses  to track which batch a question has been assigned to, effectively filtering it out of future test creations for *that specific batch*.
 
 **key DB schema**
 - : 
 - : 
+- : 
+- : 
+- : 
+-  (Updated): added , , 
 
 **changes in tech stack**
-- None this session.
+- Added Resend implementation for OTP flows (built directly on the existing Python  SDK logic, not Node.js).
 
 **All files of reference**
-1.  (Updated routing for SmartTestRouter)
-2.  (Updated to handle  option formats and display KaTeX)
-3.  (Updated to include logout action)
-4.  &  (Updated submission logic)
+1.  (Core logic for the entire Question bank module).
+2.  (UI for creating a new question).
+3.  (Handles Resend API calls and deliverability optimizations).
+4.  (Endpoints to trigger and verify OTPs).
 
 **Areas that need refactoring**:
-- Backend data validation is weak; Pydantic models need to replace raw dictionary passing in API handlers.
+- None currently specified.
 
 **key api endpoints**
-- : POST - Clears active session.
-- : POST - Uploads images to Object Storage.
-- : POST - Appends a question (with object-based options).
+-  (Renders nested Topic -> Subtopic -> Question view)
+-  (Fetches questions not yet assigned to a specific )
+-  (Triggers Resend OTP with purpose=)
+-  (Diagnostic endpoint fetching real-time delivery status from Resend)
 
 **Critical Info for New Agent**
-- **REJECTED REQUIREMENT:** In Message 15, the user explicitly stated they *DO NOT* want a separate Netlify build folder (). They are happy with logging into the teacher dashboard from the main site. Disregard any old handoff instructions mentioning a separate Netlify build.
-- **Data Structure Note:** MCQ Options are no longer plain strings; they are objects structured as . Ensure any new components handling questions account for this.
-- The  currently uses  to correctly route students to the right test interface based on the  field stored in the  document.
+- **Resend OTP Implementation**: The backend uses Python/FastAPI. When the user asked to implement the Node.js SDK for Resend, the previous agent correctly maintained the stack and implemented it via the Python  package. **Do NOT migrate this to Node.js**.
+- **Production OTP Bug**: The user reported OTPs failing in production. The root cause is that the live deployment lacks the  and  environment variables. Do NOT change the code logic; wait for the user to confirm they have added these keys to their deployment dashboard.
+- **Data Initialization**: The Question Bank tables (, , etc.) are empty by design. No mock/seed data should be injected via startup scripts.
+- Nitin Saini's active teacher credential is  with password .
 
 **documents and test reports created in this job**
-- 
-- 
-- 
+-  (Question Bank E2E test report)
+-  (Updated with Phase 16 Question bank & OTP features)
+-  (Updated Nitin Saini credentials)
 
-**Last 10 User Messages and any pending HUMAN messages**
-1. User: Please use ask_human tool and confirm your plan now. (Completed)
-2. User: 1. proceed with P0 items. 2. No, I do not need it, as I am able to login to teacher dashboard from main land page... (Completed - UI routing was handled; separate Netlify build requirement was discarded).
-3. User: please proceed with the remaining tasks, also check all the function like the test theme... (Completed - Extensively tested via testing agent and screenshot tools).
-4. User: 1. add a option on admin page to log out (Completed - Implemented and tested visually).
-*No pending human messages.*
+**Last 10 User Messages and any pending HUMAN messages** 
+1. User: change the nitin@nexuacademy.com email id login to nitinsaini.iitkgp@gmail.com (Resolved)
+2. User: Implement an email OTP verification system using Resend for our application... (Resolved using Python SDK)
+3. User: OTP is not working... The Resend API call failed during testing... give me a code summary for the ZOOM sdk... (Resolved - deliverability tuned, status diagnostic added, zoom summary given).
+4. User: OTP still not working, go to the depth of the issue and fix it precisely (Resolved - identified Gmail filtering).
+5. User: oh, got it. You are sending all the mails to nitin sir, I want the OTP to be sent to the user... (Resolved - proved it sends to form input email).
+6. User: see the screenshot, I signed in using that email id shown but there is no OTP sent... Please fix the issue 
+- **PENDING HUMAN MESSAGE**: User was informed that production is failing because it's missing the  and  environment variables. The user needs to add these in their Emergent deployment dashboard and redeploy.
 
 **Project Health Check:**
-- All features Healthy.
-- No mocked services.
+- Broken: None (in preview). Production lacks environment variables.
+- Mocked: None.
 
 **3rd Party Integrations**
-- Emergent Object Storage — uses Emergent LLM Key (used during initialization)
-- Google OAuth (Login) — requires User Client ID
-- PyWebPush (Push Notifications) — currently planned/mocked, requires VAPID keys setup.
+- Supabase (Database, Auth) — Requires User API Keys
+- Razorpay (Payments) — Requires User API Keys
+- Zoom Meeting SDK — Requires User API Keys
+- Resend (Emails/OTPs) — Requires User API Keys
+- Emergent Managed Google Auth - Integrated via Emergent Integrations
 
 **Testing status**
-- Testing agent used after significant changes: YES (iteration_9.json returned 100% pass rate).
+- Testing agent used after significant changes: YES ().
 - Troubleshoot agent used after agent stuck in loop: NO
-- Test files created: None
-- Known regressions: None
+- Test files created: None.
+- Known regressions: None.
 
 **Credentials to test flow:**
-- Admin:  / 
-- Student:  / 
-- Teacher:  / 
+Check . (Nitin Saini:  / ).
 
 **What agent forgot to execute**
-- None. All requested tasks within scope were successfully built, connected, and tested.</analysis>
+- Nothing missed from requirements. SMS integration was intentionally skipped for now based on explicit user confirmation in .</analysis>

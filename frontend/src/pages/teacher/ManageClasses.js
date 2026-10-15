@@ -41,7 +41,10 @@ const ManageClasses = () => {
     try {
       const res = await api.get('/teacher/classes/');
       setClasses(res.data.classes || []);
-    } catch { toast.error('Failed to load classes'); }
+    } catch (err) {
+      console.error('loadClasses failed', err);
+      toast.error(err.response?.data?.detail || 'Failed to load classes');
+    }
     finally { setLoading(false); }
   };
 
@@ -49,7 +52,10 @@ const ManageClasses = () => {
     try {
       const res = await api.get('/batches/');
       setBatches(res.data.batches || []);
-    } catch { }
+    } catch (err) {
+      console.error('loadBatches failed', err);
+      toast.error('Failed to load batches');
+    }
   };
 
   const handleBatchToggle = (batchId) => {

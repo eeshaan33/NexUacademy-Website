@@ -1,94 +1,98 @@
-# NexUacademy - Product Requirements & State (Phase 13)
+# NexUacademy — Product Requirements & Status
 
-## Overview
-JEE/NEET learning platform with Teacher Dashboard, Student Portal, Admin Panel,
-embedded Zoom live classes, batch-targeted content, Razorpay-powered admission
-fees, and analytics dashboards.
+## Original Problem Statement
+Complete JEE/NEET platform with Teacher Dashboard, Student Site, Admin Panel, and highly advanced NTA-pattern tests. Supports admissions, live classes (Zoom), tests, payments (Razorpay), emails (Resend) and Supabase auth. 3-tier (Admin / Teacher / Student) with Nitin Saini as the lead teacher.
 
-## Current Stack
-- **Backend**: Python 3 / FastAPI + `asyncpg` + Supabase Postgres + Auth
-- **Frontend**: React + Tailwind + shadcn + Supabase JWT (localStorage)
-- **Storage**: Supabase Storage (`question-images` public bucket)
-- **Auth**: Supabase Auth (email/password + Google OAuth)
-- **Live video**: Zoom Meeting SDK (Web SDK, client view, embedded)
-- **Zoom API**: Server-to-Server OAuth for meeting create/delete/participants
-- **Payments**: Razorpay (test keys wired) — create-order → checkout → verify (HMAC-SHA256) → DB + webhook
+## Tech Stack
+- Backend: Python / FastAPI
+- Frontend: React (CRA + Craco) + Tailwind + Shadcn UI
+- Database/Auth: Supabase (Postgres + Auth)
+- Payments: Razorpay
+- Live Classes: Zoom Meeting SDK
+- Emails/OTP: Resend
+- Deployment: Emergent
 
-## Phase 13 (Feb 2026) — Payments + Analytics
-- Razorpay integration: `/api/payments/{create-order, verify, my, webhook}` + `payments` table + `profiles.payment_status`. Verify endpoint enforces ownership (order.user_id must match caller).
-- AdmissionForm success now routes to `/fee-structure` (₹30,000 one-time) → opens Razorpay Checkout → verifies signature → redirects to /dashboard.
-- Webhook signature-verified when `RAZORPAY_WEBHOOK_SECRET` is set (dev-mode bypass when empty).
-- Analytics re-ported: `/api/analytics/{dashboard, subject-wise, admin/overview}`.
-- Student `/analytics` page: 6 stat cards + subject-wise accuracy bars.
-- Admin panel new default tab "Analytics" with revenue, batch distribution, recent signups, recent payments.
+## Core Modules (all shipped)
+- Admissions flow + fee payment
+- Live classes with host/join + raised hands + attendance
+- Tests (JEE Main & JEE Advanced patterns) with server-authoritative scoring, time-integrity guard, autosave
+- Student dashboard: assigned tests, classes, analytics, bookmarks, profile
+- Teacher dashboard: classes, tests, Question Bank (fixed hierarchy, Feb 2026)
+- Admin panel: users, contacts export, applications, payments
+- Email OTP on signup (Resend) + Admin Contacts CSV export
 
-## Phase 12 (Feb 2026) — MongoDB → Supabase migration
-See prior sections; 37/37 tests passed after Supabase cutover.
+---
 
-## What's implemented (full list)
-✅ Auth (login/signup/me/logout/Google OAuth URL)
-✅ Batches (JEEM2027, NEX2027, NEX2028 seeded + admin CRUD with alphanumeric codes)
-✅ Admissions (batch-code verify → auto-create user + profile + admission + roll_number)
-✅ Classes (teacher/student, batch-filtered)
-✅ Live Classes (Zoom SDK create + host/attendee join + raise-hand)
-✅ Tests + Attempts (resume-on-existing in_progress)
-✅ Questions with option-images (jsonb)
-✅ Announcements (batch-targeted + in-app notifications)
-✅ Notifications
-✅ Uploads → Supabase Storage
-✅ Contacts (landing form)
-✅ **Payments (Razorpay)** — new in Phase 13
-✅ **Analytics (student + admin)** — new in Phase 13
-✅ Profile page (roll number, batch, personal details)
+## Phase 17 (Feb 2026) — Fixed Question Bank Hierarchy + Test Analysis Dashboard
 
-## Deferred / Not yet re-ported
-- PYQ browser & bulk CSV seeder
-- Custom Test builder
-- Bookmarks
-- Suggestion moderation
-- Teacher CRUD in admin panel (creating teacher accounts)
-- Page-view analytics middleware
-- Test reminder scheduler (email)
+### What's new
+- **Question Bank refactor** — moved from dynamic topics/subtopics to a **seeded fixed hierarchy** (`qb_folders` table). Legacy folders are pruned on each migration run. New structure:
+  ```
+  PYQ
+    JEE
+      JEE Mains        {Physics, Chemistry, Maths}
+      JEE Advanced     {Physics, Chemistry, Maths}
+    NEET               {Physics, Chemistry, Biology}
+    Olympiads          {NSEP, NSEC, NSEB, NSEA, NSEJS}
+  Non-PYQ              {Physics, Chemistry, Maths, Biology}
+  ```
+- **15 MB total image cap per question** (question + all option images), enforced on frontend (live progress bar + rejection) and backend (`MAX_TOTAL_IMAGE_BYTES`).
+- **Difficulty values** restricted to `Easy` / `Moderate` / `Difficult`.
+- **Create Test is bank-only** — manual-question path removed. Teachers must pick questions from the Question Bank folder tree, filtered by batch exclusion (already-assigned questions hidden).
+- **Comprehensive Test Analysis Dashboard** at `/test-analysis/:attemptId` (route added in `App.js`) with 9 ordered sections:
+  1. Score & Summary Bar
+  2. Attempt & Accuracy Rate
+  3. Rank & Percentile (with vs-previous deltas)
+  4. Subject & Topic Breakdown (Strong > 80% / Moderate 50-80% / Weak < 50%)
+  5. Question Type & Difficulty Analysis
+  6. Time Management (Time Traps > 150s flagged, per-subject timing)
+  7. Self-Reported Error Tagging (7 predefined tags + Careless % metric)
+  8. Previous Test Comparison (score / accuracy / negative / attempt-rate deltas)
+  9. Personalized Action Points (Top 3 Issues + Next-Test Goals)
+- **Shared `QBFolderTree` component** (`/app/frontend/src/components/QBFolderTree.js`) — iterative-flatten tree to avoid babel plugin stack-overflow on recursive JSX.
+- Opened Question Bank access to all teachers (previously allow-list of Nitin Saini only); legacy `teacher_has_question_bank()` kept as a shim.
 
-## Test Credentials
-See `/app/memory/test_credentials.md`.
+### Key endpoints added
+- `GET  /api/teacher/qb/folders` — nested folder tree with per-leaf question counts
+- `POST /api/teacher/question-bank` — multipart create (15 MB total image guard)
+- `GET  /api/teacher/question-bank?folder_id=...` — list questions in a leaf
+- `GET  /api/teacher/question-bank/available?folder_ids=...&batch_codes=...` — bank picker with batch-exclusion
+- `POST /api/teacher/question-bank/record-assignments` — track used questions per batch
+- `GET  /api/student/tests/attempts/{attempt_id}/analysis` — full dashboard payload (null/zero safe)
+- `POST /api/student/tests/attempts/{attempt_id}/error-tag` — set / clear self-reported error tag
 
-## Verified via Testing Agent
-- iter14: 32/37 (3 blockers)
-- iter15: 37/37 (Supabase migration solid)
-- iter16: **18/18 (Razorpay + Analytics all green)**
-- iter17: Zoom live-class end-to-end (teacher create/start/end/participants/lower-hand/delete + student list/join/raise-hand/lower-hand + host_zak + signature roles)
+### Key schema changes (migrations run on startup)
+- `qb_folders` (self-referential tree, seeded with 25 fixed paths; prunes anything else)
+- `question_bank.folder_id UUID` (new, FK to qb_folders)
+- `question_bank.topic_id`, `question_bank.subtopic_id` now nullable (legacy only)
+- Dropped old `question_bank_difficulty_check` constraint (now app-validated)
+- `attempt_error_tags(attempt_id TEXT, question_number INT, error_tag TEXT, UNIQUE(attempt_id, qn))`
 
-## Session Feb-2026 wrap
-- Fixed pre-completion oxlint blocker in `frontend/public/service-worker.js` (`clients.openWindow` → `self.clients.openWindow`).
+### Testing
+- Iteration 29 report: 100% pass on 9 backend assertions + full frontend walkthrough (fixed folder tree, 15 MB UI budget, Difficulty select, bank-only CreateTest, Test Analysis page handles bad attempt id).
 
-## External to-do (not code)
-1. Set `RAZORPAY_WEBHOOK_SECRET` in prod after configuring the webhook in Razorpay Dashboard (Settings → Webhooks → Add URL `<REACT_APP_BACKEND_URL>/api/payments/webhook`, events: payment.captured, payment.failed, order.paid). Currently empty → dev mode.
-2. Enable Google OAuth provider in Supabase Dashboard (Client ID/Secret already shared by user).
-3. Add Zoom S2S scopes `user:read:token`, `dashboard:read:list_meeting_participants:admin`, `meeting:delete:meeting:admin` for full participants panel + delete-meeting.
+---
 
-## Backlog
-- P1: Re-port PYQ Bank + CSV seeder
-- P2: Shareable batch join links `/join/JEEM2027`
-- P2: Real-time "live now" banner via Supabase Realtime  *(currently polling every 30 s in `LiveNowBanner`)*
-- P2: Bookmarks + Custom Test builder + Teacher-CRUD admin flow
+## Pending / Backlog
 
-## Phase 14 (Feb 2026) — Score integrity + Live Now + Receipt emails + Time Guard
-- **Server-side score verification** — `services/scoring.py` recomputes correctness from `tests.questions` (MCQ_Single, MCQ_Multiple, Numerical with `answer_range` tolerance). Client `is_correct` is discarded. `negative_marks` clamped to `<=0`. Submit is idempotent.
-- **Test Time Guard** — `student_test_routes.submit()` enforces `(now - started_at) <= duration_minutes + 60 s grace`. Stale attempts are auto-closed with `status='expired'` + `submitted_at=NOW()` and every subsequent submit returns HTTP 400. Autosave on expired returns `{skipped:true}`.
-- **Autosave endpoint** — `PUT /api/student/tests/attempts/{id}/autosave` (matches JEEMainInterface 30 s cadence).
-- **Live Now banner** — `LiveNowBanner` mounted inside `Layout`; polls `/student/live-classes/` every 30 s (pauses when tab hidden), red pulsing bar with "Join Now" CTA when any is_live=true class matches student batch. Session-persisted dismiss per class_id.
-- **Branded PDF payment receipts** — `services/receipt_service.py` builds A4 receipt (reportlab) sent via Resend on `/payments/verify` (via FastAPI BackgroundTasks) + on webhook `payment.captured` with `already_paid` dedupe.
+### P1
+- **SMS OTP Verification** — expand email-only OTP on signup to also offer SMS (Twilio or similar — needs user confirmation of provider).
 
-## Verified via Testing Agent
-- iter14: 32/37 · iter15: 37/37 · iter16: 18/18 · iter17: 20/20 · iter18: 50/50 · iter20: 5/5 (time-guard)
+### P2
+- **Question Bank Bulk Upload** — CSV + zipped images batch upload per leaf folder.
+- **Duplicate Text Check (Question Bank)** — warn if a similar question text already exists in the bank before saving.
+- **Referral Rewards** — admitted-student referral code → fee discount for the referrer.
+- **Receipt Audit Log** — `receipt_email_status` column + admin view.
+- **Dismiss All Banners** — single-click dismiss when multiple live classes go live.
+- **Seed a submitted student attempt** so the Test Analysis dashboard renders populated UI in CI.
+- **Delete / Edit question** UI inside Browse page (API already supports deletion with batch-assignment guard).
 
-## Phase 15 (Feb 2026) — Frontend performance
-- **Route-level code splitting** — every page in `App.js` is now `React.lazy()`; webpack emits per-route chunks (Login 48 KB, Dashboard 93 KB, LandingPage 231 KB, AdminPanel 174 KB) instead of shipping all 2.7 MB upfront.
-- **Suspense fallback** — `components/PageLoader.js` renders a lightweight branded spinner while a chunk downloads.
-- **Section-level lazy load on Landing** — `VideoTestimonials`, `RealResults`, `YouTubeSection` are `lazy()` with their own Suspense fallback; YouTube iframes get `loading="lazy"` and thumbnails get `loading="lazy" decoding="async"`.
-- **Resource hints in `public/index.html`** — preconnect to fonts + `customer-assets.emergentagent.com`, dns-prefetch to youtube + img.youtube, preload `nexuacademy-logo.png`.
-- **Hero image** — `fetchpriority="high"` on the fold-visible founder photo; below-the-fold images marked `loading="lazy" decoding="async"`.
-- P2: Shareable batch join links `/join/JEEM2027`
-- P2: Real-time "live now" banner via Supabase Realtime
-- P2: Bookmarks + Custom Test builder + Teacher-CRUD admin flow
+### P0 (production blocker — waiting on user)
+- Add `RESEND_API_KEY` and `SENDER_EMAIL` to the live `nexuacademy.com` deployment and redeploy so OTP works in prod. (Preview is unaffected — fully working.)
+
+---
+
+## Credentials (also in /app/memory/test_credentials.md)
+- Teacher: `nitinsaini.iitkgp@gmail.com` / `nitin@123`
+- Admin: `admin@nexuacademy.com` / `admin@2026`
+- Student (preseeded roster): first_name lowercase + batch year (e.g. `arjun2027`)

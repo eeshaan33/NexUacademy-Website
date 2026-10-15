@@ -31,16 +31,17 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuth = useCallback(async () => {
     const token = getToken();
-    if (!token) {
-      setLoading(false);
-      return;
-    }
+    // Try /me regardless of localStorage token — the Emergent cookie session
+    // may be present even when we have no Bearer JWT stored client-side.
     try {
-      const response = await axios.get(`${API}/auth/me`, { headers: authHeader() });
+      const response = await axios.get(`${API}/auth/me`, {
+        headers: authHeader(),
+        withCredentials: true,
+      });
       setUser(response.data.user);
       setIsAuthenticated(true);
     } catch {
-      clearTokens();
+      if (token) clearTokens();
       setUser(null);
       setIsAuthenticated(false);
     } finally {
@@ -48,14 +49,77 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  useEffect(() => { checkAuth(); }, [checkAuth]);
+  useEffect(() => {
+    // CRITICAL: If we're returning from an Emergent OAuth callback, skip the
+    // /me check. EmergentAuthCallback will exchange the session_id and set the
+    // cookie first, then update auth state.
+    if (window.location.hash?.includes('session_id=')) {
+      setLoading(false);
+      return;
+    }
+    checkAuth();
+  }, [checkAuth]);
 
   const login = async (email, password) => {
-    const response = await axios.post(`${API}/auth/login`, { email, password });
+    // Stable device id — backend uses it to decide if OTP is needed.
+    let deviceId = '';
+    try {
+      deviceId = localStorage.getItem('nx_device_id') || '';
+      if (!deviceId) {
+        deviceId = (crypto.randomUUID && crypto.randomUUID()) || `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+        localStorage.setItem('nx_device_id', deviceId);
+      }
+    } catch { /* private mode */ }
+
+    const response = await axios.post(
+      `${API}/auth/login`, { email, password },
+      { headers: deviceId ? { 'X-Device-Id': deviceId } : {} },
+    );
+
+    if (response.data?.requires_otp) {
+      // Caller (Login.js) is responsible for showing the OTP step.
+      return response.data;
+    }
     setTokens(response.data.access_token || response.data.token, response.data.refresh_token);
     setUser(response.data.user);
     setIsAuthenticated(true);
     return response.data;
+  };
+
+  const verifyLoginOtp = async (email, password, code) => {
+    const deviceId = localStorage.getItem('nx_device_id') || '';
+    const response = await axios.post(
+      `${API}/auth/otp/verify-login`,
+      { email, password, code },
+      { headers: deviceId ? { 'X-Device-Id': deviceId } : {} },
+    );
+    setTokens(response.data.access_token || response.data.token, response.data.refresh_token);
+    setUser(response.data.user);
+    setIsAuthenticated(true);
+    return response.data;
+  };
+
+  const startSignupOtp = async (fields) => {
+    // fields: {name, email, phone, password, batch_code}
+    const { data } = await axios.post(`${API}/auth/otp/start-signup`, fields);
+    return data;
+  };
+
+  const verifySignupOtp = async (email, code) => {
+    const deviceId = localStorage.getItem('nx_device_id') || '';
+    const response = await axios.post(
+      `${API}/auth/otp/verify-signup`,
+      { email, code },
+      { headers: deviceId ? { 'X-Device-Id': deviceId } : {} },
+    );
+    setTokens(response.data.access_token || response.data.token, response.data.refresh_token);
+    setUser(response.data.user);
+    setIsAuthenticated(true);
+    return response.data;
+  };
+
+  const resendLoginOtp = async (email) => {
+    await axios.post(`${API}/auth/otp/resend-login`, { email });
   };
 
   const register = async (userData) => {
@@ -67,12 +131,26 @@ export const AuthProvider = ({ children }) => {
   };
 
   const loginWithGoogle = async () => {
-    const { data } = await axios.get(`${API}/auth/google/url`);
+    // Always pass the current browser origin so Supabase sends the callback
+    // back to THIS domain (dev / preview / prod) — otherwise it uses whatever
+    // Site URL is configured in the Supabase Dashboard (may be localhost).
+    const redirectTo = `${window.location.origin}/auth/callback`;
+    const { data } = await axios.get(`${API}/auth/google/url`, { params: { redirect_to: redirectTo } });
     if (data.url) window.location.href = data.url;
   };
 
+  const loginWithEmergent = () => {
+    // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS,
+    // THIS BREAKS THE AUTH. Always derive redirect from window.location.origin.
+    const redirectUrl = `${window.location.origin}/dashboard`;
+    window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
+  };
+
   const logout = async () => {
+    // Try both logout endpoints — one clears Supabase state, the other clears
+    // the Emergent cookie session. Whichever the user is on will succeed.
     try { await axios.post(`${API}/auth/logout`, {}); } catch { /* ignore */ }
+    try { await axios.post(`${API}/auth/emergent/logout`, {}, { withCredentials: true }); } catch { /* ignore */ }
     clearTokens();
     setUser(null);
     setIsAuthenticated(false);
@@ -84,7 +162,12 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated,
     login,
     register,
+    verifyLoginOtp,
+    startSignupOtp,
+    verifySignupOtp,
+    resendLoginOtp,
     loginWithGoogle,
+    loginWithEmergent,
     logout,
     setUser,
     setIsAuthenticated,

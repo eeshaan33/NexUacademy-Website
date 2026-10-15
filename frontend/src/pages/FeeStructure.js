@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
-import { CheckCircle, IndianRupee, Shield, BookOpen, Loader2 } from 'lucide-react';
+import { CheckCircle, IndianRupee, Shield, BookOpen, Loader2, Copy, KeyRound } from 'lucide-react';
 import api from '../utils/api';
 import { toast } from 'sonner';
 import { setPageTitle } from '../utils/pageTitle';
@@ -26,7 +26,7 @@ const FeeStructure = () => {
   const [gatewayLoaded, setGatewayLoaded] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, checkAuth } = useAuth();
 
   useEffect(() => { 
     setPageTitle('Admission Fee'); 
@@ -71,6 +71,8 @@ const FeeStructure = () => {
             });
             setPaid(true);
             toast.success('Payment successful! Welcome to NexUacademy 🎉');
+            // Refresh auth so access_tier flips from 'free' → 'live_batch' in-app
+            try { await checkAuth(); } catch { /* non-fatal */ }
             setTimeout(() => navigate('/dashboard', { replace: true }), 2000);
           } catch (e) {
             toast.error('Payment could not be verified. Please contact support.');
@@ -164,6 +166,25 @@ const FeeStructure = () => {
               <p>Signed in as <strong>{user?.email || 'Student'}</strong> · Roll: <strong className="font-mono">{(location.state && location.state.roll_number) || user?.roll_number || '—'}</strong></p>
               <p className="mt-1">Having trouble? Email support@nexuacademy.com</p>
             </div>
+
+            {location.state?.generated_password && (
+              <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-900">
+                <div className="flex items-center gap-2 font-semibold mb-1">
+                  <KeyRound className="h-4 w-4" /> Save your login password
+                </div>
+                <p className="text-xs mb-2">You can also sign in via Google using the same email.</p>
+                <div className="flex items-center gap-2 bg-white rounded px-2 py-1 border border-amber-200">
+                  <code className="font-mono text-sm flex-1" data-testid="generated-password">{location.state.generated_password}</code>
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(location.state.generated_password); toast.success('Copied'); }}
+                    className="text-amber-700 hover:text-amber-900"
+                    data-testid="copy-generated-password-btn"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
